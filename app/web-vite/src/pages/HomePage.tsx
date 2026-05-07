@@ -146,11 +146,6 @@ export default function HomePage() {
 
   return (
     <div className="space-y-3">
-      {/* "FEATURED GIRLS" label — kept OUTSIDE the relative wrapper so the
-          side ads (which use the wrapper's top edge as their anchor) line up
-          with the cards row instead of the label. */}
-      <div className="text-xs tracking-[0.22em] text-brand-muted">FEATURED GIRLS</div>
-
       <div className="relative space-y-10">
         {/* Floating side ads — TWO ads stacked per side, hardcoded in
             SidebarAds.tsx (left = home-1+home-2, right = home-3+home-4).
@@ -228,7 +223,7 @@ export default function HomePage() {
                   // prevents the previous min-h-[44px] + h-[10%] combo from
                   // pushing the image past the aspect-ratio box and getting
                   // clipped (which made the NAME look off-center).
-                  className="group flex aspect-[9/16] flex-col overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50"
+                  className="group flex aspect-[9/16] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
                 >
                   <div className="flex-1 overflow-hidden">
                     <img

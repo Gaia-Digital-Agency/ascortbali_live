@@ -128,6 +128,9 @@ export default function CreatorPanel() {
           return;
         }
         const [p, imgs] = await Promise.all([apiFetch("/me/creator-profile"), apiFetch("/me/creator-images")]);
+        // Default Service Area to "All Bali" when the creator hasn't picked
+        // any zones yet. The next profile save will persist it.
+        if (!String(p?.city ?? "").trim()) p.city = "All Bali";
         setProfile(p);
         setImages(imgs);
       } catch {

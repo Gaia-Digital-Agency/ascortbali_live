@@ -29,6 +29,16 @@ export default function Layout() {
   const [layoutStep, setLayoutStep] = useState<number>(() =>
     typeof window === 'undefined' ? 1 : STEP_FROM_WIDTH(window.innerWidth)
   )
+  // Floating Back-to-Top button visibility — toggles once the user has
+  // scrolled past 600px. We use opacity + pointer-events so the fade is
+  // smooth and the button doesn't intercept clicks while invisible.
+  const [showBackToTop, setShowBackToTop] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Publish the active step as a class on <html> so Tailwind variants
   // `[.step-N_&]:...` can target it. We still scrub step-5 in case any
@@ -153,6 +163,20 @@ export default function Layout() {
       <footer className="border-t border-brand-line">
         <FooterStatus />
       </footer>
+
+      {/* Floating Back-to-Top button — visible after 600px of scroll. Smooth
+          scroll to the page's #top anchor (the <main>). Uses .btn-outline
+          styling for hover consistency with the rest of the site. */}
+      <button
+        type="button"
+        aria-label="Back to top"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className={`btn btn-outline fixed bottom-6 right-6 z-40 h-12 w-12 !min-w-[48px] !min-h-[48px] !p-0 rounded-full transition-opacity duration-200 ${
+          showBackToTop ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <span aria-hidden="true" className="text-base leading-none">↑</span>
+      </button>
 
       {/* Zoom-limit toast — appears when user hits Cmd+/Cmd− past the 4 steps. */}
       {zoomToast ? (

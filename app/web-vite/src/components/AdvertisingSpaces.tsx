@@ -54,6 +54,18 @@ function normalizeAdSpace(ad: AdSpace): AdSpace {
   return { ...ad, image: normalizeAdImage(ad.image), link_url: ad.link_url?.trim() || null };
 }
 
+// Build a meaningful alt for an ad image. Prefer the sponsor's hostname
+// (drops www.) so the alt actually identifies who's advertising. Falls back
+// to a slot tag only when no link URL is configured.
+function altForAd(ad: AdSpace | undefined, slot: string, override?: string) {
+  if (override) return override;
+  const url = ad?.link_url ?? "";
+  if (url) {
+    try { return `Sponsor: ${new URL(url).host.replace(/^www\./, "")}`; } catch { /* malformed URL */ }
+  }
+  return `Advertisement (${slot})`;
+}
+
 function toCreatorImageUrl(file?: string | null) {
   if (!file) return null;
   if (file.startsWith("http://") || file.startsWith("https://")) return file;
@@ -193,7 +205,7 @@ export function FeaturedCarousel() {
   // the side ads' top:0 align with the cards row, not the label).
   if (ads === null) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className={`${cardClass} skeleton rounded-2xl border border-brand-line`} />
         ))}
@@ -205,7 +217,7 @@ export function FeaturedCarousel() {
     const imageUrl = toCreatorImageUrl(creator?.image_file);
     const name = creator?.model_name ?? `Featured ${index}`;
     const card = (
-      <div className={`${cardClass} flex flex-col overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50`}>
+      <div className={`${cardClass} flex flex-col overflow-hidden rounded-2xl bg-brand-surface/30`}>
         <div className="flex-1 overflow-hidden">
           {imageUrl ? (
             <img
@@ -247,7 +259,7 @@ export function FeaturedCarousel() {
 
   return (
     <div ref={scrollRef}>
-      <div ref={girlsScrollRef} className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div ref={girlsScrollRef} className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {renderGirlCard(girls[0], 1)}
         {renderGirlCard(girls[1], 2)}
         {renderGirlCard(girls[2], 3)}
@@ -265,7 +277,7 @@ export function Ad4Card() {
 
   const content = (
     <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50">
-      <img src={ad4.image} alt="Ad 4" className="h-full w-full object-cover" />
+      <img src={ad4.image} alt={altForAd(ad4, "home-4")} className="h-full w-full object-cover" />
     </div>
   );
 
@@ -373,7 +385,7 @@ export function AdSlot({
       src={optimizedSrc ?? ad.image}
       srcSet={srcSet}
       sizes={sizes}
-      alt={alt ?? `Ad ${slot}`}
+      alt={altForAd(ad, slot, alt)}
       width={dims.width}
       height={dims.height}
       loading={eager ? "eager" : "lazy"}

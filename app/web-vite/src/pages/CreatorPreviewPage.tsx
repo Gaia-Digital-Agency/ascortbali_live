@@ -107,7 +107,7 @@ export default function CreatorPreviewPage() {
           ["Height", raw.height],
           ["Weight", raw.weight],
           ["Meeting With", raw.meeting_with],
-          ["Services", raw.services],
+          ["About Me", raw.services],
           // Last four: contact channels — always shown, em-dash if missing.
           ["Phone/SMS", raw.phone_number],
           ["Whatsapp", raw.cell_phone],
@@ -205,9 +205,9 @@ export default function CreatorPreviewPage() {
         <AdSlot slot="home-7" aspect="4/1" eager />
       </section>
 
-      {/* PROFILE / Name header */}
+      {/* CREATOR / Name header */}
       <section>
-        <div className="text-xs tracking-luxe text-brand-muted">PROFILE</div>
+        <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
         <h1 className="mt-2 font-display text-3xl">{data.title}</h1>
       </section>
 
@@ -217,33 +217,30 @@ export default function CreatorPreviewPage() {
       <div>
         <div className="space-y-8">
           <section className="grid gap-4 md:grid-cols-2">
-            {/* FEATURE IMAGE — always visible */}
-            <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6">
-              <div className="text-xs tracking-luxe text-brand-muted">FEATURE IMAGE</div>
-              <button
-                type="button"
-                onClick={() => data.primaryImageUrl && setLightboxImage(data.primaryImageUrl)}
-                className="mt-4 block aspect-[9/16] w-full overflow-hidden rounded-2xl border border-brand-line cursor-zoom-in"
-                aria-label="Open photo in popup"
-              >
-                {data.primaryImageUrl ? (
-                  // LCP candidate for the detail page — high fetch priority
-                  // and explicit dimensions for CLS.
-                  <img
-                    src={data.primaryImageUrl}
-                    alt={data.creatorName}
-                    width={720}
-                    height={1280}
-                    loading="eager"
-                    decoding="sync"
-                    {...({ fetchPriority: "high" } as ImgHTMLAttributes<HTMLImageElement>)}
-                    className="h-full w-full object-cover hover:scale-[1.02] transition duration-500"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-brand-muted">NO IMAGE</div>
-                )}
-              </button>
-            </div>
+            {/* Feature image — chrome dropped; image fills the column. */}
+            <button
+              type="button"
+              onClick={() => data.primaryImageUrl && setLightboxImage(data.primaryImageUrl)}
+              className="block aspect-[9/16] w-full overflow-hidden rounded-2xl cursor-zoom-in"
+              aria-label="Open photo in popup"
+            >
+              {data.primaryImageUrl ? (
+                // LCP candidate for the detail page — high fetch priority
+                // and explicit dimensions for CLS.
+                <img
+                  src={data.primaryImageUrl}
+                  alt={data.creatorName}
+                  width={720}
+                  height={1280}
+                  loading="eager"
+                  decoding="sync"
+                  {...({ fetchPriority: "high" } as ImgHTMLAttributes<HTMLImageElement>)}
+                  className="h-full w-full object-cover hover:scale-[1.02] transition duration-500"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-brand-surface/30 text-xs text-brand-muted">NO IMAGE</div>
+              )}
+            </button>
 
             {/* DETAILS — split into two zones:
                   • Profile information (always visible to everyone).
@@ -319,44 +316,39 @@ export default function CreatorPreviewPage() {
             </div>
           </section>
 
-          {/* IMAGE GALLERY — visible to everyone, including unregistered
-              guests. The contact / profile-info gating is handled in the
-              DETAILS section above; images themselves are public. */}
-          <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6">
-            <div>
-              <div className="text-xs tracking-luxe text-brand-muted">IMAGE GALLERY</div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {data.images.length === 0 ? (
-                  <div className="text-sm text-brand-muted">No cleaned image files found.</div>
-                ) : (
-                  data.images.map((img) => (
-                    <button
-                      key={img.id}
-                      type="button"
-                      onClick={() => img.imageUrl && setLightboxImage(img.imageUrl)}
-                      className="group overflow-hidden rounded-2xl border border-brand-line bg-brand-surface2/40 cursor-zoom-in"
-                    >
-                      <div className="aspect-[9/16] w-full overflow-hidden">
-                        {img.imageUrl ? (
-                          <img
-                            src={img.imageUrl}
-                            alt={img.id ?? "Photo"}
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-brand-muted">NO IMAGE</div>
-                        )}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
+          {/* Image gallery — chrome dropped (no card border, no label). The
+              grid now sits flush in the page, matching the bare feature
+              image above. Images themselves are public; contact gating is
+              handled in the DETAILS section above. */}
+          <section>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {data.images.length === 0 ? (
+                <div className="text-sm text-brand-muted">No cleaned image files found.</div>
+              ) : (
+                data.images.map((img) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => img.imageUrl && setLightboxImage(img.imageUrl)}
+                    className="group overflow-hidden rounded-2xl cursor-zoom-in"
+                  >
+                    <div className="aspect-[9/16] w-full overflow-hidden">
+                      {img.imageUrl ? (
+                        <img
+                          src={img.imageUrl}
+                          alt={img.id ?? "Photo"}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-brand-surface/30 text-xs text-brand-muted">NO IMAGE</div>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
-            {/* MEMBERS ONLY card moved to the DETAILS section (above the
-                fold, beside the primary image). Gallery section is now
-                purely the blurred grid with no overlay. */}
           </section>
 
           {/* Explore Next Girl — 8 random images (no carousel), click → creator page */}
@@ -391,26 +383,27 @@ export default function CreatorPreviewPage() {
         </div>
       </section>
 
-      {/* Lightbox popup for clicked images */}
+      {/* Lightbox popup — image fills 95vw / 95vh; only the close button has
+          a small absolute offset, so padding doesn't crop the photo. */}
       {lightboxImage ? (
         <div
           onClick={() => setLightboxImage(null)}
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
         >
           <button
             type="button"
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 rounded-full border border-white/30 bg-black/60 px-4 py-2 text-white text-sm hover:border-white"
+            className="absolute top-3 right-3 z-10 rounded-full border border-white/30 bg-black/60 px-4 py-2 text-white text-sm hover:border-white"
             aria-label="Close photo"
           >
             CLOSE ✕
           </button>
           <img
             src={lightboxImage}
-            alt="Creator photo"
-            className="max-h-full max-w-full object-contain rounded-2xl"
+            alt={data.creatorName}
+            className="max-h-[95vh] max-w-[95vw] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
