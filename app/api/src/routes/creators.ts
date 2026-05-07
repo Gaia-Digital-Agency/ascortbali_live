@@ -1,6 +1,7 @@
 // Defines routes for fetching creator data.
 import { Router } from "express";
 import { getPool } from "../lib/pg.js";
+import { isUuid } from "../lib/slug.js";
 
 export const creatorsRouter = Router();
 
@@ -10,6 +11,7 @@ const CARD_COLUMNS = `p.uuid,
        p.provider_id,
        p.title,
        p.model_name,
+       p.slug,
        p.is_active,
        p.age,
        p.gender,
@@ -297,20 +299,25 @@ creatorsRouter.get("/", async (req, res) => {
   }
 });
 
-// GET /creators/:uuid — MUST come last (Express matches in declaration order;
-// /:uuid would otherwise eat /random, /by-names, /filter-options).
-creatorsRouter.get("/:uuid", async (req, res) => {
-  const { uuid } = req.params;
+// GET /creators/:idOrSlug — MUST come last (Express matches in declaration
+// order; /:param would otherwise eat /random, /by-names, /filter-options).
+//
+// Accepts either a UUID or a slug. UUID is detected via the standard 8-4-4-4-12
+// hex pattern; everything else is treated as a slug. Returning the slug in
+// the response lets the frontend reuse it for canonical link composition.
+creatorsRouter.get("/:idOrSlug", async (req, res) => {
+  const { idOrSlug } = req.params;
+  const isLookupByUuid = isUuid(idOrSlug);
   const pool = getPool();
   try {
-    // Query for the creator's details. Explicit column list (P13) — the
-    // frontend (CreatorPreviewPage.tsx) only reads these fields. Was
-    // SELECT p.* which shipped all 47 columns including large text bodies
-    // (notes, tour, provides, etc.) on every detail view.
+    // Query for the creator's details. Explicit column list — the frontend
+    // (CreatorPreviewPage.tsx) only reads these fields. SELECT p.* shipped
+    // all 47 columns including large text bodies (notes, tour, provides).
     const creatorRes = await pool.query(
       `SELECT p.uuid,
               p.username,
               p.model_name,
+              p.slug,
               p.age,
               p.gender,
               p.nationality,
@@ -329,21 +336,23 @@ creatorsRouter.get("/:uuid", async (req, res) => {
               p.cell_phone,
               p.telegram_id
          FROM providers p
-        WHERE p.uuid = $1::uuid
+        WHERE ${isLookupByUuid ? "p.uuid = $1::uuid" : "p.slug = $1"}
           AND p.is_active IS TRUE`,
-      [uuid]
+      [idOrSlug]
     );
     if (creatorRes.rows.length === 0) {
       return res.status(404).json({ error: "Not found" });
     }
 
-    // Query for all of the creator's images.
+    // Look up images by the resolved creator's uuid (works whether the
+    // route was hit by UUID or slug — we already have the row).
+    const creatorUuid = creatorRes.rows[0].uuid as string;
     const imagesRes = await pool.query(
       `SELECT image_id, image_file, sequence_number
          FROM provider_images
         WHERE provider_uuid = $1::uuid
         ORDER BY sequence_number ASC, image_id ASC`,
-      [uuid]
+      [creatorUuid]
     );
 
     return res.json({
@@ -351,7 +360,7 @@ creatorsRouter.get("/:uuid", async (req, res) => {
       images: imagesRes.rows,
     });
   } catch (err) {
-    console.error("GET /creators/:uuid failed", { uuid, err });
+    console.error("GET /creators/:idOrSlug failed", { idOrSlug, err });
     return res.status(500).json({ error: "Failed to load creator" });
   }
 });

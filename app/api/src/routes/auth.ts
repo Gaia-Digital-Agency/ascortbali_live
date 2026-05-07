@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { is2FAEnabled, sendWhatsAppOtp } from "../lib/twilio.js";
 import { createOtp, verifyOtp, getPendingLogin } from "../lib/otp.js";
+import { uniqueCreatorSlug } from "../lib/slug.js";
 
 export const authRouter = Router();
 
@@ -623,12 +624,17 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     // Pre-generate UUIDs so we don't need RETURNING (Prisma pool uses $executeRawUnsafe for INSERTs).
     const creatorId = randomUUID();
     const providerId = "P" + creatorId.replace(/-/g, "").slice(0, 8).toUpperCase();
-    const url = `/creator/preview/${creatorId}`;
+    // SEO slug — derived from modelName, dedup with -2/-3 on collision. Frozen
+    // at register time; renames don't regenerate it (otherwise old indexed
+    // /creator/preview/<old-slug> URLs would 404).
+    const slug = await uniqueCreatorSlug(pool, modelName);
+    // Public URL uses the slug now that Phase D has shipped.
+    const url = `/creator/preview/${slug}`;
 
     const hashedPw = await hashPassword(password);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
       [
         creatorId,
         providerId,
@@ -646,6 +652,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         services.join(", "),
         hairLength || null,
         url,
+        slug,
       ]
     );
 
