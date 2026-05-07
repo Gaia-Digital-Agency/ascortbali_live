@@ -1,5 +1,10 @@
 # PROJECT SPECIFIC IMAGE FOLDER
 
+# Ad-hoc / transient transfer dump. Used to stage files between local and
+# server (e.g. logo source uploads, image cleanup inspection bundles).
+# Never source of truth — never committed.
+references/files_transfer/
+
 # WATERMARK PROCESSING FOLDERS
 engine/watermark/clean_reject/
 engine/watermark/debug/
