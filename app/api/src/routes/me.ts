@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { getPool } from "../lib/pg.js";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth.js";
+import { slugify, uniqueCreatorSlug } from "../lib/slug.js";
 
 export const meRouter = Router();
 
@@ -355,6 +356,27 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
       return res.status(409).json({ error: "username_taken", message: "Username is already in use." });
     }
 
+    // Slug regeneration on rename. We compare the incoming modelName to the
+    // currently-stored model_name; if different, we mint a new unique slug
+    // and update the public URL too. Old /creator/preview/<old-slug> URLs
+    // will 404 after rename — accepted trade-off per the user's spec.
+    const currentRes = await pool.query(
+      `SELECT slug, model_name FROM providers WHERE uuid = $1::uuid`,
+      [req.user!.id]
+    );
+    const current = currentRes.rows[0] as { slug: string | null; model_name: string } | undefined;
+    let nextSlug: string = String(current?.slug ?? "");
+    let nextUrl: string = p.url;
+    if (current && slugify(current.model_name ?? "") !== slugify(p.modelName)) {
+      // Name changed — regenerate slug + url.
+      nextSlug = await uniqueCreatorSlug(pool, p.modelName);
+      nextUrl = `/creator/preview/${nextSlug}`;
+    } else if (!nextSlug) {
+      // Defensive: an old row with no slug yet — backfill on first save.
+      nextSlug = await uniqueCreatorSlug(pool, p.modelName);
+      nextUrl = `/creator/preview/${nextSlug}`;
+    }
+
     const updateRes = await pool.query(
       `
         UPDATE providers
@@ -392,6 +414,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                is_active = COALESCE($33, is_active),
                wechat_id = $34,
                escort_type = $35,
+               slug = $36,
                updated_at = NOW()
        WHERE uuid = $1::uuid
        RETURNING uuid::text AS uuid,
@@ -435,7 +458,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         req.user!.id,
         p.username,
         p.title,
-        p.url,
+        nextUrl,
         p.tempPassword,
         p.telegramId,
         p.lastSeen,
@@ -467,6 +490,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         p.isActive,
         p.wechatId,
         p.form,
+        nextSlug,
       ]
     );
     let row = updateRes.rows[0];

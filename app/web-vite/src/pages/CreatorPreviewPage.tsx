@@ -190,20 +190,47 @@ export default function CreatorPreviewPage() {
   }, [lightboxImage]);
 
   if (loading) {
+    // Skeleton mirrors the FULL final page structure so the loading->loaded
+    // transition doesn't grow the page height (CLS fix). Each placeholder
+    // matches the section it stands in for: leaderboard ads (4:1), feature
+    // image + details (9:16 + rows), gallery thumbs (9:16 ×N), explore
+    // strip (9:16 ×8), bottom ad. Without this, /creator/preview/<slug>
+    // measured CLS=0.306 in Lighthouse mobile.
     return (
-      <div className="space-y-8">
-        <div className="skeleton h-3 w-20" />
-        <div className="skeleton h-8 w-48" />
+      <div className="relative space-y-8">
+        {/* Top leaderboard ad */}
+        <section><div className="skeleton aspect-[4/1] w-full rounded-2xl" /></section>
+        {/* Header (CREATOR + name) */}
+        <section><div className="skeleton h-3 w-20" /><div className="skeleton mt-2 h-8 w-48" /></section>
+        {/* Feature image + DETAILS card */}
         <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6">
-            <div className="skeleton aspect-[9/16] w-full rounded-2xl" />
-          </div>
+          <div className="aspect-[9/16] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
           <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6 space-y-3">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="skeleton h-5 w-full" />
+            {Array.from({ length: 18 }).map((_, i) => (<div key={i} className="skeleton h-5 w-full" />))}
+            <div className="mt-6 border-t border-brand-line pt-5 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="skeleton h-5 w-full" />))}
+            </div>
+          </div>
+        </section>
+        {/* Image gallery — match the 3-col layout used post-load */}
+        <section>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="aspect-[9/16] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
             ))}
           </div>
         </section>
+        {/* Explore Next Girl — 8 thumbs in 4-col grid */}
+        <section>
+          <div className="skeleton mb-3 h-3 w-32" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="aspect-[9/16] overflow-hidden rounded-xl"><div className="skeleton h-full w-full" /></div>
+            ))}
+          </div>
+        </section>
+        {/* Bottom leaderboard ad */}
+        <section><div className="skeleton aspect-[4/1] w-full rounded-2xl" /></section>
       </div>
     );
   }

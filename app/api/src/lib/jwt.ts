@@ -25,18 +25,10 @@ export async function signAccessToken(payload: { sub: string; role: string; user
     .sign(key);
 }
 
-// Signs a new refresh token.
-export async function signRefreshToken(payload: { sub: string; role: string; username: string }) {
-  const key = await getPrivateKey();
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg })
-    .setIssuedAt(now)
-    .setIssuer(env.JWT_ISSUER)
-    .setAudience(env.JWT_AUDIENCE)
-    .setExpirationTime(now + env.JWT_REFRESH_TTL_SECONDS)
-    .sign(key);
-}
+// signRefreshToken removed in Phase B (May 2026). Sessions are now a single
+// 24h access token; no refresh path exists. JWT_REFRESH_TTL_SECONDS is
+// likewise unused at runtime — kept in env.ts so deploy scripts that read
+// the schema don't crash.
 
 // Signs a short-lived token for password reset.
 export async function signPasswordResetToken(payload: { sub: string; role: string; username: string }) {
