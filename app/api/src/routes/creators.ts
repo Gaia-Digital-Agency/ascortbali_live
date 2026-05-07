@@ -51,7 +51,13 @@ function ageBandToRange(band: string | null): { min: number; max: number } | nul
 // load; the result only changes when admins add/remove creators or update
 // nationality/height fields. 60s TTL keeps it cheap without being stale.
 let filterOptionsCache: {
-  payload: { nationalities: string[]; heights: string[] };
+  payload: {
+    nationalities: string[];
+    heights: string[];
+    genders: string[];
+    serviceAreas: string[];
+    categories: string[];
+  };
   expiresAt: number;
 } | null = null;
 const FILTER_OPTIONS_TTL_MS = 60_000;
@@ -68,7 +74,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
   }
   const pool = getPool();
   try {
-    const [natRes, htRes] = await Promise.all([
+    const [natRes, htRes, genderRes, areaRes, catRes] = await Promise.all([
       pool.query(
         `SELECT DISTINCT BTRIM(nationality) AS v
            FROM providers
@@ -85,10 +91,46 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
             AND BTRIM(height) <> ''
           ORDER BY v ASC`
       ),
+      // Gender column has mixed casing ("Female" / "female" coexist) — fold
+      // to lower so we don't show two entries for the same gender.
+      pool.query(
+        `SELECT DISTINCT LOWER(BTRIM(gender)) AS v
+           FROM providers
+          WHERE is_active IS TRUE
+            AND gender IS NOT NULL
+            AND BTRIM(gender) <> ''
+          ORDER BY v ASC`
+      ),
+      // city stores comma-separated Bali zones (e.g. "Ubud, Canggu") since
+      // the Service Area picker landed. unnest splits the list, BTRIM trims
+      // surrounding whitespace, DISTINCT folds duplicates.
+      pool.query(
+        `SELECT DISTINCT BTRIM(zone) AS v
+           FROM providers,
+                LATERAL unnest(string_to_array(city, ',')) AS zone
+          WHERE is_active IS TRUE
+            AND city IS NOT NULL
+            AND BTRIM(city) <> ''
+            AND BTRIM(zone) <> ''
+          ORDER BY v ASC`
+      ),
+      // Category = escort_type (Freelance / Escort once Phase E backfills,
+      // plus any legacy values like "Pornstar" that already exist).
+      pool.query(
+        `SELECT DISTINCT LOWER(BTRIM(escort_type)) AS v
+           FROM providers
+          WHERE is_active IS TRUE
+            AND escort_type IS NOT NULL
+            AND BTRIM(escort_type) <> ''
+          ORDER BY v ASC`
+      ),
     ]);
     const payload = {
       nationalities: natRes.rows.map((r: { v: string }) => r.v),
       heights: htRes.rows.map((r: { v: string }) => r.v),
+      genders: genderRes.rows.map((r: { v: string }) => r.v),
+      serviceAreas: areaRes.rows.map((r: { v: string }) => r.v),
+      categories: catRes.rows.map((r: { v: string }) => r.v),
     };
     filterOptionsCache = { payload, expiresAt: now + FILTER_OPTIONS_TTL_MS };
     return res.json(payload);
@@ -170,7 +212,8 @@ creatorsRouter.get("/by-names", async (req, res) => {
 });
 
 // GET /creators?page=N&limit=L&nationality=X&age=Y&height=Z
-//   Paginated + filtered list. The homepage now passes filters server-side
+//                &gender=X&serviceArea=X&category=X
+//   Paginated + filtered list. The homepage passes filters server-side
 //   instead of fetching 500 rows and slicing client-side.
 creatorsRouter.get("/", async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit ?? 25), 1), 500);
@@ -179,6 +222,9 @@ creatorsRouter.get("/", async (req, res) => {
   const nationality = (req.query.nationality as string | undefined)?.trim() || null;
   const heightFilter = (req.query.height as string | undefined)?.trim() || null;
   const ageRange = ageBandToRange((req.query.age as string | undefined) ?? null);
+  const gender = (req.query.gender as string | undefined)?.trim() || null;
+  const serviceArea = (req.query.serviceArea as string | undefined)?.trim() || null;
+  const category = (req.query.category as string | undefined)?.trim() || null;
   const pool = getPool();
   try {
     const conds: string[] = ["p.is_active IS TRUE"];
@@ -196,6 +242,24 @@ creatorsRouter.get("/", async (req, res) => {
       conds.push(`p.age >= $${filterParams.length}`);
       filterParams.push(ageRange.max);
       conds.push(`p.age <= $${filterParams.length}`);
+    }
+    if (gender) {
+      // Match LOWER(gender) — tolerates the existing "Female" / "female" mix.
+      filterParams.push(gender.toLowerCase());
+      conds.push(`LOWER(BTRIM(p.gender)) = $${filterParams.length}`);
+    }
+    if (serviceArea) {
+      // city is a comma-separated zone list; match the requested zone as one
+      // of those entries (case-insensitive, whitespace-trimmed).
+      filterParams.push(serviceArea.toLowerCase());
+      conds.push(`EXISTS (
+        SELECT 1 FROM unnest(string_to_array(p.city, ',')) AS z
+         WHERE LOWER(BTRIM(z)) = $${filterParams.length}
+      )`);
+    }
+    if (category) {
+      filterParams.push(category.toLowerCase());
+      conds.push(`LOWER(BTRIM(p.escort_type)) = $${filterParams.length}`);
     }
     const whereClause = conds.join(" AND ");
     const rowsParams = [...filterParams, limit, offset];

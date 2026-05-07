@@ -49,13 +49,25 @@ export default function HomePage() {
   const selectedNationality = normalize(searchParams.get("nationality"));
   const selectedAge = normalize(searchParams.get("age"));
   const selectedHeight = normalize(searchParams.get("height"));
+  const selectedGender = normalize(searchParams.get("gender"));
+  const selectedServiceArea = normalize(searchParams.get("serviceArea"));
+  const selectedCategory = normalize(searchParams.get("category"));
 
   const [pageItems, setPageItems] = useState<Creator[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filterOptions, setFilterOptions] = useState<{ nationalities: string[]; heights: string[] }>({
+  const [filterOptions, setFilterOptions] = useState<{
+    nationalities: string[];
+    heights: string[];
+    genders: string[];
+    serviceAreas: string[];
+    categories: string[];
+  }>({
     nationalities: [],
     heights: [],
+    genders: [],
+    serviceAreas: [],
+    categories: [],
   });
 
   const tagline = settings?.tagline || "FREE BALI GIRLS";
@@ -74,6 +86,9 @@ export default function HomePage() {
         if (selectedNationality) params.set("nationality", selectedNationality);
         if (selectedAge) params.set("age", selectedAge);
         if (selectedHeight) params.set("height", selectedHeight);
+        if (selectedGender) params.set("gender", selectedGender);
+        if (selectedServiceArea) params.set("serviceArea", selectedServiceArea);
+        if (selectedCategory) params.set("category", selectedCategory);
         const res = await fetch(`${API_BASE}/creators?${params.toString()}`, { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
@@ -90,7 +105,7 @@ export default function HomePage() {
     };
     run();
     return () => controller.abort();
-  }, [page, selectedNationality, selectedAge, selectedHeight]);
+  }, [page, selectedNationality, selectedAge, selectedHeight, selectedGender, selectedServiceArea, selectedCategory]);
 
   // Filter dropdown universe — fetched once, server-cached for 60s.
   useEffect(() => {
@@ -103,6 +118,9 @@ export default function HomePage() {
         if (!cancelled) setFilterOptions({
           nationalities: Array.isArray(data.nationalities) ? data.nationalities : [],
           heights: Array.isArray(data.heights) ? data.heights : [],
+          genders: Array.isArray(data.genders) ? data.genders : [],
+          serviceAreas: Array.isArray(data.serviceAreas) ? data.serviceAreas : [],
+          categories: Array.isArray(data.categories) ? data.categories : [],
         });
       } catch { /* ignore */ }
     })();
@@ -111,9 +129,15 @@ export default function HomePage() {
 
   const nationalityOptions = filterOptions.nationalities;
   const heightOptions = filterOptions.heights;
+  const genderOptions = filterOptions.genders;
+  const serviceAreaOptions = filterOptions.serviceAreas;
+  const categoryOptions = filterOptions.categories;
   const ageOptions = ["18-24", "25-29", "30-34", "35+"];
 
-  const hasActiveFilters = Boolean(selectedNationality || selectedAge || selectedHeight);
+  const hasActiveFilters = Boolean(
+    selectedNationality || selectedAge || selectedHeight ||
+    selectedGender || selectedServiceArea || selectedCategory
+  );
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
@@ -123,6 +147,9 @@ export default function HomePage() {
     if (selectedNationality) params.set("nationality", selectedNationality);
     if (selectedAge) params.set("age", selectedAge);
     if (selectedHeight) params.set("height", selectedHeight);
+    if (selectedGender) params.set("gender", selectedGender);
+    if (selectedServiceArea) params.set("serviceArea", selectedServiceArea);
+    if (selectedCategory) params.set("category", selectedCategory);
     return `/?${params.toString()}`;
   };
 
@@ -181,10 +208,16 @@ export default function HomePage() {
           selectedNationality={selectedNationality}
           selectedAge={selectedAge}
           selectedHeight={selectedHeight}
+          selectedGender={selectedGender}
+          selectedServiceArea={selectedServiceArea}
+          selectedCategory={selectedCategory}
           nationalityOptions={nationalityOptions}
           ageOptions={ageOptions}
           heightOptions={heightOptions}
-          className="md:grid-cols-4"
+          genderOptions={genderOptions}
+          serviceAreaOptions={serviceAreaOptions}
+          categoryOptions={categoryOptions}
+          className="md:grid-cols-4 lg:grid-cols-7"
         />
       </section>
 
