@@ -6,4 +6,4 @@ Disallow: /user/logged
 Disallow: /creator/logged
 Disallow: /api/
 
-Sitemap: https://baligirls.gaiada.online/sitemap.xml
+Sitemap: https://baligirls.gaiada2.online/sitemap.xml

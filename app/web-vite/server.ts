@@ -225,7 +225,9 @@ app.get('/robots.txt', (_req, res) => {
 // Dynamically generate sitemap.xml with creator profiles
 app.get('/sitemap.xml', async (_req, res) => {
   try {
-    const base = process.env.PUBLIC_SITE_URL || 'https://baligirls.gaiada.online'
+    // Default to the live domain (gaiada2.online). Override with PUBLIC_SITE_URL
+    // in .env if/when the site moves to another host.
+    const base = process.env.PUBLIC_SITE_URL || 'https://baligirls.gaiada2.online'
     const apiBase = process.env.INTERNAL_API_URL || 'http://127.0.0.1:8001'
     const staticUrls = [
       '/',

@@ -1,9 +1,9 @@
 # Baligirls
 
 - README.md creation date: February 24, 2026
-- Last updated: April 29, 2026 (production on `gda-ce01`; legacy `app/web` removed; SSR claim corrected to SPA)
+- Last updated: May 7, 2026 (migrated from `gda-ce01` to `gda-pn01`; live at `baligirls.gaiada2.online`; new repo `ascortbali_live`)
 - GitHub remote name: `origin`
-- GitHub remote URL: `git@github.com:Gaia-Digital-Agency/ascortbali_staging.git` (repo name retains the legacy `ascortbali_staging` slug; this checkout is now the production tree)
+- GitHub remote URL: `git@github.com:Gaia-Digital-Agency/ascortbali_live.git` (this is the production tree; the older `ascortbali_staging` repo is no longer the source of truth)
 - Developed by Gaida.com
 - Copyright (C) 2026
 
@@ -18,18 +18,58 @@ Primary stack:
   - The same Express server also handles GCS-backed image routes (`/api/upload`, `/api/uploads`, `/api/admin-asset`, `/api/clean-image`, `/api/static`) and `/sitemap.xml`.
 - Express API in `app/api` (port 8001) — uses Prisma client (raw `$queryRawUnsafe` for the legacy `providers/app_accounts/…` tables; typed Prisma for newer tables like `Service`)
 - PostgreSQL 18.3 (PG16 rollback cluster preserved on port 5433)
-- Google Cloud Storage for media — authenticated via the VM's default service account (ADC, no key file)
-- Twilio for WhatsApp 2FA
+- Google Cloud Storage for media — authenticated via a service-account JSON key (`/etc/gda-credentials/gda-viceroy-17373de6d690.json`, mode 600). The VM's default compute service account is read-only-scoped, so a key file with `storage.objectAdmin` on the bucket is required for uploads/deletes.
+- Twilio for WhatsApp 2FA — **currently disabled** in production (`WHATSAPP_2FA_ENABLED=false`)
 - nginx serves `/assets/*` (Vite-hashed, immutable, 1-year cache) directly from `dist/client/assets/` and proxies the rest to the Node processes
-- PM2 + nginx on the production VM (`gda-ce01`)
+- PM2 + nginx on the production VM (`gda-pn01`)
 - pnpm monorepo (single workspace glob: `app/*`)
 
 > **Note:** A legacy Next.js 14 implementation lived in `app/web` (deleted on 2026-04-29). The frontend migrated to Vite SPA on 2026-04-15. Use `app/web-vite` for all new frontend work.
 
+## Recent Changes (May 2026 migration)
+
+The app moved from `gda-ce01` (`baligirls.gaiada1.online`) to `gda-pn01` (`baligirls.gaiada2.online`) on 2026-05-06/07. Notable changes captured in the cutover:
+
+**Infrastructure**
+- New host: `gda-pn01` (GCE, external `34.2.143.47`, internal `10.148.0.9`).
+- Dedicated nginx vhost at `/etc/nginx/sites-enabled/baligirls` with its own Let's Encrypt cert.
+- GCS auth switched from default-compute-SA (read-only) to a service-account JSON key (`/etc/gda-credentials/gda-viceroy-17373de6d690.json`) — uploads + deletes now work end-to-end.
+- 2FA env-parser bug fixed: `WHATSAPP_2FA_ENABLED=false` was being silently flipped to `true` by `z.coerce.boolean()`. Replaced with an explicit string-match parser; 2FA is now off in production.
+- Sitemap, robots.txt, and `index.html` (`og:url`, `canonical`) now point to `baligirls.gaiada2.online` (`PUBLIC_SITE_URL` overrideable via env).
+
+**UX / product**
+- New brand logo + multi-size favicon (256×256 source, retina-clean at 56 px header display).
+- Two stacked side ads per side (left = `home-1` + `home-2`, right = `home-3` + `home-4`) on every page that has side ads.
+- Top pagination removed from the homepage; bottom pagination retained.
+- Site-wide button hover states reworked (no more clipping inside `overflow-hidden` containers); custom gold chevron + 2.75 rem right padding on every `<select>`.
+- Creator card NAME strip is now a fixed-height (44 px) row that always vertically centers correctly.
+
+**Creator / public profile**
+- New field: **WeChat ID** (added via creator registration → profile → public view; stored in `providers.wechat_id`).
+- Public profile DETAILS now split into two zones with a visible separator:
+  - **Profile info** — visible to everyone (guests included).
+  - **Contact** — last four rows (Phone/SMS, Whatsapp, Telegram, WeChat ID), always rendered (em-dash if empty), blurred for guests with a MEMBERS ONLY overlay.
+- Image gallery + feature image are now visible to guests (only contacts gated).
+
+**Creator profile management page**
+- `NOTES` field renamed to `ABOUT ME` (DB column unchanged).
+- `CITY` text input replaced by a multi-area **SERVICE AREA** checklist popover (All Bali / Ubud / Seminyak / Canggu / Nusa Dua / Sanur / Kuta / Denpasar / Jimbaran / Uluwatu / Legian / Tabanan / Pererenan / Bukit / Gianyar). Stored comma-separated in the existing `providers.city` column (max bumped from 50 → 500 chars).
+- `COUNTRY` field removed from the editor (DB column kept; API now treats it as optional).
+- Gender choices restricted to **Female / Transgender** (matches registration). Existing rows with other values aren't broken.
+
+**Creator registration page**
+- Gender choices: **Female / Transgender** only (Male and Undisclosed removed).
+- `HAIR LENGTH` and `SERVICES` fields removed entirely — those live in the profile editor only.
+- Contact fields: Phone/SMS (required) + Whatsapp (required, used for 2FA when enabled) + Telegram (optional) + WeChat ID (optional).
+
+**Repo / source control**
+- Source canonical repo is now `git@github.com:Gaia-Digital-Agency/ascortbali_live.git` — first commit landed on `main` on 2026-05-07.
+- Production checkout on `gda-pn01` lives at `/var/www/baligirls/` (deployment target). The clone for git operations lives at `/home/azlan/repos/ascortbali_live/`.
+
 ## Architecture
 
 ```
-┌──────────────────────── baligirls.gaiada1.online (NGINX) ───────────────────────┐
+┌──────────────────────── baligirls.gaiada2.online (NGINX) ───────────────────────┐
 │                                                                                  │
 │  /api/upload, /api/uploads, /api/admin-asset, /api/clean-image                   │
 │           →  127.0.0.1:8002   baligirls-web-vite (handles GCS upload/serving)    │
@@ -43,8 +83,9 @@ Primary stack:
                   PG16 rollback cluster on localhost:5433 (idle)
                                       │
                                       ▼
-                    Google Cloud Storage (gda-ce01-bucket)
-                    auth: VM default service account (ADC, cloud-platform scope)
+                    Google Cloud Storage (gda-ce01-bucket — name kept post-migration)
+                    auth: service-account JSON key
+                          /etc/gda-credentials/gda-viceroy-17373de6d690.json
 ```
 
 ### Monorepo layout
@@ -82,8 +123,8 @@ cd app/web-vite && pnpm dev
 ```
 
 Production:
-- Web: `https://baligirls.gaiada1.online`
-- API: `https://baligirls.gaiada1.online/api`
+- Web: `https://baligirls.gaiada2.online`
+- API: `https://baligirls.gaiada2.online/api`
 
 Server (PM2-managed):
 ```bash
@@ -96,17 +137,17 @@ pm2 save
 
 | URL | Description |
 |-----|-------------|
-| `https://baligirls.gaiada1.online` | Homepage — featured carousel, creator grid, ads |
-| `https://baligirls.gaiada1.online/user` | User login |
-| `https://baligirls.gaiada1.online/user/register` | User registration |
-| `https://baligirls.gaiada1.online/user/logged` | User profile dashboard |
-| `https://baligirls.gaiada1.online/creator` | Creator login |
-| `https://baligirls.gaiada1.online/creator/register` | Creator registration |
-| `https://baligirls.gaiada1.online/creator/logged` | Creator profile dashboard |
-| `https://baligirls.gaiada1.online/creator/preview/:id` | Public creator profile page |
-| `https://baligirls.gaiada1.online/admin` | Admin login |
-| `https://baligirls.gaiada1.online/admin/logged` | Admin CMS dashboard |
-| `https://baligirls.gaiada1.online/api` | API base path |
+| `https://baligirls.gaiada2.online` | Homepage — featured carousel, creator grid, ads |
+| `https://baligirls.gaiada2.online/user` | User login |
+| `https://baligirls.gaiada2.online/user/register` | User registration |
+| `https://baligirls.gaiada2.online/user/logged` | User profile dashboard |
+| `https://baligirls.gaiada2.online/creator` | Creator login |
+| `https://baligirls.gaiada2.online/creator/register` | Creator registration |
+| `https://baligirls.gaiada2.online/creator/logged` | Creator profile dashboard |
+| `https://baligirls.gaiada2.online/creator/preview/:id` | Public creator profile page |
+| `https://baligirls.gaiada2.online/admin` | Admin login |
+| `https://baligirls.gaiada2.online/admin/logged` | Admin CMS dashboard |
+| `https://baligirls.gaiada2.online/api` | API base path |
 
 - Web traffic under `/` is routed by NGINX to `127.0.0.1:8002` (Vite SSR Express server)
 - API traffic under `/api` is routed by NGINX to `127.0.0.1:8001` (Express API)
@@ -172,21 +213,20 @@ pm2 save
 - Bcrypt password hashing (auto-upgrades legacy plaintext on login)
 
 ### WhatsApp 2FA (Optional)
-- Production has it **enabled** (`WHATSAPP_2FA_ENABLED=true` in `app/api/.env`); disable by setting `false`
-- When enabled, sends 6-digit OTP via WhatsApp (Twilio) after password validation
-- OTP expires in 5 minutes, max 5 attempts
-- Resend code and back-to-login options on verification screen
-- Graceful fallback: if WhatsApp send fails, login proceeds normally
-- Applies to all portals when account has a WhatsApp number
-- Setup guide: `twilio_auth_guide.md`
+- Production currently has it **disabled** (`WHATSAPP_2FA_ENABLED=false` in `app/api/.env`).
+- When enabled, sends 6-digit OTP via WhatsApp (Twilio) after password validation, OTP expires in 5 minutes, max 5 attempts.
+- Resend code and back-to-login options on verification screen. Graceful fallback: if WhatsApp send fails, login proceeds normally.
+- Applies to all portals when account has a WhatsApp number.
+- Setup guide: `twilio_auth_guide.md`.
+- **Important**: the env parser in `app/api/src/lib/env.ts` parses this as an explicit string match (`"true"` / `"1"` / `"yes"` / `"on"`). Earlier `z.coerce.boolean()` was treating `"false"` as `true` (because `Boolean("false") === true`); that bug was fixed on 2026-05-07. To re-enable 2FA, set `WHATSAPP_2FA_ENABLED=true` and `pm2 restart baligirls-api`.
 
 API endpoints:
 - `POST /auth/2fa/verify` — submit OTP code
 - `POST /auth/2fa/resend` — resend OTP
 
-Environment variables:
+Environment variables (in `app/api/.env`):
 ```
-WHATSAPP_2FA_ENABLED=true
+WHATSAPP_2FA_ENABLED=false   # set to "true" to re-enable
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
@@ -194,16 +234,16 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 
 ## Repo Notes
 
-- Production host: `gda-ce01` (GCE, `asia-southeast1-b`) — external `34.158.47.112`, internal `10.148.0.4`
-- Internal web port: `8002` (Vite SSR Express server, active)
+- Production host: `gda-pn01` (GCE) — external `34.2.143.47`, internal `10.148.0.9`
+- Internal web port: `8002` (Vite SPA + Express server, active)
 - Internal API port: `8001`
 - Legacy Next.js (`baligirls-web`, port `3001`) is not deployed on this server
-- HTTPS: served via nginx at `https://baligirls.gaiada1.online` (config: `/etc/nginx/sites-enabled/gaiada1-subdomains`)
-- TLS: shared `gaiada1.online` Let's Encrypt cert at `/etc/letsencrypt/live/gaiada1.online/`
-- Co-tenants on this VM: `schoolcatering-api`, `schoolcatering-web` (separate apps, unrelated processes)
-- Monorepo workspaces: `app/*`, `packages/*`
+- HTTPS: served via nginx at `https://baligirls.gaiada2.online` (config: `/etc/nginx/sites-enabled/baligirls`, dedicated per-host file)
+- TLS: dedicated Let's Encrypt cert at `/etc/letsencrypt/live/baligirls.gaiada2.online/` (Certbot-managed, auto-renew via systemd timer)
+- Co-tenants on this VM: `essentialbali`, `essentialbali-cms`, `essentialbali-daily-feed`, `schoolcatering-api`, `schoolcatering-web` (separate apps, unrelated processes)
+- Monorepo workspaces: `app/*` (single glob in `pnpm-workspace.yaml`)
 - Root scripts: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`
-- Some internal identifiers still use legacy `ascortbali` naming (package names in `app/api`, GitHub repo name, database name)
+- Some internal identifiers still use legacy `ascortbali` naming (package names in `app/api` like `@ascortbali/api`, database name `ascortbali`). The GitHub repo slug is now `ascortbali_live`.
 
 ## PM2 Processes
 
@@ -218,10 +258,11 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 - Bucket: `gda-ce01-bucket`
 - Upload prefix: `baligirls/uploads`
 - Ads upload path: `baligirls/ads`
-- Auth: VM default service account with `cloud-platform` scope (Application Default Credentials). **No key file** is mounted in production — `GOOGLE_APPLICATION_CREDENTIALS` is intentionally unset; the staging-era `.secrets/gda-s01-storage-key.json` does not exist here.
+- Auth: **service-account JSON key** at `/etc/gda-credentials/gda-viceroy-17373de6d690.json` (mode 600, owned by `azlan`). The VM's default compute SA on `gda-pn01` only has `devstorage.read_only` scope, which fails uploads with `Provided scope(s) are not authorized`; the SA from the key file has `storage.objectAdmin` on the bucket and is what the Storage client uses. Set via `GOOGLE_APPLICATION_CREDENTIALS` in `app/web-vite/.env` (and add to `app/api/.env` if/when the API also needs to write to GCS, e.g. for delete-on-image-removal).
 - Runtime env (set in `app/web-vite/.env`):
-  - `GCS_BUCKET_NAME=gda-ce01-bucket`
+  - `GCS_BUCKET_NAME=gda-ce01-bucket` (bucket name retained from old VM — name is just an identifier, no need to rename post-migration)
   - `GCS_UPLOAD_PREFIX=baligirls/uploads`
+  - `GOOGLE_APPLICATION_CREDENTIALS=/etc/gda-credentials/gda-viceroy-17373de6d690.json`
 - Upload endpoint: `POST /api/upload` (proxied by nginx to web-vite, not the API)
 - Uploaded file retrieval: `GET /api/uploads/<object-key>` (also served by web-vite)
 - Other GCS-backed routes proxied to web-vite: `/api/admin-asset`, `/api/clean-image`
@@ -307,15 +348,15 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 
 ---
 
-## Production Health Audit (2026-05-04)
+## Production Health Audit (2026-05-07)
 
 ### Service Status — ✅ All Healthy
 
 | Endpoint | Status |
 |----------|--------|
-| `https://baligirls.gaiada1.online/` | 200 |
-| `https://baligirls.gaiada1.online/api/ads` | 200 |
-| `https://baligirls.gaiada1.online/api/creators?page=1&limit=5` | 200 |
+| `https://baligirls.gaiada2.online/` | 200 |
+| `https://baligirls.gaiada2.online/api/ads` | 200 |
+| `https://baligirls.gaiada2.online/api/creators?page=1&limit=5` | 200 |
 
 ### PM2 Process Manager — Running
 
@@ -338,14 +379,13 @@ Notes:
 - No `ecosystem.config.js` at the repo root; PM2 is configured via the in-memory dump (`pm2 save`). To rebuild config-as-code, generate one from current state with `pm2 ecosystem` and check it in.
 - No cron jobs configured for the app (no scheduled cleanup, no log rotation by app — relies on PM2 internal logs)
 
-### Production Domain — Not Yet Mapped
+### Production Domain — Subdomain Only (no apex domain provisioned)
 
-- The app is currently only reachable at `https://baligirls.gaiada1.online` (subdomain on shared `gaiada1.online` Let's Encrypt cert).
-- A real production domain has **not** been provisioned on this VM. Specifically:
+- The app is reachable at `https://baligirls.gaiada2.online` only — a subdomain of `gaiada2.online`, served from a dedicated nginx server block (`/etc/nginx/sites-enabled/baligirls`) with its own Let's Encrypt cert at `/etc/letsencrypt/live/baligirls.gaiada2.online/`.
+- A real production domain (e.g. `baligirls.com`) has **not** been provisioned. Specifically:
   - `baligirls.com` resolves to `13.223.25.84` (AWS — unrelated third-party site, not us)
   - `baligirls.id`, `baligirls.co.id`, `baligirlsbali.com` — all NXDOMAIN
-- No nginx server block exists for any production hostname; only the `baligirls.gaiada1.online` block in `/etc/nginx/sites-enabled/gaiada1-subdomains` is live.
-- When a production domain is chosen and registered, the cutover will require: (a) DNS A record → `34.158.47.112`, (b) dedicated Let's Encrypt cert (DNS-01 or HTTP-01), (c) new nginx server block in a sites-available file (mirroring the `baligirls.gaiada1.online` block but referencing the new cert), (d) reload.
+- When a production domain is chosen and registered, the cutover will require: (a) DNS A record → `34.2.143.47`, (b) issue a Let's Encrypt cert (DNS-01 or HTTP-01) for the new hostname, (c) new nginx server block (mirror `/etc/nginx/sites-enabled/baligirls` with the new `server_name` and cert paths), (d) reload nginx, (e) update `PUBLIC_SITE_URL` in `app/web-vite/.env` and `og:url`/`canonical` in `app/web-vite/index.html` if the new domain becomes canonical.
 
 ### Disk & Database Footprint
 
@@ -378,7 +418,7 @@ Requirements: `engine/requirements_remove_watermark.txt`.
 1. **README earlier states "PM2 + nginx"** (line ~24) — confirmed accurate. Both processes are PM2-managed, not raw `node`/`tsx` despite the bare `node`/`tsx` strings visible in `ps aux`. PM2 spawns these directly (cluster fork for the API, single fork for web-vite via bash → tsx).
 2. **README claims production frontend on port 8002** — confirmed (Vite SPA + Express).
 3. **README mentions both `app/*` and `packages/*` workspaces** — only `app/*` exists in `pnpm-workspace.yaml`; no `packages/` directory. README line referencing both should be reconciled.
-4. **GitHub repo slug is `ascortbali_staging`** — but this checkout is the production tree. Internal package names also still use `ascortbali` (`@ascortbali/api`). Rename is intentionally deferred.
+4. **GitHub repo slug is `ascortbali_live`** as of the May 2026 migration. Internal package names still use the legacy `ascortbali` prefix (`@ascortbali/api`); rename is intentionally deferred to keep imports stable.
 5. **`app/api/node_modules` and `app/web-vite/node_modules` are tiny** (124K, 132K) — pnpm hoists deps to root. Don't mistake their small size for a broken install.
 
 ### Recovery / Restart Quick Reference
