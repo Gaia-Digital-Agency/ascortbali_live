@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { withBasePath } from "../lib/paths";
 import LoginForm from "../components/LoginForm";
+import { PageMeta } from "../components/PageMeta";
 
 export default function CreatorLoginPage() {
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
@@ -34,6 +35,11 @@ export default function CreatorLoginPage() {
 
   return (
     <>
+      <PageMeta
+        title="Creator Sign In — Bali Girls"
+        description="Sign in to your Bali Girls creator account."
+        path="/creator"
+      />
       <LoginForm
         portal="creator"
         label="CREATOR"

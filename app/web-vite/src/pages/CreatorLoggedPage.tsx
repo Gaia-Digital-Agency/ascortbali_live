@@ -3,6 +3,7 @@ import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
+import { PageMeta } from "../components/PageMeta";
 
 type CreatorProfile = {
   username: string;
@@ -360,6 +361,12 @@ export default function CreatorPanel() {
 
   return (
     <div className="space-y-8">
+      <PageMeta
+        title={"Creator Profile — Bali Girls"}
+        description={"Manage your Bali Girls creator profile."}
+        path={"/creator/logged"}
+        index={false}
+      />
       <div>
         <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
         <h1 className="mt-2 font-display text-2xl md:text-3xl">Creator Profile Page</h1>

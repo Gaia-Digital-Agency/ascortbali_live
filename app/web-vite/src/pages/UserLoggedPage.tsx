@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
+import { PageMeta } from "../components/PageMeta";
 
 type UserProfile = {
   email: string;
@@ -112,6 +113,12 @@ export default function UserDashboard() {
 
   return (
     <div className="space-y-8">
+      <PageMeta
+        title={"Member Profile — Bali Girls"}
+        description={"Your Bali Girls member profile."}
+        path={"/user/logged"}
+        index={false}
+      />
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="mt-2 font-display text-3xl">USER INFORMATION</h1>

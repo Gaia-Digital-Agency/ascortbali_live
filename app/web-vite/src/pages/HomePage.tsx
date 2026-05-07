@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { FeaturedCarousel, AdSlot, useSiteSettings } from "../components/AdvertisingSpaces";
 import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
+import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
 
 type Creator = {
   uuid: string;
+  slug?: string | null;
   model_name?: string | null;
   username?: string | null;
   image_file?: string | null;
@@ -171,8 +174,26 @@ export default function HomePage() {
     </div>
   );
 
+  // JSON-LD Organization schema for the homepage. Helps search engines
+  // identify the site as a coherent brand.
+  const orgJsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_BASE,
+    logo: `${SITE_BASE}/baligirls_logo.png`,
+  });
+
   return (
     <div className="space-y-3">
+      <PageMeta
+        title="Bali Girls — Free, Real, Simple"
+        description="A marketplace connecting creators and members in Bali. Browse featured profiles, ads, and services."
+        path="/"
+      />
+      <Helmet>
+        <script type="application/ld+json">{orgJsonLd}</script>
+      </Helmet>
       <div className="relative space-y-10">
         {/* Floating side ads — TWO ads stacked per side, hardcoded in
             SidebarAds.tsx (left = home-1+home-2, right = home-3+home-4).
@@ -250,7 +271,7 @@ export default function HomePage() {
               return (
                 <Link
                   key={creator.uuid}
-                  to={`/creator/preview/${creator.uuid}`}
+                  to={`/creator/preview/${creator.slug || creator.uuid}`}
                   // flex flex-col so the image takes the remaining vertical
                   // space and the name strip below is a fixed-height row —
                   // prevents the previous min-h-[44px] + h-[10%] combo from

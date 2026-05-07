@@ -242,9 +242,11 @@ app.get('/sitemap.xml', async (_req, res) => {
     try {
       const r = await fetch(`${apiBase}/creators?page=1&limit=500`)
       if (r.ok) {
-        const json = await r.json() as { items?: Array<{ uuid?: string }> }
+        const json = await r.json() as { items?: Array<{ uuid?: string; slug?: string | null }> }
+        // Prefer slug (Phase D) — readable + SEO-friendly. Fall back to uuid
+        // for any legacy row that somehow lacks a slug.
         creatorUrls = (json.items ?? [])
-          .map(c => c.uuid)
+          .map(c => c.slug || c.uuid)
           .filter((u): u is string => !!u)
           .map(u => `/creator/preview/${u}`)
       }
@@ -264,6 +266,69 @@ ${urls.map(u => `  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod></url>`).
 })
 
 const distPath = path.join(__dirname, 'dist', 'client')
+
+// ── Per-route meta substitution (Phase D, item 70) ──────────────────────
+// The SPA's static index.html ships hardcoded meta tags. For per-route SEO
+// we substitute them server-side BEFORE shipping the HTML, so crawlers
+// (including ones that don't run JS) see the right title / description /
+// og / canonical for each URL on the very first byte. react-helmet-async
+// will further update the head client-side after hydration.
+const SSR_SITE_BASE = process.env.PUBLIC_SITE_URL || 'https://baligirls.gaiada2.online'
+const SSR_DEFAULT_OG = `${SSR_SITE_BASE}/og-image.png`
+
+type RouteMeta = { title: string; description: string; image?: string; index?: boolean }
+
+const STATIC_ROUTE_META: Record<string, RouteMeta> = {
+  '/':                  { title: 'Bali Girls — Free, Real, Simple', description: 'A marketplace connecting creators and members in Bali. Browse featured profiles, ads, and services.' },
+  '/user':              { title: 'Sign In — Bali Girls',            description: 'Sign in to your Bali Girls member account.' },
+  '/user/register':     { title: 'Create Account — Bali Girls',     description: 'Sign up to browse Bali Girls creators and contact details.' },
+  '/creator':           { title: 'Creator Sign In — Bali Girls',    description: 'Sign in to your Bali Girls creator account.' },
+  '/creator/register':  { title: 'Create Creator Account — Bali Girls', description: 'Become a Bali Girls creator. Set up your profile, photos, and contact details.' },
+  '/admin':             { title: 'Admin — Bali Girls',              description: 'Admin login.', index: false },
+  '/admin/logged':      { title: 'Admin — Bali Girls',              description: 'Bali Girls admin dashboard.', index: false },
+  '/user/logged':       { title: 'Member Profile — Bali Girls',     description: 'Your Bali Girls member profile.', index: false },
+  '/creator/logged':    { title: 'Creator Profile — Bali Girls',    description: 'Manage your Bali Girls creator profile.', index: false },
+  '/terms':             { title: 'Terms of Use — Bali Girls',       description: 'Terms and conditions for using the Bali Girls platform.' },
+  '/privacy':           { title: 'Privacy Statement — Bali Girls',  description: 'Privacy statement for Bali Girls — how we handle and protect your data.' },
+}
+
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) =>
+  c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;')
+
+function injectMeta(html: string, urlPath: string, meta: RouteMeta): string {
+  const url = SSR_SITE_BASE + (urlPath.startsWith('/') ? urlPath : '/' + urlPath)
+  const og = meta.image ?? SSR_DEFAULT_OG
+  const title = escapeHtml(meta.title)
+  const desc = escapeHtml(meta.description)
+  const robots = meta.index === false ? 'noindex, nofollow' : 'index, follow'
+  return html
+    .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+    .replace(/<meta\s+name="description"[^>]*>/, `<meta name="description" content="${desc}">`)
+    .replace(/<meta\s+name="robots"[^>]*>/, `<meta name="robots" content="${robots}">`)
+    .replace(/<meta\s+property="og:title"[^>]*>/, `<meta property="og:title" content="${title}">`)
+    .replace(/<meta\s+property="og:description"[^>]*>/, `<meta property="og:description" content="${desc}">`)
+    .replace(/<meta\s+property="og:url"[^>]*>/, `<meta property="og:url" content="${url}">`)
+    .replace(/<meta\s+property="og:image"[^>]*>/, `<meta property="og:image" content="${og}">`)
+    .replace(/<meta\s+name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${title}">`)
+    .replace(/<meta\s+name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${desc}">`)
+    .replace(/<meta\s+name="twitter:image"[^>]*>/, `<meta name="twitter:image" content="${og}">`)
+    .replace(/<link\s+rel="canonical"[^>]*>/, `<link rel="canonical" href="${url}">`)
+}
+
+// Resolve route meta for a given URL path. Static routes use the table
+// above; /creator/preview/<slug> is treated as a creator page (a future
+// pass — item 72-onwards — will fetch the creator's name + notes excerpt
+// + primary image from the API and substitute them here).
+function metaForPath(urlPath: string): RouteMeta {
+  if (STATIC_ROUTE_META[urlPath]) return STATIC_ROUTE_META[urlPath]
+  if (urlPath.startsWith('/creator/preview/')) {
+    return { title: 'Creator — Bali Girls', description: 'Browse creator profile, photos, and contact details on Bali Girls.' }
+  }
+  if (urlPath === '/blog' || urlPath.startsWith('/blog/')) {
+    return { title: 'Blog — Bali Girls', description: 'News and stories from Bali Girls.' }
+  }
+  return STATIC_ROUTE_META['/']
+}
 
 // ── Hero-injection for the homepage LCP ─────────────────────────────────
 // PSI flagged "LCP request discovery" + "Network dependency tree" — the
@@ -321,9 +386,24 @@ app.get('/', async (_req, res, next) => {
       if (built) homepageHtmlCache = { html: built, expiresAt: now + HOMEPAGE_HTML_TTL_MS };
     }
     if (homepageHtmlCache) {
+      // Apply per-route meta to the LCP-preloaded HTML.
+      let withMeta = injectMeta(homepageHtmlCache.html, '/', metaForPath('/'));
+      // JSON-LD Organization schema (item 71). Inserted before </head> so
+      // crawlers without JS still see it in the initial HTML payload.
+      const orgJsonLd = JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'Bali Girls',
+        url: SSR_SITE_BASE,
+        logo: `${SSR_SITE_BASE}/baligirls_logo.png`,
+      });
+      withMeta = withMeta.replace(
+        '</head>',
+        `    <script type="application/ld+json">${orgJsonLd}</script>\n  </head>`
+      );
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(homepageHtmlCache.html);
+      res.send(withMeta);
       return;
     }
   } catch { /* fall through */ }
@@ -343,10 +423,20 @@ app.use(express.static(distPath, {
     }
   },
 }))
-app.use('*', (_req, res) => {
+app.use('*', async (req, res) => {
   // SPA fallback — index.html must not be cached so users see updates.
+  // Per-route meta is injected here so crawlers see the right title /
+  // description / og / canonical / robots on the very first byte.
   res.setHeader('Cache-Control', 'no-cache')
-  res.sendFile(path.join(distPath, 'index.html'))
+  try {
+    const urlPath = (req.originalUrl || '/').split('?')[0]
+    const html = await fs.promises.readFile(path.join(distPath, 'index.html'), 'utf8')
+    const withMeta = injectMeta(html, urlPath, metaForPath(urlPath))
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.send(withMeta)
+  } catch {
+    res.sendFile(path.join(distPath, 'index.html'))
+  }
 })
 
 // Optional Sentry error tracking (lazy-loaded)

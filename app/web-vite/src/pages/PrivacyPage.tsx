@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
+import { PageMeta } from "../components/PageMeta";
 
 export default function PrivacyPage() {
   return (
     <div id="top" className="mx-auto max-w-3xl space-y-10 py-4">
+      <PageMeta
+        title={"Privacy Statement — Bali Girls"}
+        description={"Privacy statement for Bali Girls — how we handle and protect your data."}
+        path={"/privacy"}
+        index={true}
+      />
       <div className="text-center">
         <div className="text-xs tracking-luxe text-brand-muted">LEGAL</div>
         <h1 className="mt-2 font-display text-4xl">PRIVACY STATEMENT</h1>

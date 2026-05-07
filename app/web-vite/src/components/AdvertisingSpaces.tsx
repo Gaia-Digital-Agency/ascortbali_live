@@ -13,6 +13,9 @@ type SiteSettings = Record<string, string>;
 
 type FeaturedCreator = {
   uuid: string;
+  // Optional because legacy admin-created rows may lack one. Prefer slug for
+  // link composition, fall back to uuid (the API accepts both).
+  slug?: string | null;
   model_name: string;
   image_file: string | null;
 };
@@ -250,7 +253,7 @@ export function FeaturedCarousel() {
       </div>
     );
     return creator ? (
-      <a key={`girl-${index}`} href={withBasePath(`/creator/preview/${creator.uuid}`)}>{card}</a>
+      <a key={`girl-${index}`} href={withBasePath(`/creator/preview/${creator.slug || creator.uuid}`)}>{card}</a>
     ) : (
       <div key={`girl-${index}`}>{card}</div>
     );

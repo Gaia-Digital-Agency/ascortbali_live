@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
+import { PageMeta } from "../components/PageMeta";
 
 export default function TermsPage() {
   return (
     <div id="top" className="mx-auto max-w-3xl space-y-10 py-4">
+      <PageMeta
+        title={"Terms of Use — Bali Girls"}
+        description={"Terms and conditions for using the Bali Girls platform."}
+        path={"/terms"}
+        index={true}
+      />
 
       <div className="text-center">
         <div className="text-xs tracking-luxe text-brand-muted">LEGAL</div>

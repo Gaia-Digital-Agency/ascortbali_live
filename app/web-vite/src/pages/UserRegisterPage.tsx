@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { API_BASE, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
+import { PageMeta } from "../components/PageMeta";
 
 const NATIONALITIES = [
   "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Argentinian", "Armenian",
@@ -94,6 +95,12 @@ export default function UserRegisterPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
+      <PageMeta
+        title={"Create Account — Bali Girls"}
+        description={"Sign up to browse Bali Girls creators and contact details."}
+        path={"/user/register"}
+        index={true}
+      />
       <div className="text-center">
         <div className="text-xs tracking-luxe text-brand-muted">USER ACCESS</div>
         <h1 className="mt-2 font-display text-3xl">Create Account</h1>

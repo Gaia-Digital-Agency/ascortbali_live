@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
+import { PageMeta } from "../components/PageMeta";
 
 type Me = { username: string; role: string };
 type AdminStats = { creatorCount: number; userCount: number };
@@ -272,6 +273,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <PageMeta
+        title={"Admin — Bali Girls"}
+        description={"Bali Girls admin dashboard."}
+        path={"/admin/logged"}
+        index={false}
+      />
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs tracking-luxe text-brand-muted">ADMIN</div>

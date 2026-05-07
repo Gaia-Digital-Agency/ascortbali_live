@@ -4,10 +4,13 @@ import { API_BASE, apiFetch, getAccessToken } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
 import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
+import { PageMeta, SITE_BASE } from "../components/PageMeta";
 
 type CreatorData = {
   title: string;
   creatorName: string;
+  slug: string;            // for canonical URL
+  description: string;     // 160-char notes excerpt for meta description
   primaryImageUrl: string | null;
   fields: Array<[string, string | number | undefined]>;
   images: Array<{ id?: string; imageUrl?: string | null }>;
@@ -15,6 +18,7 @@ type CreatorData = {
 
 type ExploreCreator = {
   uuid: string;
+  slug?: string | null;
   displayName: string;
   imageUrl: string;
 };
@@ -42,7 +46,9 @@ const normalizeCreatorName = (value?: string | null) => {
 };
 
 export default function CreatorPreviewPage() {
-  const { id: uuid } = useParams<{ id: string }>();
+  // The route param is named :slug now (Phase D), but the API accepts either
+  // a slug or a UUID. Local var name kept generic.
+  const { slug: idOrSlug } = useParams<{ slug: string }>();
   const [data, setData] = useState<CreatorData | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,7 @@ export default function CreatorPreviewPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/creators/${uuid}`);
+        const res = await fetch(`${API_BASE}/creators/${idOrSlug}`);
         if (!res.ok) {
           setNotFound(true);
           return;
@@ -75,13 +81,14 @@ export default function CreatorPreviewPage() {
         // does the random pick + exclude on the server.
         try {
           const listRes = await fetch(
-            `${API_BASE}/creators/random?n=8&exclude=${encodeURIComponent(uuid ?? "")}`
+            `${API_BASE}/creators/random?n=8&exclude=${encodeURIComponent(idOrSlug ?? "")}`
           );
           if (listRes.ok) {
             const listData = await listRes.json();
             const list = Array.isArray(listData.items) ? listData.items : [];
             const picks: ExploreCreator[] = list.map((c: any) => ({
               uuid: c.uuid,
+              slug: c.slug ?? null,
               displayName: normalizeCreatorName(c.model_name || c.username || "Creator"),
               imageUrl: toImageUrl(c.image_file) || "",
             })).filter((c: ExploreCreator) => c.imageUrl);
@@ -116,9 +123,18 @@ export default function CreatorPreviewPage() {
         ];
 
         const imagesLimited = images.slice(0, 20);
+        // Build a meta-description from the about-me text (notes column), or
+        // fall back to a generic line. Trim to 160 chars to fit the SERP
+        // snippet target.
+        const rawNotes = String(raw.notes ?? "").replace(/\s+/g, " ").trim();
+        const description = rawNotes
+          ? (rawNotes.length > 160 ? rawNotes.slice(0, 157) + "..." : rawNotes)
+          : `${displayName} on Bali Girls — meet creators in Bali. Photos, profile, contact.`;
         setData({
           title: displayName,
           creatorName: displayName,
+          slug: String(raw.slug ?? raw.uuid ?? ""),
+          description,
           primaryImageUrl,
           fields,
           images: imagesLimited
@@ -132,7 +148,7 @@ export default function CreatorPreviewPage() {
       }
     };
     run();
-  }, [uuid]);
+  }, [idOrSlug]);
 
   useEffect(() => {
     const hasAuthToken = Boolean(getAccessToken());
@@ -192,8 +208,20 @@ export default function CreatorPreviewPage() {
   const profileFields = data.fields.slice(0, -4);
   const contactFields = data.fields.slice(-4);
 
+  // Build absolute og:image URL from the (relative) primaryImageUrl. If the
+  // creator has no images, fall back to the site default in PageMeta.
+  const ogImage = data.primaryImageUrl
+    ? (data.primaryImageUrl.startsWith("http") ? data.primaryImageUrl : `${SITE_BASE}${data.primaryImageUrl}`)
+    : undefined;
+
   return (
     <div className="relative space-y-8">
+      <PageMeta
+        title={`${data.creatorName} — Bali Girls`}
+        description={data.description}
+        path={`/creator/preview/${data.slug}`}
+        image={ogImage}
+      />
       {/* Floating side ads — TWO ads stacked per side, hardcoded in
           SidebarAds.tsx (left = home-1+home-2, right = home-3+home-4).
           Range = top of TOP ad to bottom of BOTTOM ad. */}
@@ -358,7 +386,7 @@ export default function CreatorPreviewPage() {
               {exploreCreators.map((c) => (
                 <Link
                   key={c.uuid}
-                  to={`/creator/preview/${c.uuid}`}
+                  to={`/creator/preview/${c.slug || c.uuid}`}
                   className="group aspect-[9/16] overflow-hidden rounded-xl border border-brand-line bg-brand-surface/50"
                 >
                   <img
