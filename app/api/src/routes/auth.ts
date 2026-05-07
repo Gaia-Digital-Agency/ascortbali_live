@@ -6,7 +6,6 @@ import { authRateLimit } from "../middleware/rateLimit.js";
 import {
   signAccessToken,
   signPasswordResetToken,
-  signRefreshToken,
   verifyJwt,
   verifyPasswordResetToken,
 } from "../lib/jwt.js";
@@ -100,15 +99,13 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
         } catch {
           // If WhatsApp send fails, fall through to normal login
           const accessToken = await signAccessToken(creatorPayload);
-          const refreshToken = await signRefreshToken(creatorPayload);
-          return res.json({ accessToken, refreshToken });
+          return res.json({ accessToken });
         }
         return res.json({ twoFactorRequired: true, sessionId });
       }
 
       const accessToken = await signAccessToken(creatorPayload);
-      const refreshToken = await signRefreshToken(creatorPayload);
-      return res.json({ accessToken, refreshToken });
+      return res.json({ accessToken });
     }
 
     // Handle admin/user login.
@@ -155,15 +152,13 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       } catch {
         // If WhatsApp send fails, fall through to normal login
         const accessToken = await signAccessToken(accountPayload);
-        const refreshToken = await signRefreshToken(accountPayload);
-        return res.json({ accessToken, refreshToken });
+        return res.json({ accessToken });
       }
       return res.json({ twoFactorRequired: true, sessionId });
     }
 
     const accessToken = await signAccessToken(accountPayload);
-    const refreshToken = await signRefreshToken(accountPayload);
-    return res.json({ accessToken, refreshToken });
+    return res.json({ accessToken });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
@@ -189,8 +184,7 @@ authRouter.post("/2fa/verify", authRateLimit, async (req, res) => {
   }
 
   const accessToken = await signAccessToken(payload);
-  const refreshToken = await signRefreshToken(payload);
-  return res.json({ accessToken, refreshToken });
+  return res.json({ accessToken });
 });
 
 // POST /auth/2fa/resend — resend the OTP to the same WhatsApp number.
@@ -489,23 +483,11 @@ authRouter.post("/forgot-password/reset", authRateLimit, async (req, res) => {
   }
 });
 
-// Zod schema for validating refresh token request.
-const RefreshSchema = z.object({ refreshToken: z.string().min(10) });
-
-// POST route for refreshing access tokens using a refresh token.
-authRouter.post("/refresh", authRateLimit, async (req, res) => {
-  const parsed = RefreshSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
-
-  try {
-    const verified = await verifyJwt(parsed.data.refreshToken);
-    const payload = { sub: verified.sub, role: verified.role, username: verified.username };
-    const accessToken = await signAccessToken(payload);
-    const refreshToken = await signRefreshToken(payload);
-    return res.json({ accessToken, refreshToken });
-  } catch {
-    return res.status(401).json({ error: "invalid_refresh" });
-  }
+// /auth/refresh removed (Phase B: 24h strict access TTL, no refresh tokens).
+// Endpoint kept as 410 Gone so old clients get a clear signal to re-login
+// instead of looping on the missing route.
+authRouter.post("/refresh", authRateLimit, (_req, res) => {
+  return res.status(410).json({ error: "refresh_disabled" });
 });
 
 // Zod schema for user registration.
@@ -592,8 +574,7 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 
     const payload = { sub: accountId, role: "user", username: email };
     const accessToken = await signAccessToken(payload);
-    const refreshToken = await signRefreshToken(payload);
-    return res.status(201).json({ accessToken, refreshToken });
+    return res.status(201).json({ accessToken });
   } catch {
     return res.status(500).json({ error: "registration_failed" });
   }
@@ -670,8 +651,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
 
     const payload = { sub: creatorId, role: "creator", username };
     const accessToken = await signAccessToken(payload);
-    const refreshToken = await signRefreshToken(payload);
-    return res.status(201).json({ accessToken, refreshToken });
+    return res.status(201).json({ accessToken });
   } catch {
     return res.status(500).json({ error: "registration_failed" });
   }

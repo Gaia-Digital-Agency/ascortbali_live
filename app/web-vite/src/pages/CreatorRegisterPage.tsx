@@ -106,7 +106,7 @@ export default function CreatorRegisterPage() {
         if (json?.error === "username_taken") throw new Error("Username is already taken. Choose another.");
         throw new Error(json?.error ?? "Registration failed.");
       }
-      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
+      setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/creator/logged");
     } catch (err: any) {
       setError(err.message ?? "Unable to register.");

@@ -81,7 +81,7 @@ export default function UserRegisterPage() {
         if (json?.error === "username_taken") throw new Error("Email is already taken.");
         throw new Error(json?.error ?? "Registration failed.");
       }
-      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
+      setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/");
     } catch (err: any) {
       setError(err.message ?? "Unable to register.");

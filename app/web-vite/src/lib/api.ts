@@ -1,5 +1,5 @@
 // This module provides functions for interacting with the backend API.
-import { APP_BASE_PATH, withBasePath } from "./paths";
+import { withBasePath } from "./paths";
 
 const browserApiBase = withBasePath("/api");
 
@@ -9,31 +9,35 @@ export const API_BASE =
     ? browserApiBase
     : "/api";
 
-export type Tokens = { accessToken: string; refreshToken: string };
+// Phase B (May 2026): refresh tokens were removed. Sessions are a single
+// 24h access token; on 401 the user is sent back to the matching login page.
+export type Tokens = { accessToken: string };
 
-// Functions for managing authentication tokens.
 export function getAccessToken() {
   if (typeof window === "undefined") return null;
   return window.sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken");
 }
-export function getRefreshToken() {
-  if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem("refreshToken") || localStorage.getItem("refreshToken");
+
+// Back-compat: some older code paths still call getRefreshToken() to "is there
+// any session?" — the function still exists but always returns null. Treat it
+// as deprecated; callers should use getAccessToken() instead.
+export function getRefreshToken(): string | null {
+  return null;
 }
+
 export function setTokens(t: Tokens) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem("accessToken", t.accessToken);
-  window.sessionStorage.setItem("refreshToken", t.refreshToken);
   try {
     localStorage.setItem("accessToken", t.accessToken);
-    localStorage.setItem("refreshToken", t.refreshToken);
   } catch {
     // ignore (storage may be blocked)
   }
   window.dispatchEvent(new Event("auth:change"));
 }
 
-// Clears authentication tokens from session and local storage.
+// Clears authentication tokens from session and local storage. Also scrubs the
+// pre-Phase-B "refreshToken" key in case it lingered from an older session.
 export function clearTokens() {
   if (typeof window === "undefined") return;
   try {
@@ -47,34 +51,34 @@ export function clearTokens() {
   }
 }
 
+// Pick the appropriate login route for the current portal context. Used when
+// a request returns 401 — there is no refresh path anymore, so we send the
+// user back to sign in.
+function loginPathForCurrentRoute(): string {
+  if (typeof window === "undefined") return "/user";
+  const p = window.location.pathname;
+  if (p.startsWith("/admin")) return "/admin";
+  if (p.startsWith("/creator")) return "/creator";
+  return "/user";
+}
+
 // A wrapper around `fetch` that adds the API base URL and authorization token.
+// On 401: clear the (now-expired) token and redirect to the matching login.
+// No refresh attempt — the backend doesn't issue refresh tokens anymore.
 export async function apiFetch<T = any>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   const headers = new Headers(init?.headers);
   if (!headers.get("content-type")) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
 
-  const doFetch = async () => fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
-  let res = await doFetch();
   if (res.status === 401) {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      // Best-effort refresh-once, then retry original request.
-      const refreshed = await fetch(`${API_BASE}/auth/refresh`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => ({})) }));
-
-      if (refreshed.ok && refreshed.body?.accessToken && refreshed.body?.refreshToken) {
-        setTokens({ accessToken: refreshed.body.accessToken, refreshToken: refreshed.body.refreshToken });
-        headers.set("authorization", `Bearer ${refreshed.body.accessToken}`);
-        res = await doFetch();
-      } else {
-        clearTokens();
-      }
+    clearTokens();
+    if (typeof window !== "undefined") {
+      window.location.assign(withBasePath(loginPathForCurrentRoute()));
     }
+    throw new Error("unauthenticated");
   }
 
   if (!res.ok) {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import { Link, useParams } from "react-router-dom";
-import { API_BASE, apiFetch, getAccessToken, getRefreshToken } from "../lib/api";
+import { API_BASE, apiFetch, getAccessToken } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
 import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
@@ -135,7 +135,7 @@ export default function CreatorPreviewPage() {
   }, [uuid]);
 
   useEffect(() => {
-    const hasAuthToken = Boolean(getAccessToken() || getRefreshToken());
+    const hasAuthToken = Boolean(getAccessToken());
     if (!hasAuthToken) { setCanViewFull(false); return; }
     (async () => {
       try {
@@ -325,7 +325,7 @@ export default function CreatorPreviewPage() {
               {data.images.length === 0 ? (
                 <div className="text-sm text-brand-muted">No cleaned image files found.</div>
               ) : (
-                data.images.map((img) => (
+                data.images.map((img, idx) => (
                   <button
                     key={img.id}
                     type="button"
@@ -336,7 +336,7 @@ export default function CreatorPreviewPage() {
                       {img.imageUrl ? (
                         <img
                           src={img.imageUrl}
-                          alt={img.id ?? "Photo"}
+                          alt={`${data.creatorName} photo ${idx + 1}`}
                           loading="lazy"
                           decoding="async"
                           className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"

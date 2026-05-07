@@ -110,7 +110,7 @@ export default function LoginForm({
         return;
       }
 
-      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
+      setTokens({ accessToken: json.accessToken });
 
       const profile = await apiFetch("/me");
       if (roleCheck && !roleCheck(profile.role)) {
@@ -138,7 +138,7 @@ export default function LoginForm({
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error === "invalid_otp" ? "Invalid or expired code. Please try again." : "Verification failed.");
 
-      setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });
+      setTokens({ accessToken: json.accessToken });
 
       const profile = await apiFetch("/me");
       if (roleCheck && !roleCheck(profile.role)) {
