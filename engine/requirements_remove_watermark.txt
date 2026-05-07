@@ -1,0 +1,10 @@
+opencv-python
+numpy
+pillow
+easyocr
+simple-lama-inpainting
+
+# Notes:
+# - easyocr pulls in torch/torchvision (large). Install may take a while.
+# - After installing, verify with:
+#     python3 -c "import cv2, numpy, PIL, easyocr; from simple_lama_inpainting import SimpleLama; print('ok')"

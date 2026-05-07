@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=3" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+
+    <title>Bali Girls — Free, Real, Simple</title>
+    <meta name="description" content="Bali Girls — a marketplace connecting creators and members in Bali. Browse featured profiles, ads, and services. Free, Real, Simple." />
+    <meta name="keywords" content="bali, bali girls, creators, marketplace, companionship, Indonesia" />
+    <meta name="author" content="Gaiada.com" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0a0a0a" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Bali Girls" />
+    <meta property="og:title" content="Bali Girls — Free, Real, Simple" />
+    <meta property="og:description" content="A marketplace connecting creators and members in Bali. Browse featured profiles, ads, and services." />
+    <meta property="og:url" content="https://baligirls.gaiada.online/" />
+    <meta property="og:image" content="https://baligirls.gaiada.online/og-image.png" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bali Girls — Free, Real, Simple" />
+    <meta name="twitter:description" content="A marketplace connecting creators and members in Bali." />
+    <meta name="twitter:image" content="https://baligirls.gaiada.online/og-image.png" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://baligirls.gaiada.online/" />
+
+    <!-- Preload data shared by every route (Layout + AdsProvider).
+         Kicks off the fetches in parallel with the JS chunk download so
+         the SPA finds them in cache the moment it hydrates. -->
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/api/ads" />
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/api/ads/settings" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/entry-client.tsx"></script>
+  </body>
+</html>

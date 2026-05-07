@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================
+ * DESIGN SYSTEM QUICK REFERENCE
+ *
+ * Colors   → tailwind.config.ts  (brand.bg, brand.gold, etc.)
+ * Fonts    → tailwind.config.ts  (fontFamily.display, fontFamily.sans)
+ * Spacing  → Tailwind defaults   (p-4 = 1rem, gap-8 = 2rem, etc.)
+ * Shadows  → tailwind.config.ts  (shadow-luxe)
+ *
+ * To reskin: edit the "colors.brand" object in tailwind.config.ts
+ * ============================================================= */
+
+:root {
+  color-scheme: dark;
+  --font-sans: "Helvetica Neue";
+  --font-display: "Georgia";
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Body base: dark background with gold radial glow + grain texture */
+body {
+  @apply bg-brand-bg text-brand-text font-sans antialiased;
+  background-image: theme("backgroundImage.hero-radial"), theme("backgroundImage.grain");
+  background-repeat: no-repeat, repeat;
+  background-size: cover, 160px 160px;
+}
+
+/* Default link style: off-white, white on hover */
+a {
+  @apply text-brand-text hover:text-white;
+}
+
+/* Gold-tinted text selection */
+::selection {
+  background: rgba(201, 162, 77, 0.35);
+}
+
+/* All buttons and links get the pointer cursor for clear clickability. */
+button:not(:disabled),
+a[href],
+[role="button"] {
+  cursor: pointer;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold tracking-[0.22em] transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* No global lift / outset shadow on hover — both effects get clipped by
+     parent containers with `overflow-hidden` (e.g. the header nav), making
+     borders look truncated. Variant-specific hover styles below provide a
+     stronger visible state without relying on movement or outset shadows. */
+
+  .btn:active {
+    @apply scale-[0.98];
+  }
+
+  .btn:focus-visible {
+    @apply outline-none ring-2 ring-brand-gold/70 ring-offset-2 ring-offset-brand-bg;
+  }
+
+  .btn-primary {
+    /* Primary fills with brand gold. On hover: shift to gold2 and add a soft
+       inset gold glow so the button visibly "lights up" without growing. */
+    @apply bg-brand-gold text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0)]
+           hover:bg-brand-gold2 hover:text-black hover:shadow-[inset_0_0_0_2px_rgba(0,0,0,0.25)];
+  }
+
+  .btn-outline {
+    /* Outline buttons (LOGIN, REGISTER, EDIT PROFILE, LOGOUT, REGISTER-CTA,
+       etc.). Default: thin gold/60 border, off-white text. Hover: solid gold
+       border + white text + gold-tinted fill — the fill is the most visible
+       cue and is fully contained inside the button so nothing gets clipped. */
+    @apply border border-brand-gold/60 text-brand-text
+           hover:border-brand-gold hover:bg-brand-gold/15 hover:text-white;
+  }
+
+  .btn-ghost {
+    /* Ghost: starts neutral, hover lights up to match outline-on-hover. */
+    @apply border border-brand-line text-brand-muted
+           hover:border-brand-gold hover:bg-brand-gold/10 hover:text-white;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
+}
+
+/* Minimal form resets — transparent inputs to match dark surfaces */
+input,
+textarea,
+select {
+  @apply bg-transparent;
+}
+
+/* Site-wide select styling: replaces the inconsistent native arrow with a
+   gold chevron that matches the brand, and reserves right-side padding so
+   long option text never crowds the arrow.
+   - !important on padding-right wins against utility classes like `px-4`
+     without us having to touch every callsite.
+   - Background image is an inline SVG (no extra HTTP request).
+   - background-position: right 1rem center pulls the arrow ~16px off the
+     right edge — visible breathing room.                                  */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a24d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px 12px;
+  padding-right: 2.75rem !important;
+}
+select::-ms-expand { display: none; }
+
+/* Shimmer skeleton loader for loading placeholders */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
