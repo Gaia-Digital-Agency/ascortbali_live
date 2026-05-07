@@ -100,8 +100,13 @@ export default function CreatorPreviewPage() {
         // (Phone/SMS, Whatsapp, Telegram, WeChat ID), in that order, regardless
         // of whether the creator filled them in. Empty values render as an
         // em-dash placeholder via the row template below — never hidden.
+        // Title-case the FORM tag for display ("escort" -> "Escort").
+        const formRaw = String(raw.form ?? raw.escort_type ?? "").trim().toLowerCase();
+        const formDisplay = formRaw ? formRaw.charAt(0).toUpperCase() + formRaw.slice(1) : "";
         const fields: Array<[string, string | number | undefined]> = [
           ["Name", displayName],
+          // Form sits at the top so it's the first thing a viewer sees.
+          ["Form", formDisplay],
           ["Age", raw.age],
           ["Gender", raw.gender],
           ["Nationality", raw.nationality],

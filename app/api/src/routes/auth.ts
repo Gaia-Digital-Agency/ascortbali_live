@@ -595,6 +595,10 @@ const CreatorRegisterSchema = z.object({
   telegramId: z.string().max(100).optional().default(""),
   // WeChat ID is optional at registration time. Stored in providers.wechat_id.
   wechatId: z.string().max(100).optional().default(""),
+  // Form (Phase E): Freelance | Escort. Persisted to providers.escort_type.
+  // Defaults to "freelance" if the form omits it (registration UI marks it
+  // optional but provides a sensible default).
+  form: z.enum(["freelance", "escort"]).optional().default("freelance"),
   // Services and hair length are now optional at registration. Creators are
   // required to fill these in later from the profile editor (which still
   // enforces min length / non-empty via CreatorProfileSchema in me.ts).
@@ -610,7 +614,12 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, services, hairLength } = parsed.data;
+  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, services, hairLength } = parsed.data;
+  // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
+  // the other. Frontend already enforces both as required at register, but
+  // belt-and-braces.
+  const phoneFinal = phoneNumber || whatsapp;
+  const whatsappFinal = whatsapp || phoneNumber;
 
   try {
     // Check username uniqueness.
@@ -633,8 +642,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
 
     const hashedPw = await hashPassword(password);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
       [
         creatorId,
         providerId,
@@ -645,14 +654,15 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         age,
         nationality,
         city,
-        phoneNumber,
-        whatsapp,
+        phoneFinal,
+        whatsappFinal,
         telegramId || null,
         wechatId || null,
         services.join(", "),
         hairLength || null,
         url,
         slug,
+        form,
       ]
     );
 

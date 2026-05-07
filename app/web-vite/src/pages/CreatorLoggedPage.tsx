@@ -16,6 +16,7 @@ type CreatorProfile = {
   model_name: string;
   is_active: boolean;
   gender: "female" | "male" | "transgender";
+  form: "freelance" | "escort";
   age: number;
   location: string;
   eyes: string;
@@ -201,6 +202,7 @@ export default function CreatorPanel() {
         notes: profile.notes ?? "",
         modelName: creatorName,
         gender: profile.gender,
+        form: profile.form ?? "freelance",
         age: Number(profile.age),
         location: profile.location ?? "",
         eyes: profile.eyes ?? "",
@@ -320,6 +322,7 @@ export default function CreatorPanel() {
         notes: profile.notes ?? "",
         modelName: profile.model_name ?? "",
         gender: profile.gender,
+        form: profile.form ?? "freelance",
         age: Number(profile.age),
         location: profile.location ?? "",
         eyes: profile.eyes ?? "",
@@ -502,6 +505,8 @@ export default function CreatorPanel() {
               selected radio until the creator picks one of the two valid
               choices and saves. */}
           <ChoiceGroup label="GENDER" value={profile.gender} options={["female", "transgender"]} onChange={(v) => updateProfile("gender", v as CreatorProfile["gender"])} />
+          {/* FORM (Phase E): Freelance | Escort. Persisted to providers.escort_type. */}
+          <ChoiceGroup label="FORM" value={profile.form ?? "freelance"} options={["freelance", "escort"]} onChange={(v) => updateProfile("form", v as CreatorProfile["form"])} />
           <ChoiceGroup label="ORIENTATION" value={profile.orientation} options={["straight", "bisexual", "lesbian", "gay", "other"]} onChange={(v) => updateProfile("orientation", v as CreatorProfile["orientation"])} />
           <ChoiceGroup label="AVAILABLE FOR" value={profile.available_for} options={["incall", "outcall", "both"]} onChange={(v) => updateProfile("available_for", v as CreatorProfile["available_for"])} />
           <ChoiceGroup label="MEETING WITH" value={profile.meeting_with} options={["men", "women", "couples", "all"]} onChange={(v) => updateProfile("meeting_with", v as CreatorProfile["meeting_with"])} />

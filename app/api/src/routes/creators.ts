@@ -334,7 +334,8 @@ creatorsRouter.get("/:idOrSlug", async (req, res) => {
               p.services,
               p.phone_number,
               p.cell_phone,
-              p.telegram_id
+              p.telegram_id,
+              p.escort_type AS form
          FROM providers p
         WHERE ${isLookupByUuid ? "p.uuid = $1::uuid" : "p.slug = $1"}
           AND p.is_active IS TRUE`,

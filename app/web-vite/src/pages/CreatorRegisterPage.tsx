@@ -37,6 +37,7 @@ export default function CreatorRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
+  const [form, setForm] = useState<"freelance" | "escort">("freelance");
   const [age, setAge] = useState("");
   const [nationality, setNationality] = useState("");
   const [city, setCity] = useState("");
@@ -100,6 +101,7 @@ export default function CreatorRegisterPage() {
           whatsapp: normalizedWhatsapp,
           telegramId: telegramId.trim() || undefined,
           wechatId: wechatId.trim() || undefined,
+          form,
         }),
       });
       const json = await res.json();
@@ -169,13 +171,20 @@ export default function CreatorRegisterPage() {
             <input required className={inp} value={modelName} onChange={(e) => setModelName(e.target.value)} placeholder="Your display name" aria-label="Display name" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">GENDER</label>
               <select required className={sel} value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Gender">
                 <option value="" disabled>Select...</option>
                 <option value="female">Female</option>
                 <option value="transgender">Transgender</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">FORM</label>
+              <select className={sel} value={form} onChange={(e) => setForm(e.target.value as "freelance" | "escort")} aria-label="Form">
+                <option value="freelance">Freelance</option>
+                <option value="escort">Escort</option>
               </select>
             </div>
             <div>

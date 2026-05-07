@@ -238,6 +238,8 @@ const CreatorProfileSchema = z.object({
   services: z.string().min(2),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])),
   availableFor: z.preprocess(normalizeAvailableFor, z.enum(["incall", "outcall", "both"])),
+  // Phase E: Form tag — Freelance | Escort. Persisted to providers.escort_type.
+  form: z.enum(["freelance", "escort"]).optional().default("freelance"),
 });
 
 // Route to get the authenticated creator's profile details.
@@ -280,7 +282,8 @@ meRouter.get("/creator-profile", requireAuth, requireRole(["creator"]), async (r
              piercing,
              services,
              meeting_with,
-             available_for
+             available_for,
+             escort_type AS form
         FROM providers
        WHERE uuid = $1::uuid
       `,
@@ -312,6 +315,11 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const p = parsed.data;
+  // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
+  // the other. The schema requires min(1) on both, so this almost never
+  // triggers — present as a defensive backstop.
+  const phoneFinal = p.phoneNumber || p.cellPhone;
+  const cellPhoneFinal = p.cellPhone || p.phoneNumber;
   if (!CREATOR_NAME_REGEX.test(p.modelName)) {
     return res
       .status(400)
@@ -383,6 +391,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                available_for = $32,
                is_active = COALESCE($33, is_active),
                wechat_id = $34,
+               escort_type = $35,
                updated_at = NOW()
        WHERE uuid = $1::uuid
        RETURNING uuid::text AS uuid,
@@ -419,7 +428,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                  piercing,
                  services,
                  meeting_with,
-                 available_for
+                 available_for,
+                 escort_type AS form
       `,
       [
         req.user!.id,
@@ -443,8 +453,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         p.ethnicity,
         p.nationality,
         p.languages,
-        p.phoneNumber,
-        p.cellPhone,
+        phoneFinal,
+        cellPhoneFinal,
         p.country,
         p.city,
         p.orientation,
@@ -456,6 +466,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         p.availableFor,
         p.isActive,
         p.wechatId,
+        p.form,
       ]
     );
     let row = updateRes.rows[0];
@@ -495,7 +506,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                piercing,
                services,
                meeting_with,
-               available_for
+               available_for,
+               escort_type AS form
           FROM providers
          WHERE uuid = $1::uuid
         `,
