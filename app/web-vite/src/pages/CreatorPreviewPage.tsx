@@ -105,21 +105,34 @@ export default function CreatorPreviewPage() {
         const formDisplay = formRaw ? formRaw.charAt(0).toUpperCase() + formRaw.slice(1) : "";
         const fields: Array<[string, string | number | undefined]> = [
           ["Name", displayName],
-          // Form sits at the top so it's the first thing a viewer sees.
-          ["Form", formDisplay],
+          // Status (= editor's "Form" tag, freelance/escort) sits at the top
+          // so it's the first thing a viewer sees.
+          ["Status", formDisplay],
           ["Age", raw.age],
           ["Gender", raw.gender],
+          ["Orientation", raw.orientation],
+          ["Available For", raw.available_for],
+          ["Meeting With", raw.meeting_with],
+          ["Smoker", raw.smoker],
+          ["Tattoo", raw.tattoo],
+          ["Piercing", raw.piercing],
           ["Nationality", raw.nationality],
-          ["Languages", raw.languages],
-          ["City", raw.city],
-          ["Country", raw.country],
-          ["Location", raw.location],
+          ["Ethnicity", raw.ethnicity],
+          // Languages row hidden from the public view.
+          // Editor stores comma-split Bali zones in providers.city; the user-
+          // facing label here mirrors the editor's "Service Area" header.
+          ["Service Area", raw.city],
+          // Country and Location intentionally NOT shown — they were dropped
+          // from the editor (item 14) and have no source-of-truth UI anymore.
+          ["Eyes", raw.eyes],
           ["Hair Color", raw.hair_color],
           ["Hair Length", hairLength],
           ["Height", raw.height],
           ["Weight", raw.weight],
-          ["Meeting With", raw.meeting_with],
-          ["About Me", raw.services],
+          ["Travel", raw.travel],
+          // About Me: editor's ABOUT ME textarea (notes column). Fallback to
+          // services list when notes is empty so the row always has content.
+          ["About Me", String(raw.notes ?? "").trim() || raw.services],
           // Last four: contact channels — always shown, em-dash if missing.
           ["Phone/SMS", raw.phone_number],
           ["Whatsapp", raw.cell_phone],
