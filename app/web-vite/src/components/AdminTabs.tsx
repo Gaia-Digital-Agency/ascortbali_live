@@ -1,8 +1,11 @@
 import { NavLink } from "react-router-dom";
 
 const tabs = [
-  { to: "/admin/logged",       label: "DASHBOARD" },
-  { to: "/admin/logged/blogs", label: "BLOGS" },
+  { to: "/admin/logged",          label: "DASHBOARD" },
+  { to: "/admin/logged/ads",      label: "ADS" },
+  { to: "/admin/logged/creators", label: "CREATORS" },
+  { to: "/admin/logged/users",    label: "USERS" },
+  { to: "/admin/logged/blogs",    label: "BLOGS" },
 ];
 
 export function AdminTabs() {

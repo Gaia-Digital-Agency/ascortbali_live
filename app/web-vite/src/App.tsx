@@ -46,6 +46,9 @@ export default function App() {
         <Route path="/user/register" element={<Suspense fallback={<PageLoader />}><UserRegisterPage /></Suspense>} />
         <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminLoginPage /></Suspense>} />
         <Route path="/admin/logged" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
+        <Route path="/admin/logged/ads" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
+        <Route path="/admin/logged/creators" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
+        <Route path="/admin/logged/users" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
         <Route path="/admin/logged/blogs" element={<Suspense fallback={<PageLoader />}><AdminBlogsPage /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />

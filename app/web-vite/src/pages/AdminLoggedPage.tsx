@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
@@ -57,6 +57,23 @@ function fmtDate(iso: string | null | undefined) {
 }
 
 export default function AdminDashboard() {
+  // Sub-route ("dashboard" | "ads" | "creators" | "users") selects which
+  // section of the page to render. All state remains in this component so
+  // the View/Edit modal and shared loaders work identically across tabs.
+  const location = useLocation();
+  const sub = (() => {
+    const p = location.pathname.replace(/\/$/, "");
+    if (p.endsWith("/ads")) return "ads" as const;
+    if (p.endsWith("/creators")) return "creators" as const;
+    if (p.endsWith("/users")) return "users" as const;
+    return "dashboard" as const;
+  })();
+  const sectionTitle =
+    sub === "ads" ? "ADS MANAGEMENT"
+    : sub === "creators" ? "CREATOR MANAGEMENT"
+    : sub === "users" ? "USER MANAGEMENT"
+    : "ADMIN CMS PAGE";
+
   const [me, setMe] = useState<Me | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [ads, setAds] = useState<AdSpace[]>(defaultAds);
@@ -284,7 +301,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs tracking-luxe text-brand-muted">ADMIN</div>
-          <h1 className="mt-2 font-display text-3xl">ADMIN CMS PAGE</h1>
+          <h1 className="mt-2 font-display text-3xl">{sectionTitle}</h1>
           <p className="mt-2 text-sm text-brand-muted">{me ? `Signed in as ${me.username}` : "Loading..."}</p>
           {error ? <div className="mt-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div> : null}
           {accountMsg ? <div className="mt-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{accountMsg}</div> : null}
@@ -295,6 +312,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {sub === "dashboard" && (
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6 shadow-luxe">
           <div className="text-xs tracking-[0.22em] text-brand-muted">REGISTERED CREATORS</div>
@@ -305,7 +323,9 @@ export default function AdminDashboard() {
           <div className="mt-4 font-display text-3xl text-brand-text">{stats?.userCount ?? "—"}</div>
         </div>
       </div>
+      )}
 
+      {sub === "ads" && (
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -362,7 +382,10 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+      )}
 
+      {sub === "dashboard" && (
+      <>
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <div className="text-xs tracking-[0.22em] text-brand-muted">HOMEPAGE TAGLINE</div>
         <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
@@ -443,8 +466,11 @@ export default function AdminDashboard() {
         </div>
         {pwMsg ? <div className="mt-4 text-xs text-emerald-400">{pwMsg}</div> : null}
       </div>
+      </>
+      )}
 
-      {/* Users list */}
+      {sub === "users" && (
+      /* Users list */
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <div className="text-xs tracking-[0.22em] text-brand-muted">REGISTERED USERS ({users.length})</div>
         <div className="mt-5 overflow-x-auto">
@@ -472,9 +498,11 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+      )}
 
-      {/* Creators list */}
-      {(() => {
+      {sub === "creators" && (
+      /* Creators list */
+      (() => {
         const active = creators.filter((c) => c.is_active);
         const inactive = creators.filter((c) => !c.is_active);
         const renderCreatorTable = (list: CreatorAccount[], emptyMsg: string) => (
@@ -523,7 +551,8 @@ export default function AdminDashboard() {
             </div>
           </>
         );
-      })()}
+      })()
+      )}
 
       {/* View / Edit / Delete popup */}
       {viewType && viewData && (
