@@ -13,7 +13,7 @@ type Blog = {
   publishedAt: string | null;
 };
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 9;
 
 const heroSrc = (img: string | null) => {
   if (!img) return null;
