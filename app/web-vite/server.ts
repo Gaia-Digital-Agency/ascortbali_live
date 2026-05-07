@@ -315,10 +315,9 @@ function injectMeta(html: string, urlPath: string, meta: RouteMeta): string {
     .replace(/<link\s+rel="canonical"[^>]*>/, `<link rel="canonical" href="${url}">`)
 }
 
-// Resolve route meta for a given URL path. Static routes use the table
-// above; /creator/preview/<slug> is treated as a creator page (a future
-// pass — item 72-onwards — will fetch the creator's name + notes excerpt
-// + primary image from the API and substitute them here).
+// Resolve static route meta for a given URL path. Returns null when the
+// path needs dynamic resolution (e.g. /creator/preview/<slug> — handled by
+// the SPA fallback's async path).
 function metaForPath(urlPath: string): RouteMeta {
   if (STATIC_ROUTE_META[urlPath]) return STATIC_ROUTE_META[urlPath]
   if (urlPath.startsWith('/creator/preview/')) {
@@ -328,6 +327,88 @@ function metaForPath(urlPath: string): RouteMeta {
     return { title: 'Blog — Bali Girls', description: 'News and stories from Bali Girls.' }
   }
   return STATIC_ROUTE_META['/']
+}
+
+// ── Dynamic creator-preview SSR (item 72 + 74) ──────────────────────────
+// /creator/preview/<slug> needs per-creator title / description / og:image
+// and a JSON-LD Person block. We fetch the creator from the internal API
+// at request time and cache 60s per slug. If the API returns 404, we
+// return HTTP 404 (item 74) instead of the SPA's "200 + soft not-found".
+type CreatorMeta = {
+  title: string
+  description: string
+  image: string | null      // absolute URL or null
+  jsonLd: string            // pre-serialised <script>-body content
+  canonicalSlug: string     // for canonical URL (slug, not uuid)
+}
+
+const CREATOR_META_TTL_MS = 60_000
+const creatorMetaCache = new Map<string, { value: CreatorMeta | null; expiresAt: number }>()
+
+async function fetchCreatorMeta(slugOrUuid: string): Promise<CreatorMeta | null> {
+  const now = Date.now()
+  const cached = creatorMetaCache.get(slugOrUuid)
+  if (cached && cached.expiresAt > now) return cached.value
+  try {
+    const r = await fetch(`${INTERNAL_API_URL}/creators/${encodeURIComponent(slugOrUuid)}`, {
+      signal: AbortSignal.timeout(800),
+    })
+    if (r.status === 404) {
+      creatorMetaCache.set(slugOrUuid, { value: null, expiresAt: now + CREATOR_META_TTL_MS })
+      return null
+    }
+    if (!r.ok) return null
+    const json = await r.json() as {
+      creator?: {
+        uuid?: string
+        slug?: string | null
+        model_name?: string | null
+        notes?: string | null
+        gender?: string | null
+        nationality?: string | null
+      }
+      images?: Array<{ image_file?: string | null; sequence_number?: number }>
+    }
+    const c = json.creator
+    if (!c) return null
+    const name = String(c.model_name || c.slug || c.uuid || 'Creator').trim()
+    // Display name in Title Case (the DB has e.g. "alexa" lower-cased).
+    const displayName = name.replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    const rawNotes = String(c.notes ?? '').replace(/\s+/g, ' ').trim()
+    const description = rawNotes
+      ? (rawNotes.length > 160 ? rawNotes.slice(0, 157) + '...' : rawNotes)
+      : `${displayName} on Bali Girls — meet creators in Bali. Photos, profile, contact.`
+    // Primary image: lowest sequence_number with a non-empty file.
+    const imgRow = (json.images ?? [])
+      .filter((i) => !!i.image_file)
+      .sort((a, b) => (a.sequence_number ?? 9999) - (b.sequence_number ?? 9999))[0]
+    let image: string | null = null
+    if (imgRow?.image_file) {
+      const f = imgRow.image_file.startsWith('/') ? imgRow.image_file : `/api/clean-image/${imgRow.image_file}`
+      image = f.startsWith('http') ? f : `${SSR_SITE_BASE}${f}`
+    }
+    const canonicalSlug = String(c.slug || c.uuid || '')
+    const personLd: Record<string, string> = {
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      name: displayName,
+      url: `${SSR_SITE_BASE}/creator/preview/${canonicalSlug}`,
+    }
+    if (image) personLd.image = image
+    if (c.gender) personLd.gender = String(c.gender)
+    if (c.nationality) personLd.nationality = String(c.nationality)
+    const value: CreatorMeta = {
+      title: `${displayName} — Bali Girls`,
+      description,
+      image,
+      jsonLd: JSON.stringify(personLd),
+      canonicalSlug,
+    }
+    creatorMetaCache.set(slugOrUuid, { value, expiresAt: now + CREATOR_META_TTL_MS })
+    return value
+  } catch {
+    return null
+  }
 }
 
 // ── Hero-injection for the homepage LCP ─────────────────────────────────
@@ -428,11 +509,47 @@ app.use('*', async (req, res) => {
   // Per-route meta is injected here so crawlers see the right title /
   // description / og / canonical / robots on the very first byte.
   res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
   try {
     const urlPath = (req.originalUrl || '/').split('?')[0]
-    const html = await fs.promises.readFile(path.join(distPath, 'index.html'), 'utf8')
+    let html = await fs.promises.readFile(path.join(distPath, 'index.html'), 'utf8')
+
+    // Dynamic SSR for /creator/preview/<slug> (items 72 + 74).
+    const previewMatch = urlPath.match(/^\/creator\/preview\/([^/?#]+)\/?$/)
+    if (previewMatch) {
+      const slugOrUuid = decodeURIComponent(previewMatch[1])
+      const cmeta = await fetchCreatorMeta(slugOrUuid)
+      if (cmeta === null) {
+        // Slug doesn't exist -> real 404 status. Body still uses the SPA
+        // shell so users get the styled "Creator not found" view from
+        // CreatorPreviewPage's own notFound branch.
+        res.status(404)
+        const fallback = injectMeta(html, urlPath, {
+          title: 'Creator not found — Bali Girls',
+          description: 'No creator with that URL.',
+          index: false,
+        })
+        res.send(fallback)
+        return
+      }
+      // Canonical points at the SLUG path even if the user came in by UUID,
+      // so all signals collapse onto a single URL per creator.
+      const canonicalPath = `/creator/preview/${cmeta.canonicalSlug}`
+      html = injectMeta(html, canonicalPath, {
+        title: cmeta.title,
+        description: cmeta.description,
+        image: cmeta.image ?? undefined,
+      })
+      // Inject JSON-LD Person before </head>.
+      html = html.replace(
+        '</head>',
+        `    <script type="application/ld+json">${cmeta.jsonLd}</script>\n  </head>`
+      )
+      res.send(html)
+      return
+    }
+
     const withMeta = injectMeta(html, urlPath, metaForPath(urlPath))
-    res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.send(withMeta)
   } catch {
     res.sendFile(path.join(distPath, 'index.html'))
