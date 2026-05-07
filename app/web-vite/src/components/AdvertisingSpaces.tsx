@@ -206,11 +206,18 @@ export function FeaturedCarousel() {
   // The "FEATURED GIRLS" label is rendered by HomePage above this component
   // (so it sits above the relative wrapper that contains the side ads — letting
   // the side ads' top:0 align with the cards row, not the label).
+  // Mobile (<md): single-row horizontal carousel with snap so one card is
+  // primary and the next peeks. md+ collapses back to the 4-col grid.
+  const trackClass = "flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth -mx-4 px-4 pb-2 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:mx-0 md:px-0 md:pb-0";
+  const slotClass = "block w-[60vw] sm:w-[42vw] shrink-0 snap-start md:w-auto md:shrink md:snap-align-none";
+
   if (ads === null) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={trackClass}>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className={`${cardClass} skeleton rounded-2xl border border-brand-line`} />
+          <div key={i} className={slotClass}>
+            <div className={`${cardClass} skeleton rounded-2xl border border-brand-line`} />
+          </div>
         ))}
       </div>
     );
@@ -253,16 +260,16 @@ export function FeaturedCarousel() {
       </div>
     );
     return creator ? (
-      <a key={`girl-${index}`} href={withBasePath(`/creator/preview/${creator.slug || creator.uuid}`)}>{card}</a>
+      <a key={`girl-${index}`} className={slotClass} href={withBasePath(`/creator/preview/${creator.slug || creator.uuid}`)}>{card}</a>
     ) : (
-      <div key={`girl-${index}`}>{card}</div>
+      <div key={`girl-${index}`} className={slotClass}>{card}</div>
     );
   };
 
 
   return (
     <div ref={scrollRef}>
-      <div ref={girlsScrollRef} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div ref={girlsScrollRef} className={trackClass}>
         {renderGirlCard(girls[0], 1)}
         {renderGirlCard(girls[1], 2)}
         {renderGirlCard(girls[2], 3)}
