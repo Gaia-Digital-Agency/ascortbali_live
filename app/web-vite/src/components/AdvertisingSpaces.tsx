@@ -280,7 +280,7 @@ export function Ad4Card() {
 
   const content = (
     <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50">
-      <img src={ad4.image} alt={altForAd(ad4, "home-4")} className="h-full w-full object-cover" />
+      <img src={ad4.image} alt={altForAd(ad4, "home-4")} width={1280} height={720} loading="lazy" decoding="async" className="h-full w-full object-cover" />
     </div>
   );
 

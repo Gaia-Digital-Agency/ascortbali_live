@@ -118,6 +118,8 @@ export default function Layout() {
             <img
               src="/baligirls_logo.png?v=4"
               alt="BaliGirls"
+              width={56}
+              height={56}
               // Bumped from h-8/w-8 (32px) to h-14/w-14 (56px) so the figure +
               // palm-tree silhouette is actually legible in the header. The
               // source PNG is now 256x256, giving us a clean ~2x retina render

@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { FeaturedCarousel, AdSlot, useSiteSettings } from "../components/AdvertisingSpaces";
-import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
+import { LeftSidebarAd, RightSidebarAd, MobileAdsRow } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
 import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
 
@@ -205,6 +205,13 @@ export default function HomePage() {
         {/* 1. Featured Girls cards (label is now above this wrapper) */}
         <section>
           <FeaturedCarousel />
+        </section>
+
+        {/* Mobile-only portrait ad strip (item 115). Desktop sees these
+            as floating side ads via Left/RightSidebarAd; below 1376px
+            they were invisible until now. */}
+        <section>
+          <MobileAdsRow />
         </section>
 
       {/* 2. Tagline heading "Free, Real, Simple" — now BEFORE the top ad */}

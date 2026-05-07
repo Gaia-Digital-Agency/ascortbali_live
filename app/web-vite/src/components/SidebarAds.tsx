@@ -141,3 +141,28 @@ export function RightSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
 // Back-compat aliases (old names used elsewhere)
 export const LeftSidebarAd = LeftSideAd;
 export const RightSidebarAd = RightSideAd;
+
+/**
+ * Mobile-only horizontal-scroll row of all four portrait ads
+ * (home-1..home-4). The desktop layout pins them to the page sides via
+ * Left/RightSideAd above (≥1376px); below that breakpoint those float
+ * elements are display:none, leaving the ads invisible. This component
+ * shows them on mobile/tablet as a horizontally scrollable strip so
+ * advertisers still get inventory below the desktop threshold.
+ */
+export function MobileAdsRow({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
+  return (
+    <div className="block min-[1376px]:hidden">
+      <div
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4"
+        aria-label="Sponsored ads"
+      >
+        {(["home-1", "home-2", "home-3", "home-4"] as const).map((slot) => (
+          <div key={slot} className="w-40 shrink-0 snap-start">
+            <AdSlot slot={slot} aspect={aspect} bare />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

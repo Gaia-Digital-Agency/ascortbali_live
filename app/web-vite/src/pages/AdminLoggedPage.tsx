@@ -643,7 +643,15 @@ function ImageAdEditor({
       </div>
       <div className={`${isLandscape ? "aspect-[16/9]" : "aspect-[9/16]"} overflow-hidden rounded-xl border border-brand-line`}>
         {image ? (
-          <img src={image} alt={slot} className="h-full w-full object-cover" />
+          <img
+            src={image}
+            alt={`Ad slot ${slot}`}
+            width={isLandscape ? 1280 : 360}
+            height={isLandscape ? 720 : 640}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted">EMPTY</div>
         )}

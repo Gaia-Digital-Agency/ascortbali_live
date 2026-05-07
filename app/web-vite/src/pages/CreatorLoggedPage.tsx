@@ -704,7 +704,7 @@ function ImageSlotEditor({
       <div className="text-xs tracking-[0.22em] text-brand-muted">{slot === 1 ? "MAIN IMAGE" : `IMAGE ${slot}`}</div>
       <div className="aspect-[9/16] overflow-hidden rounded-xl border border-brand-line">
         {imageUrl ? (
-          <img src={imageUrl} alt={`Creator photo, slot ${slot}`} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={`Creator photo, slot ${slot}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-brand-muted">EMPTY</div>
         )}

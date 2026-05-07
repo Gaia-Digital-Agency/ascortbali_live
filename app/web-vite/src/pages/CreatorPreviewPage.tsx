@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_BASE, apiFetch, getAccessToken } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
-import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
+import { LeftSidebarAd, RightSidebarAd, MobileAdsRow } from "../components/SidebarAds";
 import { PageMeta, SITE_BASE } from "../components/PageMeta";
 
 type CreatorData = {
@@ -238,6 +238,12 @@ export default function CreatorPreviewPage() {
         <AdSlot slot="home-7" aspect="4/1" eager />
       </section>
 
+      {/* Mobile-only portrait ad strip (item 115). Desktop sees these
+          as floating side ads via Left/RightSidebarAd. */}
+      <section>
+        <MobileAdsRow />
+      </section>
+
       {/* CREATOR / Name header */}
       <section>
         <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
@@ -261,7 +267,9 @@ export default function CreatorPreviewPage() {
                 // LCP candidate for the detail page — high fetch priority
                 // and explicit dimensions for CLS.
                 <img
-                  src={data.primaryImageUrl}
+                  src={`${data.primaryImageUrl}?w=720`}
+                  srcSet={`${data.primaryImageUrl}?w=360 360w, ${data.primaryImageUrl}?w=480 480w, ${data.primaryImageUrl}?w=720 720w, ${data.primaryImageUrl}?w=960 960w`}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
                   alt={data.creatorName}
                   width={720}
                   height={1280}
@@ -368,8 +376,12 @@ export default function CreatorPreviewPage() {
                     <div className="aspect-[9/16] w-full overflow-hidden">
                       {img.imageUrl ? (
                         <img
-                          src={img.imageUrl}
+                          src={`${img.imageUrl}?w=480`}
+                          srcSet={`${img.imageUrl}?w=240 240w, ${img.imageUrl}?w=360 360w, ${img.imageUrl}?w=480 480w, ${img.imageUrl}?w=640 640w`}
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
                           alt={`${data.creatorName} photo ${idx + 1}`}
+                          width={360}
+                          height={640}
                           loading="lazy"
                           decoding="async"
                           className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
@@ -396,7 +408,11 @@ export default function CreatorPreviewPage() {
                 >
                   <img
                     src={`${c.imageUrl}?w=240`}
+                    srcSet={`${c.imageUrl}?w=160 160w, ${c.imageUrl}?w=240 240w, ${c.imageUrl}?w=360 360w`}
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 120px"
                     alt={`${c.displayName} profile photo`}
+                    width={240}
+                    height={427}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]"
@@ -436,6 +452,8 @@ export default function CreatorPreviewPage() {
           <img
             src={lightboxImage}
             alt={data.creatorName}
+            width={1080}
+            height={1920}
             className="max-h-[95vh] max-w-[95vw] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
