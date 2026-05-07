@@ -136,3 +136,43 @@ select::-ms-expand { display: none; }
   animation: shimmer 1.6s ease-in-out infinite;
   border-radius: 0.75rem;
 }
+
+/* Markdown body styling for the blog detail page. Targets only descendants of
+   .prose-blog so it doesn't leak elsewhere. */
+.prose-blog { font-size: 1rem; line-height: 1.75; }
+.prose-blog p,
+.prose-blog ul,
+.prose-blog ol,
+.prose-blog blockquote { margin: 0 0 1.25em 0; }
+.prose-blog h2 {
+  font-size: 1.5rem; font-weight: 300; letter-spacing: 0.02em;
+  margin: 2.5em 0 0.6em 0; color: #c89c4f;
+}
+.prose-blog h3 {
+  font-size: 1.2rem; font-weight: 300; letter-spacing: 0.02em;
+  margin: 2em 0 0.5em 0;
+}
+.prose-blog ul, .prose-blog ol { padding-left: 1.5em; }
+.prose-blog li { margin: 0.4em 0; }
+.prose-blog strong { font-weight: 600; }
+.prose-blog a {
+  color: #c89c4f; text-decoration: underline; text-underline-offset: 2px;
+}
+.prose-blog a:hover { opacity: 0.8; }
+.prose-blog blockquote {
+  border-left: 2px solid #c89c4f; padding-left: 1em; font-style: italic;
+  color: #9c958a;
+}
+.prose-blog code {
+  background: rgba(255,255,255,0.06); padding: 0.1em 0.4em;
+  border-radius: 0.3em; font-size: 0.92em;
+}
+.prose-blog table {
+  width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.93rem;
+}
+.prose-blog th, .prose-blog td {
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 0.6em 0.8em; text-align: left;
+}
+.prose-blog th { background: rgba(255,255,255,0.04); font-weight: 600; }
+.prose-blog hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 2em 0; }

@@ -301,3 +301,18 @@ model RefreshToken {
 
   @@index([userId, expiresAt])
 }
+
+model Blog {
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique @db.VarChar(160)
+  title       String    @db.VarChar(200)
+  excerpt     String?
+  body        String
+  heroImage   String?   @map("hero_image")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([publishedAt])
+  @@map("blogs")
+}

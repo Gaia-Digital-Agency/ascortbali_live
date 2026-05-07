@@ -16,6 +16,9 @@ const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
 const AdminLoggedPage = lazy(() => import('./pages/AdminLoggedPage'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/TermsPage'))
+const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'))
+const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'))
+const AdminBlogsPage = lazy(() => import('./pages/AdminBlogsPage'))
 
 const PageLoader = () => (
   <div className="space-y-4 py-10">
@@ -43,8 +46,11 @@ export default function App() {
         <Route path="/user/register" element={<Suspense fallback={<PageLoader />}><UserRegisterPage /></Suspense>} />
         <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminLoginPage /></Suspense>} />
         <Route path="/admin/logged" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
+        <Route path="/admin/logged/blogs" element={<Suspense fallback={<PageLoader />}><AdminBlogsPage /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
+        <Route path="/blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
+        <Route path="/blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogDetailPage /></Suspense>} />
         </Route>
       </Routes>
     </AdsProvider>

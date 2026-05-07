@@ -63,3 +63,39 @@ export async function uniqueCreatorSlug(pool: SqlPool, raw: string): Promise<str
   // If only the base existed without numbered variants, next is -2.
   return seenBase || maxN > 1 ? `${base}-${maxN + 1}` : base;
 }
+
+/**
+ * Build a unique slug for a new blog post. Same algorithm as
+ * uniqueCreatorSlug but checks against the `blogs.slug` column.
+ * `excludeId` lets the admin edit form keep its current slug when the
+ * title hasn't changed.
+ */
+export async function uniqueBlogSlug(
+  pool: SqlPool,
+  raw: string,
+  excludeId?: string,
+): Promise<string> {
+  const base = slugify(raw);
+  if (!base) throw new Error("empty_slug_base");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const params: any[] = [base];
+  let where = `slug = $1 OR slug LIKE $1 || '-%'`;
+  if (excludeId) {
+    params.push(excludeId);
+    where += ` AND id::text <> $2`;
+  }
+  const { rows } = await pool.query<{ slug: string }>(
+    `SELECT slug FROM blogs WHERE ${where}`,
+    params,
+  );
+  if (rows.length === 0) return base;
+  let maxN = 1;
+  let seenBase = false;
+  for (const r of rows) {
+    const s = String(r.slug);
+    if (s === base) { seenBase = true; continue; }
+    const m = s.match(/-(\d+)$/);
+    if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
+  }
+  return seenBase || maxN > 1 ? `${base}-${maxN + 1}` : base;
+}

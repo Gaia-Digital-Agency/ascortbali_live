@@ -140,6 +140,12 @@ export default function Layout() {
               `overflow-hidden` was clipping the buttons' hover state and
               making borders look truncated. */}
           <nav className="flex w-full min-w-0 flex-nowrap items-center justify-center gap-1 overflow-x-clip whitespace-nowrap md:w-auto md:justify-start">
+            <Link
+              to="/blog"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-brand-line px-4 py-2 text-xs uppercase tracking-[0.18em] text-brand-muted hover:border-brand-gold hover:text-brand-gold"
+            >
+              BLOG
+            </Link>
             <AuthNavButton />
           </nav>
         </div>

@@ -4,6 +4,7 @@ import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
 import { PageMeta } from "../components/PageMeta";
+import { AdminTabs } from "../components/AdminTabs";
 
 type Me = { username: string; role: string };
 type AdminStats = { creatorCount: number; userCount: number };
@@ -279,6 +280,7 @@ export default function AdminDashboard() {
         path={"/admin/logged"}
         index={false}
       />
+      <AdminTabs />
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs tracking-luxe text-brand-muted">ADMIN</div>

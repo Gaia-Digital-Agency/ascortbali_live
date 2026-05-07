@@ -251,8 +251,19 @@ app.get('/sitemap.xml', async (_req, res) => {
           .map(u => `/creator/preview/${u}`)
       }
     } catch { /* best-effort */ }
+    let blogUrls: string[] = ['/blog']
+    try {
+      const r = await fetch(`${apiBase}/blogs?page=1&limit=500`)
+      if (r.ok) {
+        const json = await r.json() as { items?: Array<{ slug?: string | null }> }
+        blogUrls = ['/blog', ...(json.items ?? [])
+          .map(b => b.slug)
+          .filter((s): s is string => !!s)
+          .map(s => `/blog/${s}`)]
+      }
+    } catch { /* best-effort */ }
     const now = new Date().toISOString()
-    const urls = [...staticUrls, ...creatorUrls]
+    const urls = [...staticUrls, ...creatorUrls, ...blogUrls]
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod></url>`).join('\n')}
@@ -290,6 +301,7 @@ const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   '/creator/logged':    { title: 'Creator Profile — Bali Girls',    description: 'Manage your Bali Girls creator profile.', index: false },
   '/terms':             { title: 'Terms of Use — Bali Girls',       description: 'Terms and conditions for using the Bali Girls platform.' },
   '/privacy':           { title: 'Privacy Statement — Bali Girls',  description: 'Privacy statement for Bali Girls — how we handle and protect your data.' },
+  '/blog':              { title: 'Blog — Bali Girls',                description: 'Long-form writing on wellness, culture, and life in Bali. New articles weekly.' },
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) =>
@@ -323,8 +335,12 @@ function metaForPath(urlPath: string): RouteMeta {
   if (urlPath.startsWith('/creator/preview/')) {
     return { title: 'Creator — Bali Girls', description: 'Browse creator profile, photos, and contact details on Bali Girls.' }
   }
-  if (urlPath === '/blog' || urlPath.startsWith('/blog/')) {
-    return { title: 'Blog — Bali Girls', description: 'News and stories from Bali Girls.' }
+  // Normalize a trailing slash before falling back (nginx redirects /blog ->
+  // /blog/ which would otherwise miss STATIC_ROUTE_META).
+  const stripped = urlPath.replace(/\/$/, '')
+  if (STATIC_ROUTE_META[stripped]) return STATIC_ROUTE_META[stripped]
+  if (stripped === '/blog' || urlPath.startsWith('/blog/')) {
+    return STATIC_ROUTE_META['/blog']
   }
   return STATIC_ROUTE_META['/']
 }
@@ -405,6 +421,70 @@ async function fetchCreatorMeta(slugOrUuid: string): Promise<CreatorMeta | null>
       canonicalSlug,
     }
     creatorMetaCache.set(slugOrUuid, { value, expiresAt: now + CREATOR_META_TTL_MS })
+    return value
+  } catch {
+    return null
+  }
+}
+
+// ── Dynamic blog SSR (item 73 + 74) ─────────────────────────────────────
+type BlogMeta = {
+  title: string
+  description: string
+  image: string | null
+  jsonLd: string
+  canonicalSlug: string
+}
+const BLOG_META_TTL_MS = 60_000
+const blogMetaCache = new Map<string, { value: BlogMeta | null; expiresAt: number }>()
+
+async function fetchBlogMeta(slug: string): Promise<BlogMeta | null> {
+  const now = Date.now()
+  const cached = blogMetaCache.get(slug)
+  if (cached && cached.expiresAt > now) return cached.value
+  try {
+    const r = await fetch(`${INTERNAL_API_URL}/blogs/${encodeURIComponent(slug)}`, {
+      signal: AbortSignal.timeout(800),
+    })
+    if (r.status === 404) {
+      blogMetaCache.set(slug, { value: null, expiresAt: now + BLOG_META_TTL_MS })
+      return null
+    }
+    if (!r.ok) return null
+    const b = await r.json() as {
+      slug?: string
+      title?: string
+      excerpt?: string | null
+      heroImage?: string | null
+      publishedAt?: string | null
+      body?: string
+    }
+    if (!b.slug || !b.title) return null
+    const description = (b.excerpt || (b.body ?? '').replace(/\s+/g, ' ').slice(0, 157)).trim()
+    const image = b.heroImage
+      ? (b.heroImage.startsWith('http') ? b.heroImage : `${SSR_SITE_BASE}${b.heroImage.startsWith('/') ? b.heroImage : '/' + b.heroImage}`)
+      : null
+    const blogLd: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: b.title,
+      url: `${SSR_SITE_BASE}/blog/${b.slug}`,
+      mainEntityOfPage: `${SSR_SITE_BASE}/blog/${b.slug}`,
+    }
+    if (image) blogLd.image = image
+    if (b.publishedAt) {
+      blogLd.datePublished = b.publishedAt
+      blogLd.dateModified = b.publishedAt
+    }
+    if (description) blogLd.description = description
+    const value: BlogMeta = {
+      title: `${b.title} — Bali Girls`,
+      description: description || `Read "${b.title}" on Bali Girls.`,
+      image,
+      jsonLd: JSON.stringify(blogLd),
+      canonicalSlug: b.slug,
+    }
+    blogMetaCache.set(slug, { value, expiresAt: now + BLOG_META_TTL_MS })
     return value
   } catch {
     return null
@@ -544,6 +624,35 @@ app.use('*', async (req, res) => {
       html = html.replace(
         '</head>',
         `    <script type="application/ld+json">${cmeta.jsonLd}</script>\n  </head>`
+      )
+      res.send(html)
+      return
+    }
+
+    // Dynamic SSR for /blog/<slug> (mirrors the creator-preview path).
+    const blogMatch = urlPath.match(/^\/blog\/([^/?#]+)\/?$/)
+    if (blogMatch) {
+      const slug = decodeURIComponent(blogMatch[1])
+      const bmeta = await fetchBlogMeta(slug)
+      if (bmeta === null) {
+        res.status(404)
+        const fallback = injectMeta(html, urlPath, {
+          title: 'Article not found — Bali Girls',
+          description: 'No article with that URL.',
+          index: false,
+        })
+        res.send(fallback)
+        return
+      }
+      const canonicalPath = `/blog/${bmeta.canonicalSlug}`
+      html = injectMeta(html, canonicalPath, {
+        title: bmeta.title,
+        description: bmeta.description,
+        image: bmeta.image ?? undefined,
+      })
+      html = html.replace(
+        '</head>',
+        `    <script type="application/ld+json">${bmeta.jsonLd}</script>\n  </head>`
       )
       res.send(html)
       return
