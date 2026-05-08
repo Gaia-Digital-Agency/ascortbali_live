@@ -76,7 +76,14 @@ export async function apiFetch<T = any>(path: string, init?: RequestInit): Promi
   if (res.status === 401) {
     clearTokens();
     if (typeof window !== "undefined") {
-      window.location.assign(withBasePath(loginPathForCurrentRoute()));
+      // Don't redirect if we're already on the login page — that creates an
+      // infinite loop (login pages call /me on mount to detect "already
+      // signed in"; on 401 we'd just bounce back to ourselves). Just throw
+      // and let the caller's catch block render the form.
+      const target = withBasePath(loginPathForCurrentRoute());
+      if (window.location.pathname !== target) {
+        window.location.assign(target);
+      }
     }
     throw new Error("unauthenticated");
   }
