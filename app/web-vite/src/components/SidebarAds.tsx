@@ -36,28 +36,32 @@ type AdAspect = "9/16" | "16/9" | "4/1" | "4/15";
 // Inner-anchor magic numbers (Layout main is now max-w-5xl = 1024px):
 //   496 = half of the relative wrapper's content box (1024 − main's
 //         px-4 = 992px wide → 50% = 496px)
-//   +10 sits the ad's inner edge 10px OUTSIDE the wrapper-left edge —
-//       which is the same as the cards' edge (cards align flush to the
-//       wrapper). 10px is a tight, intentional breathing gap.
-//   net: 506 = the inner-anchor offset.
+//   +16 sits the ad's inner edge 16px OUTSIDE the wrapper-left edge,
+//       matching gap-4 (16px) used between the four featured cards and
+//       between the two stacked side ads. All gaps in the row are now
+//       a consistent 16px (cards↔cards, ads↔cards, ads↔ads).
+//   net: 512 = the inner-anchor offset.
 //
 // The outer-pad floor calc(50vw + 320px) translates "ad's outer edge sits
 // 16px from the viewport edge" into containing-block-relative right/left
 // coordinates.
-const LEFT_AD_RIGHT  = "min(calc(50% + 506px), calc(50vw + 320px))";
-const RIGHT_AD_LEFT  = "min(calc(50% + 506px), calc(50vw + 320px))";
+const LEFT_AD_RIGHT  = "min(calc(50% + 512px), calc(50vw + 320px))";
+const RIGHT_AD_LEFT  = "min(calc(50% + 512px), calc(50vw + 320px))";
 const SIDE_AD_WIDTH  = "160px";
 const SIDE_AD_HEIGHT = "600px";
+// 100px below the viewport top when the ads "stick" during scroll. At
+// initial render (no scroll) the natural flow position wins, so ad-top
+// aligns with the relative wrapper's top edge (= cards row top).
 const STICKY_TOP     = "100px";
-// 16px gap between the two stacked ads (matches the rest of the layout's gap-4 spacing).
+// 16px gap between the two stacked ads (matches gap-4 elsewhere).
 const STACK_GAP      = "16px";
 
-// Threshold 1376px: minimum viewport width at which the 160px ad fits
-// beside the 992px content (max-w-5xl − px-4) with positive gaps.
-//   992 (content) + 10 (inner gap) + 160 (ad) + 16 (viewport margin) =
-//   1178 per side, doubled from centerline → minimum vw ≈ 1376.
+// Threshold 1392px: minimum viewport width at which the 160px ad fits
+// beside the 992px content (max-w-5xl − px-4) with consistent 16px gaps.
+//   992 (content) + 16 (inner gap) + 160 (ad) + 16 (viewport margin) =
+//   1184 per side, doubled from centerline → minimum vw ≈ 1392.
 const ABSOLUTE_AD_CLASS =
-  "hidden min-[1376px]:block absolute pointer-events-none !mt-0";
+  "hidden min-[1392px]:block absolute pointer-events-none !mt-0";
 
 const STICKY_INNER_CLASS = "sticky pointer-events-auto flex flex-col";
 
@@ -143,24 +147,49 @@ export const LeftSidebarAd = LeftSideAd;
 export const RightSidebarAd = RightSideAd;
 
 /**
- * Mobile-only horizontal-scroll row of all four portrait ads
- * (home-1..home-4). The desktop layout pins them to the page sides via
- * Left/RightSideAd above (≥1376px); below that breakpoint those float
- * elements are display:none, leaving the ads invisible. This component
- * shows them on mobile/tablet as a horizontally scrollable strip so
- * advertisers still get inventory below the desktop threshold.
+ * Mobile-only horizontal-scroll row of home-1..home-4 (the side-rail ads).
+ * Retained as a back-compat export so any page still importing it doesn't
+ * break, but the homepage now uses HomeFirstRowAds instead — see below.
+ *
+ * @deprecated — prefer <HomeFirstRowAds /> on viewports < 1392px.
  */
 export function MobileAdsRow({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
   return (
-    <div className="block min-[1376px]:hidden">
+    <div className="block min-[1392px]:hidden">
       <div
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4"
+        className="flex snap-x snap-mandatory justify-center gap-3 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4"
         aria-label="Sponsored ads"
       >
         {(["home-1", "home-2", "home-3", "home-4"] as const).map((slot) => (
           <div key={slot} className="w-40 shrink-0 snap-start">
             <AdSlot slot={slot} aspect={aspect} bare />
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Four portrait (9:16) ads that render as the first row of the creator
+ * grid on viewports where the side-rail ads (home-1..home-4) don't fit
+ * (below 1392px). On wider viewports the side rails carry inventory and
+ * this row is hidden, so each ad slot is shown in exactly one place at a
+ * time and there's no duplication.
+ *
+ * The grid mirrors the creator grid below it (2 cols on mobile, 4 cols
+ * on md+), so the four ad cards visually integrate as if they're the
+ * first row of creator cards.
+ */
+export function HomeFirstRowAds() {
+  return (
+    <div className="block min-[1392px]:hidden">
+      <div
+        className="grid grid-cols-2 gap-4 md:grid-cols-4"
+        aria-label="Sponsored ads"
+      >
+        {(["home-9", "home-10", "home-11", "home-12"] as const).map((slot) => (
+          <AdSlot key={slot} slot={slot} aspect="9/16" />
         ))}
       </div>
     </div>

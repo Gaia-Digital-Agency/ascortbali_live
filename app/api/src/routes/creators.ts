@@ -52,10 +52,30 @@ function ageBandToRange(band: string | null): { min: number; max: number } | nul
 // Cached filter options. /creators/filter-options is hit on every homepage
 // load; the result only changes when admins add/remove creators or update
 // nationality/height fields. 60s TTL keeps it cheap without being stale.
+//
+// `heights` returns 2-inch bands (e.g. 5'0"-5'1") with a corresponding cm
+// range, not individual cm values. The frontend stores the band's min
+// inches as the URL value (e.g. ?height=64) and the GET /creators handler
+// converts that back to a cm BETWEEN range.
+type HeightBand = { value: string; label: string; minCm: number; maxCm: number };
+const HEIGHT_BANDS: HeightBand[] = [
+  { value: "56", label: '4\'8" - 4\'9" / 142-146 cm',   minCm: 142, maxCm: 146 },
+  { value: "58", label: '4\'10" - 4\'11" / 147-151 cm', minCm: 147, maxCm: 151 },
+  { value: "60", label: '5\'0" - 5\'1" / 152-156 cm',   minCm: 152, maxCm: 156 },
+  { value: "62", label: '5\'2" - 5\'3" / 157-162 cm',   minCm: 157, maxCm: 162 },
+  { value: "64", label: '5\'4" - 5\'5" / 163-167 cm',   minCm: 163, maxCm: 167 },
+  { value: "66", label: '5\'6" - 5\'7" / 168-172 cm',   minCm: 168, maxCm: 172 },
+  { value: "68", label: '5\'8" - 5\'9" / 173-177 cm',   minCm: 173, maxCm: 177 },
+  { value: "70", label: '5\'10" - 5\'11" / 178-182 cm', minCm: 178, maxCm: 182 },
+  { value: "72", label: '6\'0" - 6\'1" / 183-187 cm',   minCm: 183, maxCm: 187 },
+  { value: "74", label: '6\'2" - 6\'3" / 188-192 cm',   minCm: 188, maxCm: 192 },
+];
+type HeightOption = { value: string; label: string };
+
 let filterOptionsCache: {
   payload: {
     nationalities: string[];
-    heights: string[];
+    heights: HeightOption[];
     genders: string[];
     serviceAreas: string[];
     categories: string[];
@@ -85,13 +105,18 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
             AND BTRIM(nationality) <> ''
           ORDER BY v ASC`
       ),
+      // Heights: pull distinct cm values (parsed out of the formatted string,
+      // e.g. "162 cm / 5'4\"" -> 162). We bucket these into 2-inch bands
+      // client-side below so the dropdown shows ranges, not individual cm.
       pool.query(
-        `SELECT DISTINCT BTRIM(height) AS v
+        `SELECT DISTINCT
+                CAST(substring(BTRIM(height) from '^([0-9]+)') AS INT) AS cm
            FROM providers
           WHERE is_active IS TRUE
             AND height IS NOT NULL
             AND BTRIM(height) <> ''
-          ORDER BY v ASC`
+            AND substring(BTRIM(height) from '^([0-9]+)') IS NOT NULL
+          ORDER BY cm ASC`
       ),
       // Gender column has mixed casing ("Female" / "female" coexist) — fold
       // to lower so we don't show two entries for the same gender.
@@ -127,9 +152,19 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
           ORDER BY v ASC`
       ),
     ]);
+    // Bucket the distinct cm values into the 2-inch bands defined above.
+    // A band appears in the dropdown only if at least one active creator
+    // falls inside it — keeps the menu short.
+    const cmValues = (htRes.rows as Array<{ cm: number | null }>)
+      .map((r) => Number(r.cm))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const populatedHeights: HeightOption[] = HEIGHT_BANDS
+      .filter((b) => cmValues.some((cm) => cm >= b.minCm && cm <= b.maxCm))
+      .map((b) => ({ value: b.value, label: b.label }));
+
     const payload = {
       nationalities: natRes.rows.map((r: { v: string }) => r.v),
-      heights: htRes.rows.map((r: { v: string }) => r.v),
+      heights: populatedHeights,
       genders: genderRes.rows.map((r: { v: string }) => r.v),
       serviceAreas: areaRes.rows.map((r: { v: string }) => r.v),
       categories: catRes.rows.map((r: { v: string }) => r.v),
@@ -236,8 +271,19 @@ creatorsRouter.get("/", async (req, res) => {
       conds.push(`LOWER(BTRIM(p.nationality)) = $${filterParams.length}`);
     }
     if (heightFilter) {
-      filterParams.push(heightFilter.toLowerCase());
-      conds.push(`LOWER(BTRIM(p.height)) = $${filterParams.length}`);
+      // heightFilter is the band's min-inches token (e.g. "64" for 5'4"-5'5").
+      // Look up the band and run a BETWEEN against the parsed cm value of
+      // the height column. Unknown tokens silently fall through (no filter).
+      const band = HEIGHT_BANDS.find((b) => b.value === heightFilter);
+      if (band) {
+        filterParams.push(band.minCm);
+        const minPh = `$${filterParams.length}`;
+        filterParams.push(band.maxCm);
+        const maxPh = `$${filterParams.length}`;
+        conds.push(
+          `CAST(substring(BTRIM(p.height) from '^([0-9]+)') AS INT) BETWEEN ${minPh} AND ${maxPh}`
+        );
+      }
     }
     if (ageRange) {
       filterParams.push(ageRange.min);

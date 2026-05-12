@@ -3,7 +3,11 @@ import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 
 type AdSpace = {
-  slot: "home-1" | "home-2" | "home-3" | "home-4" | "home-5" | "home-6" | "home-7" | "home-8" | "bottom";
+  slot:
+    | "home-1" | "home-2" | "home-3" | "home-4"
+    | "home-5" | "home-6" | "home-7" | "home-8"
+    | "home-9" | "home-10" | "home-11" | "home-12"
+    | "bottom";
   image: string | null;
   text: string | null;
   link_url: string | null;
@@ -37,7 +41,14 @@ const fallbackAds: AdSpace[] = [
   { slot: "home-6", image: null, text: null, link_url: null },
   { slot: "home-7", image: null, text: null, link_url: null },
   { slot: "home-8", image: null, text: null, link_url: null },
-  { slot: "bottom", image: null, text: "Your Ads Here", link_url: null },
+  // home-9..home-12 are 9:16 portrait ads that take over from the side-rail
+  // home-1..home-4 on viewports where the side rails don't fit. They render
+  // as the first row of the creator grid.
+  { slot: "home-9",  image: null, text: null, link_url: null },
+  { slot: "home-10", image: null, text: null, link_url: null },
+  { slot: "home-11", image: null, text: null, link_url: null },
+  { slot: "home-12", image: null, text: null, link_url: null },
+  { slot: "bottom",  image: null, text: "Your Ads Here", link_url: null },
 ];
 
 const fallbackImageBySlot: Partial<Record<AdSpace["slot"], string>> = {
@@ -105,8 +116,12 @@ function mergeAdsResponse(data: AdSpace[]): AdSpace[] {
     mergeSlot("home-5", fallbackAds[4]),
     mergeSlot("home-6", fallbackAds[5]),
     mergeSlot("home-7", fallbackAds[6]),
-    mergeSlot("home-8", fallbackAds[7]),
-    mergeSlot("bottom", fallbackAds[8]),
+    mergeSlot("home-8",  fallbackAds[7]),
+    mergeSlot("home-9",  fallbackAds[8]),
+    mergeSlot("home-10", fallbackAds[9]),
+    mergeSlot("home-11", fallbackAds[10]),
+    mergeSlot("home-12", fallbackAds[11]),
+    mergeSlot("bottom",  fallbackAds[12]),
   ];
 }
 
@@ -208,8 +223,14 @@ export function FeaturedCarousel() {
   // the side ads' top:0 align with the cards row, not the label).
   // Mobile (<md): single-row horizontal carousel with snap so one card is
   // primary and the next peeks. md+ collapses back to the 4-col grid.
-  const trackClass = "flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth -mx-4 px-4 pb-2 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:mx-0 md:px-0 md:pb-0";
-  const slotClass = "block w-[60vw] sm:w-[42vw] shrink-0 snap-start md:w-auto md:shrink md:snap-align-none";
+  // Featured girls layout:
+  //   Mobile  (<md): 2-col grid (4 cards = 2×2). Matches the homepage
+  //                  creator grid and the Explore Next Girl section so
+  //                  the mobile experience is uniformly 2 columns.
+  //   Desktop (md+): 4-col grid (single row).
+  const trackClass = "grid grid-cols-2 gap-4 md:grid-cols-4";
+  // Each card fills its grid cell naturally — no fixed viewport widths.
+  const slotClass = "block";
 
   if (ads === null) {
     return (
@@ -317,7 +338,10 @@ export function AdSlot({
   priority = false,
   bare = false,
 }: {
-  slot: "home-1" | "home-2" | "home-3" | "home-4" | "home-5" | "home-6" | "home-7" | "home-8";
+  slot:
+    | "home-1" | "home-2" | "home-3" | "home-4"
+    | "home-5" | "home-6" | "home-7" | "home-8"
+    | "home-9" | "home-10" | "home-11" | "home-12";
   // 9/16 + 16/9 retained for back-compat. 4/15 = skyscraper sidebar (320x1200).
   // 4/1 = leaderboard banner (1940x500).
   aspect?: "9/16" | "16/9" | "4/1" | "4/15";

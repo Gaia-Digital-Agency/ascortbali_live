@@ -473,13 +473,15 @@ export default function CreatorPreviewPage() {
       </section>
 
       {/* Lightbox popup — image fills 95vw / 95vh; only the close button has
-          a small absolute offset, so padding doesn't crop the photo. */}
+          a small absolute offset, so padding doesn't crop the photo.
+          `top-[72px]` keeps the sticky navbar uncovered so users can still
+          navigate without closing the lightbox. */}
       {lightboxImage ? (
         <div
           onClick={() => setLightboxImage(null)}
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+          className="fixed inset-0 top-[72px] z-50 flex items-center justify-center bg-black/90"
         >
           <button
             type="button"
@@ -494,7 +496,7 @@ export default function CreatorPreviewPage() {
             alt={data.creatorName}
             width={1080}
             height={1920}
-            className="max-h-[95vh] max-w-[95vw] object-contain"
+            className="max-h-[calc(95vh-72px)] max-w-[95vw] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

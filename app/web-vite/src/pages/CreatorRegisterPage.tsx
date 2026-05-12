@@ -181,8 +181,8 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">FORM</label>
-              <select className={sel} value={form} onChange={(e) => setForm(e.target.value as "freelance" | "escort")} aria-label="Form">
+              <label className="text-xs tracking-[0.22em] text-brand-muted">CATEGORY</label>
+              <select className={sel} value={form} onChange={(e) => setForm(e.target.value as "freelance" | "escort")} aria-label="Category">
                 <option value="freelance">Freelance</option>
                 <option value="escort">Escort</option>
               </select>

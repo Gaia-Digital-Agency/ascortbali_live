@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { FeaturedCarousel, AdSlot, useSiteSettings } from "../components/AdvertisingSpaces";
-import { LeftSidebarAd, RightSidebarAd, MobileAdsRow } from "../components/SidebarAds";
+import { LeftSidebarAd, RightSidebarAd, HomeFirstRowAds } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
 import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
 
@@ -61,7 +61,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<{
     nationalities: string[];
-    heights: string[];
+    // Heights are 2-inch bands: { value: '64', label: '5\'4" - 5\'5" / 163-167 cm' }
+    heights: Array<{ value: string; label: string }>;
     genders: string[];
     serviceAreas: string[];
     categories: string[];
@@ -207,13 +208,6 @@ export default function HomePage() {
           <FeaturedCarousel />
         </section>
 
-        {/* Mobile-only portrait ad strip (item 115). Desktop sees these
-            as floating side ads via Left/RightSidebarAd; below 1376px
-            they were invisible until now. */}
-        <section>
-          <MobileAdsRow />
-        </section>
-
       {/* 2. Tagline heading "Free, Real, Simple" — now BEFORE the top ad */}
       <section>
         <h2 className="font-display text-3xl md:text-4xl text-center md:text-left">{tagline}</h2>
@@ -256,7 +250,10 @@ export default function HomePage() {
           the home-5/home-6 leaderboards above + below the grid. */}
 
       {/* 5. Creator grid — full container width, 5 cols on xl+ */}
-      <section>
+      <section className="space-y-4">
+        {/* First row of portrait ads (home-9..home-12) — only renders below
+            1392px, where the side-rail ads (home-1..home-4) don't fit. */}
+        <HomeFirstRowAds />
         {loading ? (
           <div className="grid gap-4 grid-cols-2 [.step-4_&]:grid-cols-2 [.step-3_&]:grid-cols-3 [.step-2_&]:grid-cols-4 [.step-1_&]:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (

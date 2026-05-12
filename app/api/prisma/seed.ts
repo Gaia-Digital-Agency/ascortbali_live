@@ -94,6 +94,10 @@ async function main() {
     { slot: "home-6", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
     { slot: "home-7", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
     { slot: "home-8", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
+    { slot: "home-9",  title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
+    { slot: "home-10", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
+    { slot: "home-11", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
+    { slot: "home-12", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
     { slot: "bottom", title: "", subtitle: "", image: "", ctaLabel: null, ctaHref: null },
   ];
 

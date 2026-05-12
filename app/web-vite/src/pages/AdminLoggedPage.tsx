@@ -11,7 +11,11 @@ type AdminStats = { creatorCount: number; userCount: number };
 type UserAccount = { id: string; username: string; password: string; created_at: string; updated_at: string };
 type CreatorAccount = { id: string; username: string; password: string | null; temp_password: string | null; last_seen: string | null; created_at: string; updated_at: string; is_active: boolean };
 type AdSpace = {
-  slot: "home-1" | "home-2" | "home-3" | "home-4" | "home-5" | "home-6" | "home-7" | "home-8" | "bottom";
+  slot:
+    | "home-1" | "home-2" | "home-3" | "home-4"
+    | "home-5" | "home-6" | "home-7" | "home-8"
+    | "home-9" | "home-10" | "home-11" | "home-12"
+    | "bottom";
   image: string | null;
   text: string | null;
   link_url: string | null;
@@ -28,7 +32,11 @@ const defaultAds: AdSpace[] = [
   { slot: "home-6", image: null, text: null, link_url: null },
   { slot: "home-7", image: null, text: null, link_url: null },
   { slot: "home-8", image: null, text: null, link_url: null },
-  { slot: "bottom", image: null, text: "Your Ads Here", link_url: null },
+  { slot: "home-9",  image: null, text: null, link_url: null },
+  { slot: "home-10", image: null, text: null, link_url: null },
+  { slot: "home-11", image: null, text: null, link_url: null },
+  { slot: "home-12", image: null, text: null, link_url: null },
+  { slot: "bottom",  image: null, text: "Your Ads Here", link_url: null },
 ];
 
 function normalizeAdImage(image: string | null) {
@@ -350,7 +358,11 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="mt-6 grid gap-5 grid-cols-2 md:grid-cols-4">
-          {(["home-1", "home-2", "home-3", "home-4", "home-5", "home-6", "home-7", "home-8"] as const).map((slot) => {
+          {([
+            "home-1", "home-2", "home-3", "home-4",
+            "home-5", "home-6", "home-7", "home-8",
+            "home-9", "home-10", "home-11", "home-12",
+          ] as const).map((slot) => {
             const ad = ads.find((item) => item.slot === slot);
             const prev = savedAds.find((s) => s.slot === slot);
             const slotDirty =
@@ -645,13 +657,18 @@ export default function AdminDashboard() {
 function ImageAdEditor({
   slot, image, busy, dirty, linkUrl, onChange, onChangeLinkUrl, onClear,
 }: {
-  slot: "home-1" | "home-2" | "home-3" | "home-4" | "home-5" | "home-6" | "home-7" | "home-8";
+  slot:
+    | "home-1" | "home-2" | "home-3" | "home-4"
+    | "home-5" | "home-6" | "home-7" | "home-8"
+    | "home-9" | "home-10" | "home-11" | "home-12";
   image: string | null; busy: boolean; dirty: boolean; linkUrl: string | null;
   onChange: (value: string) => void; onChangeLinkUrl: (value: string) => void;
   onClear: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  // home-5..home-8 are 4:1 leaderboards (landscape). home-1..home-4 and
+  // home-9..home-12 are 4:15 / 9:16 portrait ads.
   const isLandscape = slot === "home-5" || slot === "home-6" || slot === "home-7" || slot === "home-8";
 
   const upload = async (file: File) => {

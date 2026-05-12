@@ -9,7 +9,8 @@ type CreatorFilterControlsProps = {
   selectedCategory: string;
   nationalityOptions: string[];
   ageOptions: string[];
-  heightOptions: string[];
+  // Height options are 2-inch bands: { value: <min-inches>, label: '5\'4" - 5\'5" / 163-167 cm' }
+  heightOptions: Array<{ value: string; label: string }>;
   genderOptions: string[];
   serviceAreaOptions: string[];
   categoryOptions: string[];
@@ -65,8 +66,11 @@ export function CreatorFilterControls({
     "h-11 rounded-full border border-brand-line bg-brand-bg/70 px-4 py-3 text-xs tracking-[0.18em] text-brand-muted";
 
   return (
-    <div className="space-y-4">
-      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 ${className ?? ""}`}>
+    <div className={`space-y-3 ${className ?? ""}`}>
+      {/* Six filters arranged as two rows of three on md+; two columns on
+          mobile (so three stacked rows). The CLEAR button sits on a final
+          row aligned to the right so it's always the bottom-right control. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <select
           className={selectClass}
           value={selectedNationality || ""}
@@ -99,7 +103,7 @@ export function CreatorFilterControls({
         >
           <option value="">ALL HEIGHTS</option>
           {heightOptions.map((option) => (
-            <option key={option} value={option.toLowerCase()}>{option}</option>
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
 
@@ -139,9 +143,12 @@ export function CreatorFilterControls({
           ))}
         </select>
 
+      </div>
+
+      <div className="flex justify-end">
         <Link
           to="/"
-          className="h-11 min-w-[44px] rounded-full border border-brand-line bg-brand-bg/70 px-4 py-3 text-center text-xs tracking-[0.18em] text-brand-muted transition hover:border-brand-gold hover:text-brand-text"
+          className="inline-flex h-11 min-w-[120px] items-center justify-center rounded-full border border-brand-line bg-brand-bg/70 px-6 py-3 text-xs tracking-[0.18em] text-brand-muted transition hover:border-brand-gold hover:text-brand-text"
         >
           CLEAR
         </Link>
