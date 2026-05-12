@@ -667,6 +667,7 @@ function ImageAdEditor({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
   // home-5..home-8 are 4:1 leaderboards (landscape). home-1..home-4 and
   // home-9..home-12 are 4:15 / 9:16 portrait ads.
   const isLandscape = slot === "home-5" || slot === "home-6" || slot === "home-7" || slot === "home-8";
@@ -711,12 +712,15 @@ function ImageAdEditor({
         placeholder="Click URL (https://...)"
       />
       <div className="flex flex-col gap-1.5">
-        <button onClick={() => fileRef.current?.click()} disabled={busy || uploading} className="btn btn-primary btn-block px-2 py-2 text-[11px]">
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy || uploading} className="btn btn-primary btn-block px-2 py-2 text-[11px]">
           {uploading ? "UPLOADING..." : busy ? "..." : "UPLOAD"}
         </button>
-        <button onClick={onClear} disabled={busy || uploading} className="btn btn-outline btn-block px-2 py-2 text-[11px]">
+        <button type="button" onClick={onClear} disabled={busy || uploading} className="btn btn-outline btn-block px-2 py-2 text-[11px]">
           CLEAR
         </button>
+        {uploadErr ? (
+          <div className="text-[10px] text-red-400 leading-tight">{uploadErr}</div>
+        ) : null}
       </div>
       <input
         ref={fileRef}
@@ -727,9 +731,14 @@ function ImageAdEditor({
           const file = e.target.files?.[0];
           if (!file) return;
           setUploading(true);
+          setUploadErr(null);
           try {
             await upload(file);
-          } catch { /* silent */ }
+          } catch (err) {
+            // Surface the error inline instead of silently swallowing it,
+            // so a failed upload can be diagnosed without the dev tools.
+            setUploadErr((err as Error).message || "Upload failed");
+          }
           finally {
             setUploading(false);
             if (fileRef.current) fileRef.current.value = "";
