@@ -343,8 +343,10 @@ export function AdSlot({
     | "home-5" | "home-6" | "home-7" | "home-8"
     | "home-9" | "home-10" | "home-11" | "home-12";
   // 9/16 + 16/9 retained for back-compat. 4/15 = skyscraper sidebar (320x1200).
-  // 4/1 = leaderboard banner (1940x500).
-  aspect?: "9/16" | "16/9" | "4/1" | "4/15";
+  // 4/1 = leaderboard banner (1940x500). "auto" = no fixed aspect, the card
+  // sizes to the image's natural ratio (used for home-9..12 so admin-supplied
+  // images of any shape display without cropping).
+  aspect?: "9/16" | "16/9" | "4/1" | "4/15" | "auto";
   className?: string;
   alt?: string;
   eager?: boolean;
@@ -360,7 +362,13 @@ export function AdSlot({
     aspect === "16/9" ? "aspect-[16/9]"
     : aspect === "4/1" ? "aspect-[4/1]"
     : aspect === "4/15" ? "aspect-[4/15]"
+    : aspect === "auto" ? ""
     : "aspect-[9/16]";
+
+  // For aspect="auto" the image renders at its natural ratio (w-full h-auto)
+  // and the card height follows. Every other aspect uses a fixed aspect box
+  // with object-cover for crop-to-fill.
+  const isAuto = aspect === "auto";
 
   // Card chrome turns into nothing when bare=true — but we still apply the
   // same corner radius as the framed ads, so all ad cards match.
@@ -369,7 +377,10 @@ export function AdSlot({
     : "overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50";
 
   if (!ad) {
-    return <div className={`${aspectClass} w-full ${bare ? "rounded-2xl" : "skeleton rounded-2xl border border-brand-line"} ${className}`} />;
+    // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
+    // needs some height before the image arrives.
+    const skClass = aspectClass || "aspect-[9/16]";
+    return <div className={`${skClass} w-full ${bare ? "rounded-2xl" : "skeleton rounded-2xl border border-brand-line"} ${className}`} />;
   }
 
   // Intrinsic dimensions matching the aspect — pin the actual ad pixel
@@ -426,7 +437,7 @@ export function AdSlot({
       decoding={priority ? "sync" : "async"}
       // fetchPriority is honored by Chromium/Safari; ignored elsewhere (safe).
       {...(priority ? ({ fetchPriority: "high" } as ImgHTMLAttributes<HTMLImageElement>) : {})}
-      className="h-full w-full object-cover"
+      className={isAuto ? "block h-auto w-full" : "h-full w-full object-cover"}
       onError={(e) => {
         const fb = fallbackImageBySlot[slot as keyof typeof fallbackImageBySlot];
         if (!fb) return;
@@ -435,7 +446,13 @@ export function AdSlot({
       }}
     />
   ) : (
-    <div className="flex h-full w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted">
+    <div className={
+      isAuto
+        // No fixed parent height with aspect="auto" — use a 9:16 placeholder
+        // box so empty slots stay visible.
+        ? "flex aspect-[9/16] w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
+        : "flex h-full w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
+    }>
       {slot.toUpperCase()}
     </div>
   );

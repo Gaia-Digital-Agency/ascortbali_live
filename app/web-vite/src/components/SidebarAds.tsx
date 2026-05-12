@@ -182,14 +182,19 @@ export function MobileAdsRow({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
  * first row of creator cards.
  */
 export function HomeFirstRowAds() {
+  // aspect="auto" lets each ad card size to the image's natural ratio
+  // (no crop). items-start keeps cards aligned to the top of the grid
+  // row when their heights differ — otherwise the grid stretches every
+  // card to the tallest sibling, defeating the purpose of using natural
+  // dimensions.
   return (
     <div className="block min-[1392px]:hidden">
       <div
-        className="grid grid-cols-2 gap-4 md:grid-cols-4"
+        className="grid grid-cols-2 items-start gap-4 md:grid-cols-4"
         aria-label="Sponsored ads"
       >
         {(["home-9", "home-10", "home-11", "home-12"] as const).map((slot) => (
-          <AdSlot key={slot} slot={slot} aspect="9/16" />
+          <AdSlot key={slot} slot={slot} aspect="auto" />
         ))}
       </div>
     </div>
