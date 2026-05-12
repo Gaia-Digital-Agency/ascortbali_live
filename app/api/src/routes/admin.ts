@@ -290,18 +290,27 @@ adminRouter.get("/ads", async (_req, res) => {
       `
       SELECT slot, image, text, link_url
         FROM advertising_spaces
-       WHERE slot IN ('home-1', 'home-2', 'home-3', 'home-4', 'home-5', 'home-6', 'home-7', 'home-8', 'bottom')
+       WHERE slot IN (
+              'home-1','home-2','home-3','home-4',
+              'home-5','home-6','home-7','home-8',
+              'home-9','home-10','home-11','home-12',
+              'bottom'
+            )
        ORDER BY CASE slot
-          WHEN 'home-1' THEN 1
-          WHEN 'home-2' THEN 2
-          WHEN 'home-3' THEN 3
-          WHEN 'home-4' THEN 4
-          WHEN 'home-5' THEN 5
-          WHEN 'home-6' THEN 6
-          WHEN 'home-7' THEN 7
-          WHEN 'home-8' THEN 8
-          WHEN 'bottom' THEN 9
-          ELSE 10
+          WHEN 'home-1'  THEN 1
+          WHEN 'home-2'  THEN 2
+          WHEN 'home-3'  THEN 3
+          WHEN 'home-4'  THEN 4
+          WHEN 'home-5'  THEN 5
+          WHEN 'home-6'  THEN 6
+          WHEN 'home-7'  THEN 7
+          WHEN 'home-8'  THEN 8
+          WHEN 'home-9'  THEN 9
+          WHEN 'home-10' THEN 10
+          WHEN 'home-11' THEN 11
+          WHEN 'home-12' THEN 12
+          WHEN 'bottom'  THEN 13
+          ELSE 14
        END
       `
     );
@@ -314,15 +323,23 @@ adminRouter.get("/ads", async (_req, res) => {
 
 // Zod schema for validating advertising space upsert data.
 // This ensures that the request body has the correct shape and data types.
+const VALID_AD_SLOTS = [
+  "home-1", "home-2", "home-3", "home-4",
+  "home-5", "home-6", "home-7", "home-8",
+  "home-9", "home-10", "home-11", "home-12",
+  "bottom",
+] as const;
+type AdSlotName = typeof VALID_AD_SLOTS[number];
+
 const UpsertAdSchema = z.object({
-  slot: z.enum(["home-1", "home-2", "home-3", "home-4", "home-5", "home-6", "home-7", "home-8", "bottom"]),
+  slot: z.enum(VALID_AD_SLOTS),
   image: z.string().optional().nullable(),
   text: z.string().optional().nullable(),
   link_url: z.string().optional().nullable(),
 });
 
 // Normalizes a URL for an ad link.
-const normalizeLinkUrl = (slot: "home-1" | "home-2" | "home-3" | "home-4" | "home-5" | "home-6" | "home-7" | "home-8" | "bottom", value?: string | null) => {
+const normalizeLinkUrl = (slot: AdSlotName, value?: string | null) => {
   if (slot === "bottom") return null;
   const raw = value?.trim();
   if (!raw) return null;
@@ -432,7 +449,7 @@ adminRouter.put("/ads/:slot", async (req, res) => {
 adminRouter.delete("/ads/:slot", async (req, res) => {
   const slot = req.params.slot;
   // Validate the slot parameter.
-  if (!["home-1", "home-2", "home-3", "home-4", "home-5", "home-6", "home-7", "home-8", "bottom"].includes(slot)) return res.status(400).json({ error: "invalid_slot" });
+  if (!(VALID_AD_SLOTS as readonly string[]).includes(slot)) return res.status(400).json({ error: "invalid_slot" });
 
   const pool = getPool();
   try {
