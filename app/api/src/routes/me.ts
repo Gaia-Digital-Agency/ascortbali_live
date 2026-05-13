@@ -232,15 +232,20 @@ const CreatorProfileSchema = z.object({
   // City now stores comma-separated Bali service areas (e.g. "Ubud, Canggu").
   // Bumped max from 50 to 500 to fit several zones.
   city: z.string().min(2).max(500),
-  orientation: z.preprocess(normalizeOrientation, z.enum(["straight", "bisexual", "lesbian", "gay", "other"])),
+  // Orientation: Straight / Bi Sexual / Lesbian (stored lower-case in
+  // providers.orientation). Older values "bisexual", "gay", "other" are
+  // accepted at write-time and normalized into the current set.
+  orientation: z.string().trim().toLowerCase().min(1).max(30),
   smoker: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   tattoo: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   piercing: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   services: z.string().min(2),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])),
   availableFor: z.preprocess(normalizeAvailableFor, z.enum(["incall", "outcall", "both"])),
-  // Phase E: Form tag — Freelance | Escort. Persisted to providers.escort_type.
-  form: z.enum(["freelance", "escort"]).optional().default("freelance"),
+  // Category (was "Form"): Freelance / Girlfriend / Sugar Baby / Escort /
+  // Hot Wife. Persisted to providers.escort_type. Accept any short string so
+  // the option list can grow without a schema change.
+  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("freelance"),
 });
 
 // Route to get the authenticated creator's profile details.

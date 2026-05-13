@@ -595,10 +595,14 @@ const CreatorRegisterSchema = z.object({
   telegramId: z.string().max(100).optional().default(""),
   // WeChat ID is optional at registration time. Stored in providers.wechat_id.
   wechatId: z.string().max(100).optional().default(""),
-  // Form (Phase E): Freelance | Escort. Persisted to providers.escort_type.
-  // Defaults to "freelance" if the form omits it (registration UI marks it
-  // optional but provides a sensible default).
-  form: z.enum(["freelance", "escort"]).optional().default("freelance"),
+  // Category (was "FORM"): Freelance / Girlfriend / Sugar Baby / Escort /
+  // Hot Wife. Persisted to providers.escort_type. Stored lower-case; accept
+  // any short string so the option list can be extended later without a
+  // schema change.
+  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("freelance"),
+  // Orientation: Straight / Bi Sexual / Lesbian. Stored lower-case in
+  // providers.orientation.
+  orientation: z.string().trim().toLowerCase().min(1).max(30).optional().default("straight"),
   // Services and hair length are now optional at registration. Creators are
   // required to fill these in later from the profile editor (which still
   // enforces min length / non-empty via CreatorProfileSchema in me.ts).
@@ -614,7 +618,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, services, hairLength } = parsed.data;
+  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -642,8 +646,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
 
     const hashedPw = await hashPassword(password);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
       [
         creatorId,
         providerId,
@@ -663,6 +667,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         url,
         slug,
         form,
+        orientation,
       ]
     );
 

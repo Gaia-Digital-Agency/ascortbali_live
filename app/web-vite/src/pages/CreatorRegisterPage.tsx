@@ -3,6 +3,12 @@ import { Link } from "react-router-dom";
 import { API_BASE, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PageMeta } from "../components/PageMeta";
+import {
+  CATEGORY_OPTIONS,
+  ORIENTATION_OPTIONS,
+  SERVICE_AREA_OPTIONS,
+  SERVICES_OPTIONS,
+} from "../lib/creatorOptions";
 
 const NATIONALITIES = [
   "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Argentinian", "Armenian",
@@ -26,6 +32,10 @@ const NATIONALITIES = [
 
 const AGES = Array.from({ length: 53 }, (_, i) => 18 + i); // 18–70
 
+// Title-case the lower-case enum values used in shared options for display
+// in <option> labels (browser CSS on <option> is unreliable).
+const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+
 // Hair Length and Services are NOT collected at registration time. Both live
 // on the Creator Profile Management page where they're required, so the
 // signup flow stays minimal — creators only need to fill them in once they
@@ -37,10 +47,12 @@ export default function CreatorRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
-  const [form, setForm] = useState<"freelance" | "escort">("freelance");
+  const [form, setForm] = useState<string>(CATEGORY_OPTIONS[0]);
+  const [orientation, setOrientation] = useState<string>(ORIENTATION_OPTIONS[0]);
   const [age, setAge] = useState("");
   const [nationality, setNationality] = useState("");
-  const [city, setCity] = useState("");
+  const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
+  const [services, setServices] = useState<string[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
@@ -102,6 +114,8 @@ export default function CreatorRegisterPage() {
           telegramId: telegramId.trim() || undefined,
           wechatId: wechatId.trim() || undefined,
           form,
+          orientation,
+          services,
         }),
       });
       const json = await res.json();
@@ -182,9 +196,10 @@ export default function CreatorRegisterPage() {
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">CATEGORY</label>
-              <select className={sel} value={form} onChange={(e) => setForm(e.target.value as "freelance" | "escort")} aria-label="Category">
-                <option value="freelance">Freelance</option>
-                <option value="escort">Escort</option>
+              <select className={sel} value={form} onChange={(e) => setForm(e.target.value)} aria-label="Category">
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>{titleCase(c)}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -205,8 +220,43 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">CITY</label>
-              <input required className={inp} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Bali" aria-label="City" />
+              <label className="text-xs tracking-[0.22em] text-brand-muted">LOCATION</label>
+              <select required className={sel} value={city} onChange={(e) => setCity(e.target.value)} aria-label="Location">
+                {SERVICE_AREA_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">ORIENTATION</label>
+            <select className={sel} value={orientation} onChange={(e) => setOrientation(e.target.value)} aria-label="Orientation">
+              {ORIENTATION_OPTIONS.map((o) => (
+                <option key={o} value={o}>{titleCase(o)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">
+              SERVICES <span className="normal-case text-brand-muted/60">(select all that apply)</span>
+            </label>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              {SERVICES_OPTIONS.map((s) => {
+                const checked = services.includes(s);
+                return (
+                  <label key={s} className="flex items-center gap-2 rounded-xl border border-brand-line bg-brand-surface2/40 px-3 py-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) setServices((prev) => [...prev, s]);
+                        else setServices((prev) => prev.filter((v) => v !== s));
+                      }}
+                    />
+                    <span>{s}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

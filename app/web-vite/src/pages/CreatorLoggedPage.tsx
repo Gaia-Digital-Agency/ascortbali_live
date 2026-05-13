@@ -16,7 +16,7 @@ type CreatorProfile = {
   model_name: string;
   is_active: boolean;
   gender: "female" | "male" | "transgender";
-  form: "freelance" | "escort";
+  form: string;
   age: number;
   location: string;
   eyes: string;
@@ -33,7 +33,7 @@ type CreatorProfile = {
   wechat_id: string;
   country: string;
   city: string;
-  orientation: "straight" | "bisexual" | "lesbian" | "gay" | "other";
+  orientation: string;
   smoker: "yes" | "no";
   tattoo: "yes" | "no";
   piercing: "yes" | "no";
@@ -73,18 +73,16 @@ const ETHNICITY_OPTIONS = [
   "North American", "South American", "Black", "Caucasian",
   "Middle Eastern", "Hispanic", "Latin", "Pacific Islander", "Mixed", "Other",
 ];
-const TRAVEL_OPTIONS = ["Travel To Meet", "Expense Paid", "No Travelling", "Within City Only", "Nationwide", "International"];
-const HAIR_LENGTH_OPTIONS = ["Very Short", "Short", "Medium", "Shoulder", "Long", "Very Long"];
-const SERVICES_OPTIONS = ["Full Services", "Massage", "Sex", "Anal", "BDSM", "Role Play", "Vanilla", "Refer Notes"];
-// Major / main service areas in Bali. Stored comma-separated in providers.city
-// (the column has been repurposed from a single city to a multi-area selector).
-// "All Bali" sits at the top as a catch-all for creators who travel anywhere
-// on the island.
-const SERVICE_AREA_OPTIONS = [
-  "All Bali",
-  "Ubud", "Seminyak", "Canggu", "Nusa Dua", "Sanur", "Kuta", "Denpasar",
-  "Jimbaran", "Uluwatu", "Legian", "Tabanan", "Pererenan", "Bukit", "Gianyar",
-];
+// Field options moved to src/lib/creatorOptions.ts so the registration page,
+// profile editor, and public preview all use the same lists.
+import {
+  TRAVEL_OPTIONS,
+  HAIR_LENGTH_OPTIONS,
+  SERVICES_OPTIONS,
+  SERVICE_AREA_OPTIONS,
+  CATEGORY_OPTIONS,
+  ORIENTATION_OPTIONS,
+} from "../lib/creatorOptions";
 
 // ## 5. Height 5cm ranges with feet/inch equivalents, 140-200cm
 function cmToFeetInch(cm: number) {
@@ -168,7 +166,7 @@ export default function CreatorPanel() {
       // Country dropped — replaced conceptually by the Service Area picker.
       // Service Area is stored in the city column (comma-separated zones);
       // require at least one selection.
-      ["Service Area", String(profile.city ?? "").trim()],
+      ["Location", String(profile.city ?? "").trim()],
       ["Ethnicity", String(profile.ethnicity ?? "").trim()],
       ["Languages", String(profile.languages ?? "").trim()],
       ["Eyes", String(profile.eyes ?? "").trim()],
@@ -435,7 +433,7 @@ export default function CreatorPanel() {
               the location info now. The DB column still exists; we send "" so
               existing rows are preserved without the creator having to maintain
               it. */}
-          <Field label="SERVICE AREA">
+          <Field label="LOCATION">
             <ChecklistDropdown
               options={SERVICE_AREA_OPTIONS}
               selected={(profile.city ?? "").split(",").map((v) => v.trim()).filter(Boolean)}
@@ -510,8 +508,8 @@ export default function CreatorPanel() {
               choices and saves. */}
           <ChoiceGroup label="GENDER" value={profile.gender} options={["female", "transgender"]} onChange={(v) => updateProfile("gender", v as CreatorProfile["gender"])} />
           {/* CATEGORY (formerly "FORM"): Freelance | Escort. Persisted to providers.escort_type. */}
-          <ChoiceGroup label="CATEGORY" value={profile.form ?? "freelance"} options={["freelance", "escort"]} onChange={(v) => updateProfile("form", v as CreatorProfile["form"])} />
-          <ChoiceGroup label="ORIENTATION" value={profile.orientation} options={["straight", "bisexual", "lesbian", "gay", "other"]} onChange={(v) => updateProfile("orientation", v as CreatorProfile["orientation"])} />
+          <ChoiceGroup label="CATEGORY" value={profile.form ?? CATEGORY_OPTIONS[0]} options={CATEGORY_OPTIONS} onChange={(v) => updateProfile("form", v as CreatorProfile["form"])} />
+          <ChoiceGroup label="ORIENTATION" value={profile.orientation || ORIENTATION_OPTIONS[0]} options={ORIENTATION_OPTIONS} onChange={(v) => updateProfile("orientation", v as CreatorProfile["orientation"])} />
           <ChoiceGroup label="AVAILABLE FOR" value={profile.available_for} options={["incall", "outcall", "both"]} onChange={(v) => updateProfile("available_for", v as CreatorProfile["available_for"])} />
           <ChoiceGroup label="MEETING WITH" value={profile.meeting_with} options={["men", "women", "couples", "all"]} onChange={(v) => updateProfile("meeting_with", v as CreatorProfile["meeting_with"])} />
           <ChoiceGroup label="SMOKER" value={profile.smoker} options={["yes", "no"]} onChange={(v) => updateProfile("smoker", v as CreatorProfile["smoker"])} />

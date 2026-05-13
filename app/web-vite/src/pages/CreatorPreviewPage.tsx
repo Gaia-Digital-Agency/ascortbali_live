@@ -100,17 +100,20 @@ export default function CreatorPreviewPage() {
         // (Phone/SMS, Whatsapp, Telegram, WeChat ID), in that order, regardless
         // of whether the creator filled them in. Empty values render as an
         // em-dash placeholder via the row template below — never hidden.
-        // Title-case the FORM tag for display ("escort" -> "Escort").
+        // Title-case any lower-case enum value for display
+        // ("sugar baby" -> "Sugar Baby", "escort" -> "Escort").
+        const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
         const formRaw = String(raw.form ?? raw.escort_type ?? "").trim().toLowerCase();
-        const formDisplay = formRaw ? formRaw.charAt(0).toUpperCase() + formRaw.slice(1) : "";
+        const categoryDisplay = formRaw ? titleCase(formRaw) : "";
+        const orientationDisplay = titleCase(String(raw.orientation ?? "").trim().toLowerCase());
         const fields: Array<[string, string | number | undefined]> = [
           ["Name", displayName],
-          // Status (= editor's "Form" tag, freelance/escort) sits at the top
-          // so it's the first thing a viewer sees.
-          ["Status", formDisplay],
+          // Category (was "Form" / "Status") sits at the top so it's the
+          // first thing a viewer sees.
+          ["Category", categoryDisplay],
           ["Age", raw.age],
           ["Gender", raw.gender],
-          ["Orientation", raw.orientation],
+          ["Orientation", orientationDisplay],
           ["Available For", raw.available_for],
           ["Meeting With", raw.meeting_with],
           ["Smoker", raw.smoker],
@@ -118,18 +121,17 @@ export default function CreatorPreviewPage() {
           ["Piercing", raw.piercing],
           ["Nationality", raw.nationality],
           ["Ethnicity", raw.ethnicity],
-          // Languages row hidden from the public view.
-          // Editor stores comma-split Bali zones in providers.city; the user-
-          // facing label here mirrors the editor's "Service Area" header.
-          ["Service Area", raw.city],
-          // Country and Location intentionally NOT shown — they were dropped
-          // from the editor (item 14) and have no source-of-truth UI anymore.
+          // Editor stores comma-split Bali zones in providers.city; the
+          // user-facing label is "Location".
+          ["Location", raw.city],
           ["Eyes", raw.eyes],
           ["Hair Color", raw.hair_color],
           ["Hair Length", hairLength],
           ["Height", raw.height],
           ["Weight", raw.weight],
           ["Travel", raw.travel],
+          // Services row — always visible. About Me below is a separate field.
+          ["Services", raw.services],
           // About Me: editor's ABOUT ME textarea (notes column). Fallback to
           // services list when notes is empty so the row always has content.
           ["About Me", String(raw.notes ?? "").trim() || raw.services],
