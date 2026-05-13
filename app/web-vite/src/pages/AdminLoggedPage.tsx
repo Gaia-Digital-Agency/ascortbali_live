@@ -705,9 +705,15 @@ function ImageAdEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
-  // home-5..home-8 are 4:1 leaderboards (landscape). Everything else is
-  // 4:15 / 9:16 portrait.
+  // Slot format classification:
+  //   landscape: home-5..8 (4:1 leaderboards above/below grids)
+  //   portrait:  home-1..4, home-13..16 (4:15 sidebar skyscrapers)
+  //   card:      home-9..12, home-17..20 (9:16 first-row creator-card area)
   const isLandscape = slot === "home-5" || slot === "home-6" || slot === "home-7" || slot === "home-8";
+  const isCard =
+    slot === "home-9"  || slot === "home-10" || slot === "home-11" || slot === "home-12" ||
+    slot === "home-17" || slot === "home-18" || slot === "home-19" || slot === "home-20";
+  const formatLabel = isLandscape ? "LANDSCAPE" : isCard ? "CARD" : "PORTRAIT";
 
   // Where each slot appears on the site — shown under the slot name so the
   // operator knows what they're uploading without checking the code.
@@ -749,7 +755,7 @@ function ImageAdEditor({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs tracking-[0.22em] text-brand-muted uppercase">
-            {isLandscape ? `${slot} (LANDSCAPE)` : `${slot} (PORTRAIT)`}
+            {slot} ({formatLabel})
           </div>
           {/* Placement guide — kept brand-toned + slightly larger so the
               operator can scan it without squinting. */}
