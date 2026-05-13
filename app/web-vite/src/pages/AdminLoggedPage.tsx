@@ -367,35 +367,57 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
-        <div className="mt-6 grid gap-5 grid-cols-2 md:grid-cols-4">
-          {([
-            "home-1", "home-2", "home-3", "home-4",
-            "home-5", "home-6", "home-7", "home-8",
-            "home-9", "home-10", "home-11", "home-12",
-            "home-13", "home-14", "home-15", "home-16",
-            "home-17", "home-18", "home-19", "home-20",
-          ] as const).map((slot) => {
-            const ad = ads.find((item) => item.slot === slot);
-            const prev = savedAds.find((s) => s.slot === slot);
-            const slotDirty =
-              !prev ||
-              (prev.image ?? null) !== (ad?.image ?? null) ||
-              (prev.link_url ?? null) !== (ad?.link_url ?? null);
-            return (
-              <ImageAdEditor
-                key={slot}
-                slot={slot}
-                image={ad?.image ?? null}
-                linkUrl={ad?.link_url ?? null}
-                busy={savingSlot === slot || savingAllAds}
-                dirty={slotDirty}
-                onChange={(image) => { updateAd(slot, { image }); setAdsMsg(null); }}
-                onChangeLinkUrl={(link_url) => { updateAd(slot, { link_url }); setAdsMsg(null); }}
-                onClear={() => clearSlot(slot)}
-              />
-            );
-          })}
-        </div>
+        {/* Slot cards grouped by page so the operator sees at a glance which
+            ads belong to the Homepage vs the Creator Page. Each card also
+            shows its individual placement description (see ImageAdEditor). */}
+        {([
+          {
+            heading: "HOMEPAGE",
+            // Side rails (1-4), top/bottom leaderboards (5-6), card-area
+            // first row (9-12). Creator-card-area for narrow viewports.
+            slots: ["home-1","home-2","home-3","home-4","home-5","home-6","home-9","home-10","home-11","home-12"] as const,
+          },
+          {
+            heading: "CREATOR PAGE",
+            // Top/bottom leaderboards (7-8), side rails (13-16), card-area
+            // first row (17-20) for narrow viewports.
+            slots: ["home-7","home-8","home-13","home-14","home-15","home-16","home-17","home-18","home-19","home-20"] as const,
+          },
+        ] as const).map((group) => (
+          <div key={group.heading} className="mt-6">
+            <div className="mb-3 flex items-baseline gap-3">
+              <div className="text-[11px] font-medium tracking-[0.32em] text-brand-gold/90">
+                {group.heading}
+              </div>
+              <div className="text-[10px] tracking-[0.18em] text-brand-muted/70">
+                {group.slots.length} SLOTS
+              </div>
+            </div>
+            <div className="grid gap-5 grid-cols-2 md:grid-cols-4">
+              {group.slots.map((slot) => {
+                const ad = ads.find((item) => item.slot === slot);
+                const prev = savedAds.find((s) => s.slot === slot);
+                const slotDirty =
+                  !prev ||
+                  (prev.image ?? null) !== (ad?.image ?? null) ||
+                  (prev.link_url ?? null) !== (ad?.link_url ?? null);
+                return (
+                  <ImageAdEditor
+                    key={slot}
+                    slot={slot}
+                    image={ad?.image ?? null}
+                    linkUrl={ad?.link_url ?? null}
+                    busy={savingSlot === slot || savingAllAds}
+                    dirty={slotDirty}
+                    onChange={(image) => { updateAd(slot, { image }); setAdsMsg(null); }}
+                    onChangeLinkUrl={(link_url) => { updateAd(slot, { link_url }); setAdsMsg(null); }}
+                    onClear={() => clearSlot(slot)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
         <div className="mt-5 flex items-center justify-end">
           <button
             onClick={saveAllAds}
@@ -728,7 +750,9 @@ function ImageAdEditor({
           <div className="text-xs tracking-[0.22em] text-brand-muted uppercase">
             {isLandscape ? `${slot} (LANDSCAPE)` : `${slot} (PORTRAIT)`}
           </div>
-          <div className="mt-1 text-[10px] leading-snug text-brand-muted/80">
+          {/* Placement guide — kept brand-toned + slightly larger so the
+              operator can scan it without squinting. */}
+          <div className="mt-1 text-[11px] leading-snug text-brand-gold/85">
             {placement[slot]}
           </div>
         </div>
