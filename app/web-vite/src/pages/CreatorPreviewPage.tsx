@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_BASE, apiFetch, getAccessToken } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
-import { LeftSidebarAd, RightSidebarAd, MobileAdsRow } from "../components/SidebarAds";
+import { CreatorLeftSideAd, CreatorRightSideAd, CreatorFirstRowAds } from "../components/SidebarAds";
 import { PageMeta, SITE_BASE } from "../components/PageMeta";
 
 type CreatorData = {
@@ -269,21 +269,17 @@ export default function CreatorPreviewPage() {
         path={`/creator/preview/${data.slug}`}
         image={ogImage}
       />
-      {/* Floating side ads — TWO ads stacked per side, hardcoded in
-          SidebarAds.tsx (left = home-1+home-2, right = home-3+home-4).
-          Range = top of TOP ad to bottom of BOTTOM ad. */}
-      <LeftSidebarAd />
-      <RightSidebarAd />
+      {/* Floating side ads — Creator-Preview-specific pair:
+            left  = home-13 (top) + home-14 (bottom)
+            right = home-15 (top) + home-16 (bottom)
+          Visible at >=1392px; below that, CreatorFirstRowAds (home-17..20)
+          covers the inventory inside the Creator Card area. */}
+      <CreatorLeftSideAd />
+      <CreatorRightSideAd />
 
       {/* TOP ad — home-7 (4:1 leaderboard, full container width) */}
       <section>
         <AdSlot slot="home-7" aspect="4/1" eager />
-      </section>
-
-      {/* Mobile-only portrait ad strip (item 115). Desktop sees these
-          as floating side ads via Left/RightSidebarAd. */}
-      <section>
-        <MobileAdsRow />
       </section>
 
       {/* CREATOR / Name header */}
@@ -439,7 +435,10 @@ export default function CreatorPreviewPage() {
           </section>
 
           {/* Explore Next Girl — 8 random images (no carousel), click → creator page */}
-          <section>
+          <section className="space-y-4">
+            {/* Creator Card Area first-row ads (home-17..20) — only visible
+                below 1392px, where the side rails (home-13..16) don't fit. */}
+            <CreatorFirstRowAds />
             <div className="text-xs tracking-luxe text-brand-muted mb-3">EXPLORE NEXT GIRL</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {exploreCreators.map((c) => (

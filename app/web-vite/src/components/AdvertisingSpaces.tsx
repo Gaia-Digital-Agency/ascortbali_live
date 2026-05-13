@@ -7,6 +7,8 @@ type AdSpace = {
     | "home-1" | "home-2" | "home-3" | "home-4"
     | "home-5" | "home-6" | "home-7" | "home-8"
     | "home-9" | "home-10" | "home-11" | "home-12"
+    | "home-13" | "home-14" | "home-15" | "home-16"
+    | "home-17" | "home-18" | "home-19" | "home-20"
     | "bottom";
   image: string | null;
   text: string | null;
@@ -48,6 +50,17 @@ const fallbackAds: AdSpace[] = [
   { slot: "home-10", image: null, text: null, link_url: null },
   { slot: "home-11", image: null, text: null, link_url: null },
   { slot: "home-12", image: null, text: null, link_url: null },
+  // home-13..home-16: side rails on the Creator Preview page (portrait).
+  { slot: "home-13", image: null, text: null, link_url: null },
+  { slot: "home-14", image: null, text: null, link_url: null },
+  { slot: "home-15", image: null, text: null, link_url: null },
+  { slot: "home-16", image: null, text: null, link_url: null },
+  // home-17..home-20: first row of the Creator Card Area on Creator Preview
+  // (replaces the side rails on viewports where they don't fit).
+  { slot: "home-17", image: null, text: null, link_url: null },
+  { slot: "home-18", image: null, text: null, link_url: null },
+  { slot: "home-19", image: null, text: null, link_url: null },
+  { slot: "home-20", image: null, text: null, link_url: null },
   { slot: "bottom",  image: null, text: "Your Ads Here", link_url: null },
 ];
 
@@ -121,7 +134,15 @@ function mergeAdsResponse(data: AdSpace[]): AdSpace[] {
     mergeSlot("home-10", fallbackAds[9]),
     mergeSlot("home-11", fallbackAds[10]),
     mergeSlot("home-12", fallbackAds[11]),
-    mergeSlot("bottom",  fallbackAds[12]),
+    mergeSlot("home-13", fallbackAds[12]),
+    mergeSlot("home-14", fallbackAds[13]),
+    mergeSlot("home-15", fallbackAds[14]),
+    mergeSlot("home-16", fallbackAds[15]),
+    mergeSlot("home-17", fallbackAds[16]),
+    mergeSlot("home-18", fallbackAds[17]),
+    mergeSlot("home-19", fallbackAds[18]),
+    mergeSlot("home-20", fallbackAds[19]),
+    mergeSlot("bottom",  fallbackAds[20]),
   ];
 }
 
@@ -341,11 +362,13 @@ export function AdSlot({
   slot:
     | "home-1" | "home-2" | "home-3" | "home-4"
     | "home-5" | "home-6" | "home-7" | "home-8"
-    | "home-9" | "home-10" | "home-11" | "home-12";
+    | "home-9" | "home-10" | "home-11" | "home-12"
+    | "home-13" | "home-14" | "home-15" | "home-16"
+    | "home-17" | "home-18" | "home-19" | "home-20";
   // 9/16 + 16/9 retained for back-compat. 4/15 = skyscraper sidebar (320x1200).
   // 4/1 = leaderboard banner (1940x500). "auto" = no fixed aspect, the card
-  // sizes to the image's natural ratio (used for home-9..12 so admin-supplied
-  // images of any shape display without cropping).
+  // sizes to the image's natural ratio (used for home-9..12 / home-17..20 so
+  // admin-supplied images of any shape display without cropping).
   aspect?: "9/16" | "16/9" | "4/1" | "4/15" | "auto";
   className?: string;
   alt?: string;

@@ -294,6 +294,8 @@ adminRouter.get("/ads", async (_req, res) => {
               'home-1','home-2','home-3','home-4',
               'home-5','home-6','home-7','home-8',
               'home-9','home-10','home-11','home-12',
+              'home-13','home-14','home-15','home-16',
+              'home-17','home-18','home-19','home-20',
               'bottom'
             )
        ORDER BY CASE slot
@@ -309,8 +311,16 @@ adminRouter.get("/ads", async (_req, res) => {
           WHEN 'home-10' THEN 10
           WHEN 'home-11' THEN 11
           WHEN 'home-12' THEN 12
-          WHEN 'bottom'  THEN 13
-          ELSE 14
+          WHEN 'home-13' THEN 13
+          WHEN 'home-14' THEN 14
+          WHEN 'home-15' THEN 15
+          WHEN 'home-16' THEN 16
+          WHEN 'home-17' THEN 17
+          WHEN 'home-18' THEN 18
+          WHEN 'home-19' THEN 19
+          WHEN 'home-20' THEN 20
+          WHEN 'bottom'  THEN 21
+          ELSE 22
        END
       `
     );
@@ -327,6 +337,8 @@ const VALID_AD_SLOTS = [
   "home-1", "home-2", "home-3", "home-4",
   "home-5", "home-6", "home-7", "home-8",
   "home-9", "home-10", "home-11", "home-12",
+  "home-13", "home-14", "home-15", "home-16",
+  "home-17", "home-18", "home-19", "home-20",
   "bottom",
 ] as const;
 type AdSlotName = typeof VALID_AD_SLOTS[number];

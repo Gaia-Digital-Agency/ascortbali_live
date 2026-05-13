@@ -3,7 +3,10 @@ import { AdSlot } from "./AdvertisingSpaces";
 
 type AdSlotName =
   | "home-1" | "home-2" | "home-3" | "home-4"
-  | "home-5" | "home-6" | "home-7" | "home-8";
+  | "home-5" | "home-6" | "home-7" | "home-8"
+  | "home-9" | "home-10" | "home-11" | "home-12"
+  | "home-13" | "home-14" | "home-15" | "home-16"
+  | "home-17" | "home-18" | "home-19" | "home-20";
 
 type AdAspect = "9/16" | "16/9" | "4/1" | "4/15";
 
@@ -73,10 +76,15 @@ const LEFT_SLOTS:  readonly [AdSlotName, AdSlotName] = ["home-1", "home-2"] as c
 const RIGHT_SLOTS: readonly [AdSlotName, AdSlotName] = ["home-3", "home-4"] as const;
 
 /**
- * LEFT side ads — home-1 (top) + home-2 (bottom), stacked.
+ * LEFT side ads — TWO stacked portrait ads (top + bottom).
  * Flush against content's left edge, sticky-bounded vertically.
+ * Slot pair defaults to homepage (home-1 top, home-2 bottom). Creator
+ * Preview passes ["home-13","home-14"] for its own pair.
  */
-export function LeftSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
+export function LeftSideAd({
+  aspect = "4/15",
+  slots = LEFT_SLOTS,
+}: { aspect?: AdAspect; slots?: readonly [AdSlotName, AdSlotName] } = {}) {
   return (
     <div
       className={ABSOLUTE_AD_CLASS}
@@ -97,10 +105,10 @@ export function LeftSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
         }}
       >
         <div style={{ width: SIDE_AD_WIDTH, height: SIDE_AD_HEIGHT }}>
-          <AdSlot slot={LEFT_SLOTS[0]} aspect={aspect} bare />
+          <AdSlot slot={slots[0]} aspect={aspect} bare />
         </div>
         <div style={{ width: SIDE_AD_WIDTH, height: SIDE_AD_HEIGHT }}>
-          <AdSlot slot={LEFT_SLOTS[1]} aspect={aspect} bare />
+          <AdSlot slot={slots[1]} aspect={aspect} bare />
         </div>
       </div>
     </div>
@@ -108,10 +116,13 @@ export function LeftSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
 }
 
 /**
- * RIGHT side ads — home-3 (top) + home-4 (bottom), stacked.
- * Flush against content's right edge, sticky-bounded vertically.
+ * RIGHT side ads — TWO stacked portrait ads (top + bottom).
+ * Mirror of LeftSideAd. Defaults to homepage pair (home-3, home-4).
  */
-export function RightSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
+export function RightSideAd({
+  aspect = "4/15",
+  slots = RIGHT_SLOTS,
+}: { aspect?: AdAspect; slots?: readonly [AdSlotName, AdSlotName] } = {}) {
   return (
     <div
       className={ABSOLUTE_AD_CLASS}
@@ -132,10 +143,10 @@ export function RightSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
         }}
       >
         <div style={{ width: SIDE_AD_WIDTH, height: SIDE_AD_HEIGHT }}>
-          <AdSlot slot={RIGHT_SLOTS[0]} aspect={aspect} bare />
+          <AdSlot slot={slots[0]} aspect={aspect} bare />
         </div>
         <div style={{ width: SIDE_AD_WIDTH, height: SIDE_AD_HEIGHT }}>
-          <AdSlot slot={RIGHT_SLOTS[1]} aspect={aspect} bare />
+          <AdSlot slot={slots[1]} aspect={aspect} bare />
         </div>
       </div>
     </div>
@@ -145,6 +156,15 @@ export function RightSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
 // Back-compat aliases (old names used elsewhere)
 export const LeftSidebarAd = LeftSideAd;
 export const RightSidebarAd = RightSideAd;
+
+// Creator Preview page side ads — home-13/14 (left) + home-15/16 (right).
+// Render only at the same ≥1392px threshold as the homepage rails.
+export function CreatorLeftSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
+  return <LeftSideAd aspect={aspect} slots={["home-13", "home-14"] as const} />;
+}
+export function CreatorRightSideAd({ aspect = "4/15" }: { aspect?: AdAspect } = {}) {
+  return <RightSideAd aspect={aspect} slots={["home-15", "home-16"] as const} />;
+}
 
 /**
  * Mobile-only horizontal-scroll row of home-1..home-4 (the side-rail ads).
@@ -194,6 +214,26 @@ export function HomeFirstRowAds() {
         aria-label="Sponsored ads"
       >
         {(["home-9", "home-10", "home-11", "home-12"] as const).map((slot) => (
+          <AdSlot key={slot} slot={slot} aspect="auto" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Creator Preview equivalent of HomeFirstRowAds — home-17..20 as the first
+ * row of the "Explore Next Girl" creator-card area. Only visible below
+ * 1392px, where the Creator Preview side rails (home-13..16) don't fit.
+ */
+export function CreatorFirstRowAds() {
+  return (
+    <div className="block min-[1392px]:hidden">
+      <div
+        className="grid grid-cols-2 items-start gap-4 md:grid-cols-4"
+        aria-label="Sponsored ads"
+      >
+        {(["home-17", "home-18", "home-19", "home-20"] as const).map((slot) => (
           <AdSlot key={slot} slot={slot} aspect="auto" />
         ))}
       </div>

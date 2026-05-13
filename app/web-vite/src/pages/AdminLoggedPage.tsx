@@ -15,6 +15,8 @@ type AdSpace = {
     | "home-1" | "home-2" | "home-3" | "home-4"
     | "home-5" | "home-6" | "home-7" | "home-8"
     | "home-9" | "home-10" | "home-11" | "home-12"
+    | "home-13" | "home-14" | "home-15" | "home-16"
+    | "home-17" | "home-18" | "home-19" | "home-20"
     | "bottom";
   image: string | null;
   text: string | null;
@@ -36,6 +38,14 @@ const defaultAds: AdSpace[] = [
   { slot: "home-10", image: null, text: null, link_url: null },
   { slot: "home-11", image: null, text: null, link_url: null },
   { slot: "home-12", image: null, text: null, link_url: null },
+  { slot: "home-13", image: null, text: null, link_url: null },
+  { slot: "home-14", image: null, text: null, link_url: null },
+  { slot: "home-15", image: null, text: null, link_url: null },
+  { slot: "home-16", image: null, text: null, link_url: null },
+  { slot: "home-17", image: null, text: null, link_url: null },
+  { slot: "home-18", image: null, text: null, link_url: null },
+  { slot: "home-19", image: null, text: null, link_url: null },
+  { slot: "home-20", image: null, text: null, link_url: null },
   { slot: "bottom",  image: null, text: "Your Ads Here", link_url: null },
 ];
 
@@ -362,6 +372,8 @@ export default function AdminDashboard() {
             "home-1", "home-2", "home-3", "home-4",
             "home-5", "home-6", "home-7", "home-8",
             "home-9", "home-10", "home-11", "home-12",
+            "home-13", "home-14", "home-15", "home-16",
+            "home-17", "home-18", "home-19", "home-20",
           ] as const).map((slot) => {
             const ad = ads.find((item) => item.slot === slot);
             const prev = savedAds.find((s) => s.slot === slot);
@@ -660,7 +672,9 @@ function ImageAdEditor({
   slot:
     | "home-1" | "home-2" | "home-3" | "home-4"
     | "home-5" | "home-6" | "home-7" | "home-8"
-    | "home-9" | "home-10" | "home-11" | "home-12";
+    | "home-9" | "home-10" | "home-11" | "home-12"
+    | "home-13" | "home-14" | "home-15" | "home-16"
+    | "home-17" | "home-18" | "home-19" | "home-20";
   image: string | null; busy: boolean; dirty: boolean; linkUrl: string | null;
   onChange: (value: string) => void; onChangeLinkUrl: (value: string) => void;
   onClear: () => void;
@@ -668,25 +682,33 @@ function ImageAdEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
-  // home-5..home-8 are 4:1 leaderboards (landscape). home-1..home-4 and
-  // home-9..home-12 are 4:15 / 9:16 portrait ads.
+  // home-5..home-8 are 4:1 leaderboards (landscape). Everything else is
+  // 4:15 / 9:16 portrait.
   const isLandscape = slot === "home-5" || slot === "home-6" || slot === "home-7" || slot === "home-8";
 
   // Where each slot appears on the site — shown under the slot name so the
   // operator knows what they're uploading without checking the code.
   const placement: Record<typeof slot, string> = {
-    "home-1":  "Homepage · Left side, Top (desktop ≥1392px)",
-    "home-2":  "Homepage · Left side, Bottom (desktop ≥1392px)",
-    "home-3":  "Homepage · Right side, Top (desktop ≥1392px)",
-    "home-4":  "Homepage · Right side, Bottom (desktop ≥1392px)",
-    "home-5":  "Homepage · Leaderboard above creator grid",
-    "home-6":  "Homepage · Leaderboard below creator grid",
-    "home-7":  "Creator profile · Leaderboard above gallery",
-    "home-8":  "Creator profile · Leaderboard below gallery",
-    "home-9":  "Homepage · First row of creator grid, position 1 (tablet/mobile <1392px)",
-    "home-10": "Homepage · First row of creator grid, position 2 (tablet/mobile <1392px)",
-    "home-11": "Homepage · First row of creator grid, position 3 (tablet/mobile <1392px)",
-    "home-12": "Homepage · First row of creator grid, position 4 (tablet/mobile <1392px)",
+    "home-1":  "Homepage · Side, Top Left (desktop ≥1392px)",
+    "home-2":  "Homepage · Side, Bottom Left (desktop ≥1392px)",
+    "home-3":  "Homepage · Side, Top Right (desktop ≥1392px)",
+    "home-4":  "Homepage · Side, Bottom Right (desktop ≥1392px)",
+    "home-5":  "Homepage · Top (landscape)",
+    "home-6":  "Homepage · Bottom (landscape)",
+    "home-7":  "Creator Page · Top (landscape)",
+    "home-8":  "Creator Page · Bottom (landscape)",
+    "home-9":  "Homepage · Top Creator Card Area, position 1 (tablet/mobile <1392px)",
+    "home-10": "Homepage · Top Creator Card Area, position 2 (tablet/mobile <1392px)",
+    "home-11": "Homepage · Top Creator Card Area, position 3 (tablet/mobile <1392px)",
+    "home-12": "Homepage · Top Creator Card Area, position 4 (tablet/mobile <1392px)",
+    "home-13": "Creator Page · Side, Top Left (desktop ≥1392px)",
+    "home-14": "Creator Page · Side, Bottom Left (desktop ≥1392px)",
+    "home-15": "Creator Page · Side, Top Right (desktop ≥1392px)",
+    "home-16": "Creator Page · Side, Bottom Right (desktop ≥1392px)",
+    "home-17": "Creator Page · Top Creator Card Area, position 1 (tablet/mobile <1392px)",
+    "home-18": "Creator Page · Top Creator Card Area, position 2 (tablet/mobile <1392px)",
+    "home-19": "Creator Page · Top Creator Card Area, position 3 (tablet/mobile <1392px)",
+    "home-20": "Creator Page · Top Creator Card Area, position 4 (tablet/mobile <1392px)",
   };
 
   const upload = async (file: File) => {
