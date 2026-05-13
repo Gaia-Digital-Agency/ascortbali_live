@@ -672,6 +672,23 @@ function ImageAdEditor({
   // home-9..home-12 are 4:15 / 9:16 portrait ads.
   const isLandscape = slot === "home-5" || slot === "home-6" || slot === "home-7" || slot === "home-8";
 
+  // Where each slot appears on the site — shown under the slot name so the
+  // operator knows what they're uploading without checking the code.
+  const placement: Record<typeof slot, string> = {
+    "home-1":  "Homepage · Left side, Top (desktop ≥1392px)",
+    "home-2":  "Homepage · Left side, Bottom (desktop ≥1392px)",
+    "home-3":  "Homepage · Right side, Top (desktop ≥1392px)",
+    "home-4":  "Homepage · Right side, Bottom (desktop ≥1392px)",
+    "home-5":  "Homepage · Leaderboard above creator grid",
+    "home-6":  "Homepage · Leaderboard below creator grid",
+    "home-7":  "Creator profile · Leaderboard above gallery",
+    "home-8":  "Creator profile · Leaderboard below gallery",
+    "home-9":  "Homepage · First row of creator grid, position 1 (tablet/mobile <1392px)",
+    "home-10": "Homepage · First row of creator grid, position 2 (tablet/mobile <1392px)",
+    "home-11": "Homepage · First row of creator grid, position 3 (tablet/mobile <1392px)",
+    "home-12": "Homepage · First row of creator grid, position 4 (tablet/mobile <1392px)",
+  };
+
   const upload = async (file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -684,11 +701,16 @@ function ImageAdEditor({
 
   return (
     <div className={`flex flex-col gap-2 rounded-2xl border ${dirty ? "border-amber-400/60" : "border-brand-line"} bg-brand-surface2/40 p-3`}>
-      <div className="flex items-center justify-between">
-        <div className="text-xs tracking-[0.22em] text-brand-muted uppercase">
-          {isLandscape ? `${slot} (LANDSCAPE)` : `${slot} (PORTRAIT)`}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-xs tracking-[0.22em] text-brand-muted uppercase">
+            {isLandscape ? `${slot} (LANDSCAPE)` : `${slot} (PORTRAIT)`}
+          </div>
+          <div className="mt-1 text-[10px] leading-snug text-brand-muted/80">
+            {placement[slot]}
+          </div>
         </div>
-        {dirty ? <span className="text-[9px] text-amber-300 tracking-[0.18em]">UNSAVED</span> : null}
+        {dirty ? <span className="shrink-0 text-[9px] text-amber-300 tracking-[0.18em]">UNSAVED</span> : null}
       </div>
       <div className={`${isLandscape ? "aspect-[16/9]" : "aspect-[9/16]"} overflow-hidden rounded-xl border border-brand-line`}>
         {image ? (
