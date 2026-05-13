@@ -370,55 +370,73 @@ export default function AdminDashboard() {
         {/* Slot cards grouped by page so the operator sees at a glance which
             ads belong to the Homepage vs the Creator Page. Each card also
             shows its individual placement description (see ImageAdEditor). */}
+        {/* Each page section renders three explicit rows so the layout
+            matches the operator's mental model:
+              line 1 = landscape leaderboards (2 cards)
+              line 2 = portrait side rails    (4 cards)
+              line 3 = card-area first row    (4 cards)
+            Each row keeps the same card width (1/4 of the row on md+) so
+            the landscape row visually shows two wider cells beside two
+            empty slots — but mobile collapses everything to 2 cols. */}
         {([
           {
             heading: "HOMEPAGE",
-            // Order chosen for the admin: landscape leaderboards first (5-6),
-            // then side rails (1-4), then the Top Creator Card Area row
-            // (9-12) that takes over on narrow viewports.
-            slots: ["home-5","home-6","home-1","home-2","home-3","home-4","home-9","home-10","home-11","home-12"] as const,
+            rows: [
+              ["home-5","home-6"] as const,
+              ["home-1","home-2","home-3","home-4"] as const,
+              ["home-9","home-10","home-11","home-12"] as const,
+            ],
           },
           {
             heading: "CREATOR PAGE",
-            // Same order as HOMEPAGE: leaderboards (7-8), side rails (13-16),
-            // Top Creator Card Area (17-20).
-            slots: ["home-7","home-8","home-13","home-14","home-15","home-16","home-17","home-18","home-19","home-20"] as const,
+            rows: [
+              ["home-7","home-8"] as const,
+              ["home-13","home-14","home-15","home-16"] as const,
+              ["home-17","home-18","home-19","home-20"] as const,
+            ],
           },
-        ] as const).map((group) => (
-          <div key={group.heading} className="mt-6">
-            <div className="mb-3 flex items-baseline gap-3">
-              <div className="text-[11px] font-medium tracking-[0.32em] text-brand-gold/90">
-                {group.heading}
+        ] as const).map((group) => {
+          const totalSlots = group.rows.reduce((n, r) => n + r.length, 0);
+          return (
+            <div key={group.heading} className="mt-6">
+              <div className="mb-3 flex items-baseline gap-3">
+                <div className="text-[11px] font-medium tracking-[0.32em] text-brand-gold/90">
+                  {group.heading}
+                </div>
+                <div className="text-[10px] tracking-[0.18em] text-brand-muted/70">
+                  {totalSlots} SLOTS
+                </div>
               </div>
-              <div className="text-[10px] tracking-[0.18em] text-brand-muted/70">
-                {group.slots.length} SLOTS
+              <div className="space-y-5">
+                {group.rows.map((row, ri) => (
+                  <div key={ri} className="grid gap-5 grid-cols-2 md:grid-cols-4">
+                    {row.map((slot) => {
+                      const ad = ads.find((item) => item.slot === slot);
+                      const prev = savedAds.find((s) => s.slot === slot);
+                      const slotDirty =
+                        !prev ||
+                        (prev.image ?? null) !== (ad?.image ?? null) ||
+                        (prev.link_url ?? null) !== (ad?.link_url ?? null);
+                      return (
+                        <ImageAdEditor
+                          key={slot}
+                          slot={slot}
+                          image={ad?.image ?? null}
+                          linkUrl={ad?.link_url ?? null}
+                          busy={savingSlot === slot || savingAllAds}
+                          dirty={slotDirty}
+                          onChange={(image) => { updateAd(slot, { image }); setAdsMsg(null); }}
+                          onChangeLinkUrl={(link_url) => { updateAd(slot, { link_url }); setAdsMsg(null); }}
+                          onClear={() => clearSlot(slot)}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="grid gap-5 grid-cols-2 md:grid-cols-4">
-              {group.slots.map((slot) => {
-                const ad = ads.find((item) => item.slot === slot);
-                const prev = savedAds.find((s) => s.slot === slot);
-                const slotDirty =
-                  !prev ||
-                  (prev.image ?? null) !== (ad?.image ?? null) ||
-                  (prev.link_url ?? null) !== (ad?.link_url ?? null);
-                return (
-                  <ImageAdEditor
-                    key={slot}
-                    slot={slot}
-                    image={ad?.image ?? null}
-                    linkUrl={ad?.link_url ?? null}
-                    busy={savingSlot === slot || savingAllAds}
-                    dirty={slotDirty}
-                    onChange={(image) => { updateAd(slot, { image }); setAdsMsg(null); }}
-                    onChangeLinkUrl={(link_url) => { updateAd(slot, { link_url }); setAdsMsg(null); }}
-                    onClear={() => clearSlot(slot)}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="mt-5 flex items-center justify-end">
           <button
             onClick={saveAllAds}
