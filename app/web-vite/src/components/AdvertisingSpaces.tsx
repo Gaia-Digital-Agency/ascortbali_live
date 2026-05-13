@@ -394,42 +394,16 @@ export function AdSlot({
         ? { width: 320, height: 1200 } // matches uploaded portrait PNG dims
         : { width: 360, height: 640 };
 
-  // Route uploaded ad images (which live under /api/uploads/baligirls/ads/*
-  // as raw PNG/JPEG) through /api/clean-image so they get sharp +
-  // AVIF/WebP conversion + width-based resizing. External URLs left alone.
-  const uploadedPath = ad.image?.match(/^\/api\/uploads\/(.+)$/)?.[1] ?? null;
-  const optimizedSrc = ad.image
-    ? (uploadedPath ? `/api/clean-image/${uploadedPath}?w=${dims.width}` : ad.image)
-    : null;
-
-  // Responsive srcset only where bytes actually vary by viewport. Skyscraper
-  // portraits are narrow so a tiny ladder is enough; leaderboards span the
-  // full container width so go wider.
-  let srcSet: string | undefined;
-  let sizes: string | undefined;
-  if (uploadedPath) {
-    const url = (w: number) => `/api/clean-image/${uploadedPath}?w=${w}`;
-    if (aspect === "4/1") {
-      srcSet = `${url(640)} 640w, ${url(960)} 960w, ${url(1280)} 1280w, ${url(1940)} 1940w`;
-      sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 1024px";
-    } else if (aspect === "16/9") {
-      srcSet = `${url(640)} 640w, ${url(960)} 960w, ${url(1280)} 1280w`;
-      sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 1024px";
-    } else if (aspect === "4/15") {
-      srcSet = `${url(160)} 160w, ${url(320)} 320w`;
-      sizes = "(max-width: 1535px) 320px, clamp(240px, calc(50vw - 576px), 600px)";
-    } else {
-      // 9/16 fallback (legacy)
-      srcSet = `${url(240)} 240w, ${url(360)} 360w, ${url(480)} 480w`;
-      sizes = "(max-width: 640px) 50vw, 240px";
-    }
-  }
+  // Ad images are served at their original quality — no /api/clean-image
+  // proxy (which applies sharp + AVIF/WebP conversion + resizing). The
+  // operator's uploaded PNG/JPEG goes straight from GCS via the
+  // /api/uploads passthrough. No srcSet, no width parameter, no format
+  // negotiation.
+  const adSrc = ad.image ?? null;
 
   const inner = ad.image ? (
     <img
-      src={optimizedSrc ?? ad.image}
-      srcSet={srcSet}
-      sizes={sizes}
+      src={adSrc ?? ad.image}
       alt={altForAd(ad, slot, alt)}
       width={dims.width}
       height={dims.height}
