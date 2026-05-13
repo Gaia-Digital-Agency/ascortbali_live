@@ -373,14 +373,15 @@ export default function AdminDashboard() {
         {([
           {
             heading: "HOMEPAGE",
-            // Side rails (1-4), top/bottom leaderboards (5-6), card-area
-            // first row (9-12). Creator-card-area for narrow viewports.
-            slots: ["home-1","home-2","home-3","home-4","home-5","home-6","home-9","home-10","home-11","home-12"] as const,
+            // Order chosen for the admin: landscape leaderboards first (5-6),
+            // then side rails (1-4), then the Top Creator Card Area row
+            // (9-12) that takes over on narrow viewports.
+            slots: ["home-5","home-6","home-1","home-2","home-3","home-4","home-9","home-10","home-11","home-12"] as const,
           },
           {
             heading: "CREATOR PAGE",
-            // Top/bottom leaderboards (7-8), side rails (13-16), card-area
-            // first row (17-20) for narrow viewports.
+            // Same order as HOMEPAGE: leaderboards (7-8), side rails (13-16),
+            // Top Creator Card Area (17-20).
             slots: ["home-7","home-8","home-13","home-14","home-15","home-16","home-17","home-18","home-19","home-20"] as const,
           },
         ] as const).map((group) => (
