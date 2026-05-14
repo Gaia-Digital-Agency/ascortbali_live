@@ -38,9 +38,10 @@ const IN_GRID_AD_POOL = [
   "home-17", "home-18", "home-19", "home-20",
 ] as const;
 
-// Mulberry32 deterministic PRNG — given a seed (the page number) returns a
-// stable 0..1 sequence. Same page always produces the same ad positions, so
-// the layout doesn't flicker on re-render.
+// Mulberry32 deterministic PRNG — given a seed returns a stable 0..1
+// sequence. Same seed → same sequence, so the layout doesn't flicker on
+// re-render. We combine page number + day-of-epoch into the seed so the
+// layout is stable within a day and rotates at Bali midnight.
 function seededRandom(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
@@ -52,25 +53,51 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+// Whole-day number in Bali time (UTC+8). All visitors see the same value
+// during one Bali calendar day; the value increments at 00:00 WITA.
+// We use Bali because the audience and operator both live on Bali time.
+function getDayNumber(): number {
+  const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
+  return Math.floor((Date.now() + WITA_OFFSET_MS) / (24 * 60 * 60 * 1000));
+}
+
+// Fisher-Yates shuffle with a seeded RNG. Same seed → same permutation.
+function shuffleDeterministic<T>(arr: readonly T[], seed: number): T[] {
+  const out = [...arr];
+  const rng = seededRandom(seed);
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 // Build the 20-cell layout for one page: 18 creator slots + 2 ad slots.
 // Returns an array of cells in render order. Ads come from IN_GRID_AD_POOL.
-// Guarantees: the two ad cells are not adjacent in the linear list (so
-// they're never side-by-side on any row); the same page always produces
-// the same layout (deterministic, seeded by page number).
+//
+// Daily rotation: both the ad SELECTION (which 2 of the 8 pool slots appear
+// on this page) and the ad POSITIONS within the page rotate at midnight
+// Bali time. Within a single calendar day the layout is stable, so
+// crawlers + analytics see consistent positions on re-visits.
 function buildPageCells<T>(
   creators: T[],
   page: number,
 ): Array<{ kind: "creator"; data: T } | { kind: "ad"; slot: typeof IN_GRID_AD_POOL[number] }> {
-  // Slot pair for this page: pages 1..4 use the 8 ads in order; pages 5+
-  // cycle (the same pair appears again).
-  const base = ((page - 1) * ADS_PER_PAGE) % IN_GRID_AD_POOL.length;
+  const dayNum = getDayNumber();
+
+  // Daily-shuffled pool. Pages then consume the pool in deterministic
+  // pairs: pages 1-4 take the 8 ads once; pages 5+ cycle back.
+  const todayPool = shuffleDeterministic(IN_GRID_AD_POOL, dayNum);
+  const base = ((page - 1) * ADS_PER_PAGE) % todayPool.length;
   const adSlots = [
-    IN_GRID_AD_POOL[base],
-    IN_GRID_AD_POOL[(base + 1) % IN_GRID_AD_POOL.length],
+    todayPool[base],
+    todayPool[(base + 1) % todayPool.length],
   ];
 
   const totalCells = creators.length + ADS_PER_PAGE;
-  const rng = seededRandom(page);
+  // Position seed: combine page number + day so every (page, day) pair
+  // gets its own deterministic position draw.
+  const rng = seededRandom(page * 10000 + dayNum);
 
   // Pick two non-adjacent positions in [0, totalCells).
   // Constraint: |pos1 - pos2| >= 2 (also avoid 0 if you want, but
