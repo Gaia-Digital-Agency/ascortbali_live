@@ -2,10 +2,11 @@
 import { useEffect, useRef } from "react";
 import { AdSlot } from "./AdvertisingSpaces";
 
-// Drift the side ads at this fraction of the page-scroll speed. 0 = sticky
-// (no movement during scroll), 1 = normal scroll. ~0.3 means the ads move
-// at ~70% of page-scroll speed — "slightly slower than the page".
-const PARALLAX_FACTOR = 0.3;
+// Drift the side ads at this fraction of the page-scroll speed. 0 = fully
+// sticky (no movement), 1 = matches page scroll exactly. At 0.85 the ads
+// move at 85% of page speed — just slow enough to read as a soft parallax,
+// fast enough to follow the page down to the bottom leaderboard ad.
+const PARALLAX_FACTOR = 0.85;
 
 // Translate the ad's inner column by a fraction of the page scroll. We
 // keep the existing absolute outer / inner-column structure so the
