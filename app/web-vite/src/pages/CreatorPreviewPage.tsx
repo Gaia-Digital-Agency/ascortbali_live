@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_BASE, apiFetch, getAccessToken } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
-import { CreatorLeftSideAd, CreatorRightSideAd, CreatorFirstRowAds } from "../components/SidebarAds";
+import { CreatorLeftSideAd, CreatorRightSideAd } from "../components/SidebarAds";
 import { PageMeta, SITE_BASE } from "../components/PageMeta";
 
 type CreatorData = {
@@ -435,10 +435,7 @@ export default function CreatorPreviewPage() {
           </section>
 
           {/* Explore Next Girl — 8 random images (no carousel), click → creator page */}
-          <section className="space-y-4">
-            {/* Creator Card Area first-row ads (home-17..20) — only visible
-                below 1392px, where the side rails (home-13..16) don't fit. */}
-            <CreatorFirstRowAds />
+          <section>
             <div className="text-xs tracking-luxe text-brand-muted mb-3">EXPLORE NEXT GIRL</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {exploreCreators.map((c) => (

@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { FeaturedCarousel, AdSlot, useSiteSettings } from "../components/AdvertisingSpaces";
-import { LeftSidebarAd, RightSidebarAd, HomeFirstRowAds } from "../components/SidebarAds";
+import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
 import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
 
@@ -28,7 +28,84 @@ const toImageUrl = (file?: string | null) => {
   return withBasePath(`/api/clean-image/${encodeURIComponent(filename)}`);
 };
 
-const PAGE_SIZE = 25;
+// 18 creators + 2 in-grid ads = 20 cells per page.
+const PAGE_SIZE = 18;
+const ADS_PER_PAGE = 2;
+// 8-card pool. Pages 1-4 consume the pool once (2 ads each * 4 pages = 8);
+// pages 5+ cycle back to the start.
+const IN_GRID_AD_POOL = [
+  "home-9", "home-10", "home-11", "home-12",
+  "home-17", "home-18", "home-19", "home-20",
+] as const;
+
+// Mulberry32 deterministic PRNG — given a seed (the page number) returns a
+// stable 0..1 sequence. Same page always produces the same ad positions, so
+// the layout doesn't flicker on re-render.
+function seededRandom(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Build the 20-cell layout for one page: 18 creator slots + 2 ad slots.
+// Returns an array of cells in render order. Ads come from IN_GRID_AD_POOL.
+// Guarantees: the two ad cells are not adjacent in the linear list (so
+// they're never side-by-side on any row); the same page always produces
+// the same layout (deterministic, seeded by page number).
+function buildPageCells<T>(
+  creators: T[],
+  page: number,
+): Array<{ kind: "creator"; data: T } | { kind: "ad"; slot: typeof IN_GRID_AD_POOL[number] }> {
+  // Slot pair for this page: pages 1..4 use the 8 ads in order; pages 5+
+  // cycle (the same pair appears again).
+  const base = ((page - 1) * ADS_PER_PAGE) % IN_GRID_AD_POOL.length;
+  const adSlots = [
+    IN_GRID_AD_POOL[base],
+    IN_GRID_AD_POOL[(base + 1) % IN_GRID_AD_POOL.length],
+  ];
+
+  const totalCells = creators.length + ADS_PER_PAGE;
+  const rng = seededRandom(page);
+
+  // Pick two non-adjacent positions in [0, totalCells).
+  // Constraint: |pos1 - pos2| >= 2 (also avoid 0 if you want, but
+  // first-row ads are fine).
+  let pos1 = Math.floor(rng() * totalCells);
+  let pos2 = Math.floor(rng() * totalCells);
+  let guard = 0;
+  while ((pos1 === pos2 || Math.abs(pos1 - pos2) < 2) && guard < 40) {
+    pos2 = Math.floor(rng() * totalCells);
+    guard++;
+  }
+  // Last-resort deterministic fallback if the RNG keeps colliding.
+  if (pos1 === pos2 || Math.abs(pos1 - pos2) < 2) {
+    pos1 = 2;
+    pos2 = totalCells - 3;
+  }
+
+  const adPositions = [
+    { pos: pos1, slot: adSlots[0] },
+    { pos: pos2, slot: adSlots[1] },
+  ].sort((a, b) => a.pos - b.pos);
+
+  const out: Array<{ kind: "creator"; data: T } | { kind: "ad"; slot: typeof IN_GRID_AD_POOL[number] }> = [];
+  let ci = 0; // creator index
+  for (let i = 0; i < totalCells; i++) {
+    const ad = adPositions.find((a) => a.pos === i);
+    if (ad) {
+      out.push({ kind: "ad", slot: ad.slot });
+    } else {
+      const c = creators[ci++];
+      if (c !== undefined) out.push({ kind: "creator", data: c });
+    }
+  }
+  return out;
+}
 
 const normalize = (value?: string | null) => (value ?? "").trim().toLowerCase();
 
@@ -251,9 +328,6 @@ export default function HomePage() {
 
       {/* 5. Creator grid — full container width, 5 cols on xl+ */}
       <section className="space-y-4">
-        {/* First row of portrait ads (home-9..home-12) — only renders below
-            1392px, where the side-rail ads (home-1..home-4) don't fit. */}
-        <HomeFirstRowAds />
         {loading ? (
           <div className="grid gap-4 grid-cols-2 [.step-4_&]:grid-cols-2 [.step-3_&]:grid-cols-3 [.step-2_&]:grid-cols-4 [.step-1_&]:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
@@ -266,7 +340,14 @@ export default function HomePage() {
               <div className="col-span-full py-10 text-center text-sm text-brand-muted">
                 No creators match these filters.
               </div>
-            ) : pageItems.map((creator) => {
+            ) : buildPageCells(pageItems, page).map((cell, i) => {
+              if (cell.kind === "ad") {
+                // In-grid ad cards. aspect="auto" so the operator's image
+                // renders at its natural ratio (matching the home-9..12
+                // first-row treatment we replaced).
+                return <AdSlot key={`ad-${cell.slot}-${i}`} slot={cell.slot} aspect="auto" />;
+              }
+              const creator = cell.data;
               const displayName = normalizeName(creator.model_name || creator.username || "Creator");
               const imageUrl = toImageUrl(creator.image_file);
 
