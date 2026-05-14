@@ -2,34 +2,54 @@
 import { useEffect, useRef } from "react";
 import { AdSlot } from "./AdvertisingSpaces";
 
-// Drift the side ads at this fraction of the page-scroll speed. 0 = fully
-// sticky (no movement), 1 = matches page scroll exactly. At 0.85 the ads
-// move at 85% of page speed — just slow enough to read as a soft parallax,
-// fast enough to follow the page down to the bottom leaderboard ad.
-const PARALLAX_FACTOR = 0.85;
-
-// Translate the ad's inner column by a fraction of the page scroll. We
-// keep the existing absolute outer / inner-column structure so the
-// containing-block positioning math doesn't change; we just shift the
-// inner column via transform on every scroll frame.
+// Scroll-progress-driven parallax. The ad column starts pinned to the top
+// of its relative wrapper and ends pinned to the bottom of the wrapper
+// (so the ad's bottom aligns with the bottom of the bottom leaderboard).
+// Effective drift speed = (wrapper_height - inner_height) / scroll_range,
+// which naturally lands near "slightly slower than page scroll" on a
+// typical homepage and self-tunes if the wrapper height changes.
 function useParallaxRef() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const inner = ref.current;
+    if (!inner) return;
+
+    // Walk up to the nearest `position: relative` ancestor — that's our
+    // positioning context (the wrapper that the absolute ad outer hangs off).
+    let wrapper: HTMLElement | null = inner.parentElement;
+    while (wrapper && getComputedStyle(wrapper).position !== "relative") {
+      wrapper = wrapper.parentElement;
+    }
+    if (!wrapper) return;
+
     let raf: number | null = null;
     const apply = () => {
       raf = null;
-      const el = ref.current;
-      if (!el) return;
-      el.style.transform = `translateY(${window.scrollY * PARALLAX_FACTOR}px)`;
+      const wRect = wrapper!.getBoundingClientRect();
+      const wTopInDoc = wRect.top + window.scrollY;
+      const wrapperH = wrapper!.offsetHeight;
+      const innerH = inner.offsetHeight;
+      const maxDrift = Math.max(0, wrapperH - innerH);
+      // Scroll progress: 0 when wrapper top first reaches viewport top,
+      // 1 when wrapper bottom reaches viewport bottom.
+      const scrollMax = Math.max(1, wrapperH - window.innerHeight);
+      const rel = Math.max(0, Math.min(scrollMax, window.scrollY - wTopInDoc));
+      const progress = rel / scrollMax;
+      inner.style.transform = `translateY(${progress * maxDrift}px)`;
     };
     const onScroll = () => {
       if (raf == null) raf = requestAnimationFrame(apply);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     apply();
+    // Re-apply once after fonts/images load so the wrapper height is final.
+    const t = setTimeout(apply, 1500);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       if (raf != null) cancelAnimationFrame(raf);
+      clearTimeout(t);
     };
   }, []);
   return ref;
