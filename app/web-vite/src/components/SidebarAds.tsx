@@ -1,5 +1,38 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { AdSlot } from "./AdvertisingSpaces";
+
+// Drift the side ads at this fraction of the page-scroll speed. 0 = sticky
+// (no movement during scroll), 1 = normal scroll. ~0.3 means the ads move
+// at ~70% of page-scroll speed — "slightly slower than the page".
+const PARALLAX_FACTOR = 0.3;
+
+// Translate the ad's inner column by a fraction of the page scroll. We
+// keep the existing absolute outer / inner-column structure so the
+// containing-block positioning math doesn't change; we just shift the
+// inner column via transform on every scroll frame.
+function useParallaxRef() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf: number | null = null;
+    const apply = () => {
+      raf = null;
+      const el = ref.current;
+      if (!el) return;
+      el.style.transform = `translateY(${window.scrollY * PARALLAX_FACTOR}px)`;
+    };
+    const onScroll = () => {
+      if (raf == null) raf = requestAnimationFrame(apply);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    apply();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+  }, []);
+  return ref;
+}
 
 type AdSlotName =
   | "home-1" | "home-2" | "home-3" | "home-4"
@@ -66,7 +99,11 @@ const STACK_GAP      = "16px";
 const ABSOLUTE_AD_CLASS =
   "hidden min-[1392px]:block absolute pointer-events-none !mt-0";
 
-const STICKY_INNER_CLASS = "sticky pointer-events-auto flex flex-col";
+// Inner column: NOT sticky anymore — sits at the top of the outer
+// container and is shifted by a parallax transform on scroll (see
+// useParallaxRef above). will-change hints the browser to keep its
+// composited layer ready.
+const INNER_CLASS = "pointer-events-auto flex flex-col will-change-transform";
 
 // Hardcoded slot assignment — the same pair of ads renders on every page
 // that has side ads, regardless of which page it is. This is intentional
@@ -85,6 +122,7 @@ export function LeftSideAd({
   aspect = "4/15",
   slots = LEFT_SLOTS,
 }: { aspect?: AdAspect; slots?: readonly [AdSlotName, AdSlotName] } = {}) {
+  const innerRef = useParallaxRef();
   return (
     <div
       className={ABSOLUTE_AD_CLASS}
@@ -97,9 +135,9 @@ export function LeftSideAd({
       aria-label="Left side advertisements"
     >
       <div
-        className={STICKY_INNER_CLASS}
+        ref={innerRef}
+        className={INNER_CLASS}
         style={{
-          top: STICKY_TOP,
           width: SIDE_AD_WIDTH,
           gap: STACK_GAP,
         }}
@@ -123,6 +161,7 @@ export function RightSideAd({
   aspect = "4/15",
   slots = RIGHT_SLOTS,
 }: { aspect?: AdAspect; slots?: readonly [AdSlotName, AdSlotName] } = {}) {
+  const innerRef = useParallaxRef();
   return (
     <div
       className={ABSOLUTE_AD_CLASS}
@@ -135,9 +174,9 @@ export function RightSideAd({
       aria-label="Right side advertisements"
     >
       <div
-        className={STICKY_INNER_CLASS}
+        ref={innerRef}
+        className={INNER_CLASS}
         style={{
-          top: STICKY_TOP,
           width: SIDE_AD_WIDTH,
           gap: STACK_GAP,
         }}
