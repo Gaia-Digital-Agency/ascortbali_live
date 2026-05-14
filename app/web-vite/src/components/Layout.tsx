@@ -23,7 +23,10 @@ const STEP_FROM_WIDTH = (w: number): number => {
 
 export default function Layout() {
   const settings = useSiteSettings()
-  const tagline = settings?.tagline || ''
+  // The header subtitle reads from its own `subtitle` setting (split from
+  // the homepage H2 `tagline`). Falls back to `tagline` so existing deploys
+  // that haven't filled the new field yet still show something.
+  const subtitle = settings?.subtitle || settings?.tagline || ''
   const [zoomToast, setZoomToast] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
   const [layoutStep, setLayoutStep] = useState<number>(() =>
@@ -129,7 +132,7 @@ export default function Layout() {
             />
             <div className="leading-none">
               <div className="font-display text-lg tracking-[0.22em] text-brand-gold">FREE BALI GIRLS</div>
-              {tagline ? <div className="mt-1 text-xs tracking-[0.22em] text-brand-muted">{tagline}</div> : null}
+              {subtitle ? <div className="mt-1 text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
             </div>
             <span className="ml-1 h-[1px] w-10 bg-brand-gold/70 opacity-70 transition group-hover:opacity-100" />
           </Link>

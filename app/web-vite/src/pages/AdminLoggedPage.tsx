@@ -110,6 +110,9 @@ export default function AdminDashboard() {
   const [showPwNew, setShowPwNew] = useState(false);
 
   const [tagline, setTagline] = useState("Meet your girl for free and ...");
+  // Header subtitle (under "FREE BALI GIRLS") — separate setting from the
+  // homepage H2 tagline so they can be edited independently.
+  const [subtitle, setSubtitle] = useState("");
   const [featuredGirls, setFeaturedGirls] = useState<string[]>(["", "", "", "", "", "", ""]);
   const [creatorNames, setCreatorNames] = useState<{ id: string; model_name: string }[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -153,6 +156,10 @@ export default function AdminDashboard() {
           apiFetch("/admin/creator-names"),
         ]);
         if (settingsData?.tagline) setTagline(settingsData.tagline);
+        // Subtitle falls back to tagline on first load (before the operator
+        // has filled it in for the first time) so the header doesn't go blank.
+        if (settingsData?.subtitle != null) setSubtitle(settingsData.subtitle);
+        else if (settingsData?.tagline) setSubtitle(settingsData.tagline);
         setFeaturedGirls([
           settingsData?.featured_girl_1 || "",
           settingsData?.featured_girl_2 || "",
@@ -452,15 +459,43 @@ export default function AdminDashboard() {
       {sub === "dashboard" && (
       <>
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
-        <div className="text-xs tracking-[0.22em] text-brand-muted">HOMEPAGE TAGLINE</div>
-        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+        <div className="text-xs tracking-[0.22em] text-brand-muted">HEADER SUBTITLE</div>
+        <p className="mt-1 text-[11px] text-brand-muted/70">Shown under the "FREE BALI GIRLS" title in the site header.</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto]">
+          <input
+            className="rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+            placeholder="Free, Real, Simple"
+          />
+          <button
+            type="button"
+            disabled={savingSettings}
+            onClick={async () => {
+              setSavingSettings(true); setSettingsMsg(null); setError(null);
+              try {
+                await apiFetch("/admin/settings/subtitle", { method: "PUT", body: JSON.stringify({ value: subtitle }) });
+                setSettingsMsg("Header subtitle saved.");
+              } catch { setError("Failed to save header subtitle."); }
+              finally { setSavingSettings(false); }
+            }}
+            className="btn btn-primary py-3"
+          >
+            {savingSettings ? "SAVING..." : "SAVE"}
+          </button>
+        </div>
+
+        <div className="mt-6 text-xs tracking-[0.22em] text-brand-muted">HOMEPAGE TAGLINE</div>
+        <p className="mt-1 text-[11px] text-brand-muted/70">Shown as the large H2 heading on the homepage.</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto]">
           <input
             className="rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
             value={tagline}
             onChange={(e) => setTagline(e.target.value)}
-            placeholder="Meet your girl for free and ..."
+            placeholder="Your Free Access to Bali Girls Across the Island"
           />
           <button
+            type="button"
             disabled={savingSettings}
             onClick={async () => {
               setSavingSettings(true); setSettingsMsg(null); setError(null);
