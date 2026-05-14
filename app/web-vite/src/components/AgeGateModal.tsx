@@ -1,69 +1,81 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
-
-const STORAGE_PREFIX = "age_gate_ok_";
 
 // Routes where the age gate is allowed to appear. Everywhere else (T&C,
 // privacy, login, creator preview, etc.) it stays hidden — creator preview
 // has its own T&C popup, and the other pages don't warrant a re-prompt.
 const ALLOWED_PATHS = new Set<string>(["/", "/creator/register", "/user/register"]);
 
-type AgeGateStatus = {
-  ip: string | null;
-  open: boolean;
-};
+// localStorage keys.
+//   GENERIC_KEY is set immediately on Accept, regardless of whether the IP
+//     is known yet. Prevents the flash-reopen race on slow networks (mobile).
+//   IP_KEY_PREFIX is set additionally once the IP is known, so the gate
+//     stays accepted across browsers/sessions sharing the same network.
+const GENERIC_KEY = "age_gate_ok";
+const IP_KEY_PREFIX = "age_gate_ok_";
+
+function safeGet(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function safeSet(key: string, val: string) {
+  try { window.localStorage.setItem(key, val); } catch { /* private mode */ }
+}
 
 export function AgeGateModal() {
   const location = useLocation();
-  const [state, setState] = useState<AgeGateStatus>({ ip: null, open: false });
+  const [open, setOpen] = useState(false);
+  const [ip, setIp] = useState<string | null>(null);
+  // Track Accept locally so a late-arriving analytics-status response
+  // cannot reopen the modal after the user has already dismissed it.
+  const acceptedRef = useRef<boolean>(false);
 
   const isAllowedRoute = ALLOWED_PATHS.has(location.pathname);
 
-  const localKey = useMemo(() => {
-    const safeIp = (state.ip || "no-ip").replace(/[^a-zA-Z0-9.-]/g, "_");
-    return `${STORAGE_PREFIX}${safeIp}`;
-  }, [state.ip]);
-
   useEffect(() => {
-    const check = async () => {
+    let cancelled = false;
+
+    // Fast path: if the generic key is already set, never show the modal
+    // for this browser. Synchronous, runs before any network call.
+    if (safeGet(GENERIC_KEY)) return;
+
+    (async () => {
+      let learnedIp: string | null = null;
       try {
         const res = await fetch(`${API_BASE}/analytics/status`, { cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
-          const ip = String(json?.ip ?? "").trim();
-          if (ip) {
-            setState((prev) => ({ ...prev, ip }));
-            if (window.localStorage.getItem(`${STORAGE_PREFIX}${ip.replace(/[^a-zA-Z0-9.-]/g, "_")}`)) {
-              setState((prev) => ({ ...prev, open: false }));
-              return;
-            }
-          }
+          const v = String(json?.ip ?? "").trim();
+          if (v) learnedIp = v;
         }
-      } catch {
-        // Keep the existing stored preference if IP cannot be fetched.
-        const key = localKey;
-        if (key && window.localStorage.getItem(key)) {
-          setState((prev) => ({ ...prev, open: false }));
-          return;
-        }
+      } catch { /* offline / blocked — fall through */ }
+
+      if (cancelled) return;
+      // If the user already tapped ENTER while the fetch was in-flight,
+      // don't reopen the modal.
+      if (acceptedRef.current) return;
+
+      if (learnedIp) {
+        setIp(learnedIp);
+        const ipKey = IP_KEY_PREFIX + learnedIp.replace(/[^a-zA-Z0-9.-]/g, "_");
+        if (safeGet(ipKey)) return; // already accepted under this IP
       }
-      setState((prev) => ({ ...prev, open: true }));
-    };
-    check();
-  }, [localKey]);
+
+      setOpen(true);
+    })();
+
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once per mount
 
   const accept = () => {
-    if (state.ip) {
-      window.localStorage.setItem(`${STORAGE_PREFIX}${state.ip.replace(/[^a-zA-Z0-9.-]/g, "_")}`, "1");
-    } else if (localKey) {
-      window.localStorage.setItem(localKey, "1");
-    }
-    setState((prev) => ({ ...prev, open: false }));
+    acceptedRef.current = true;
+    safeSet(GENERIC_KEY, "1");
+    if (ip) safeSet(IP_KEY_PREFIX + ip.replace(/[^a-zA-Z0-9.-]/g, "_"), "1");
+    setOpen(false);
   };
 
-  if (!state.open || !isAllowedRoute) return null;
+  if (!open || !isAllowedRoute) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -77,7 +89,7 @@ export function AgeGateModal() {
           <a href={withBasePath("/privacy")} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-brand-gold/40 px-4 py-2 text-xs text-brand-gold underline hover:border-brand-gold">Privacy Statement</a>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button className="btn btn-primary min-h-[44px] px-6 py-2.5 text-xs" onClick={accept}>
+          <button type="button" className="btn btn-primary min-h-[44px] px-6 py-2.5 text-xs" onClick={accept}>
             ENTER
           </button>
         </div>
