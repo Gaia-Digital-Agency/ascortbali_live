@@ -16,7 +16,7 @@ adminRouter.use(requireAuth, requireRole(["admin"]));
 // Route to fetch user and creator account data for admin overview (paginated).
 adminRouter.get("/accounts", async (req, res) => {
   const pool = getPool();
-  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 500);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const offset = (page - 1) * limit;
   try {
