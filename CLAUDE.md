@@ -11,6 +11,14 @@ Orientation for Claude Code working in this repo. For full product/infra context
 - Database: PostgreSQL 18.3, db name `ascortbali` (PG16 cluster on 5433 is an idle rollback)
 - Media: Google Cloud Storage, bucket `gda-ce01-bucket` (name kept post-migration)
 
+**Project-root workspaces** (not in the live runtime):
+- [cleanup_engine/](cleanup_engine/) — Python scrapers + watermark removal (legacy build pipeline)
+- [database_engine/](database_engine/) — one-shot Postgres bootstrap (`migrate.py`, `seed.py`); **not used at runtime** — live schema is managed by Prisma
+- [creator_engine/](creator_engine/) — per-batch creator-data ETL workspace. Tracked docs/scripts only: `cleanup.md` (12-step pipeline) + `import_baligirls.py`. PII (`bg_data_*.xlsx`, `creator_credentials.csv`, `images_*/`, `import_run/`) is gitignored
+- [audit_engine/](audit_engine/) — per-run NSFW audit workspace (NudeNet against `gs://gda-ce01-bucket/baligirls/uploads/`). Entirely gitignored
+- [maintenance/](maintenance/) — the `503` page + `.on` trigger file for the nginx maintenance gate
+- [references/](references/) — Inventory, architecture, migration history, change-request docs
+
 There is **no SSR** — Vite produces a static SPA into `dist/client/`; [app/web-vite/server.ts](app/web-vite/server.ts) just serves it plus GCS-backed image routes and `/sitemap.xml`.
 
 A legacy Next.js app under `app/web` was deleted 2026-04-29. Do all frontend work in [app/web-vite](app/web-vite/).
@@ -76,7 +84,7 @@ Server access: `gda-pn01` is a GCE instance — use `gcloud compute ssh` / `gclo
 - **GCS uploads need the JSON key**, not the VM's default service account. The default compute SA on `gda-pn01` has `devstorage.read_only` only and will fail uploads with `Provided scope(s) are not authorized`. Set `GOOGLE_APPLICATION_CREDENTIALS=/etc/gda-credentials/gda-viceroy-17373de6d690.json` (mode 600). Already wired in [app/web-vite/.env](app/web-vite/.env).
 - **GCS routes live on the web-vite server (8002), not the API**: `/api/upload`, `/api/uploads/*`, `/api/admin-asset/*`, `/api/clean-image/*`, `/api/static/*`. nginx routes them explicitly. Everything else under `/api/*` goes to the API on 8001.
 - **`/assets/*` is served by nginx directly** from `dist/client/assets/` with an immutable 1-year cache. After a `vite build`, those hashed files must exist on disk before nginx will serve the new build.
-- **Internal naming is still `ascortbali`** (package `@ascortbali/api`, DB `ascortbali`) even though the GitHub slug is `ascortbali_live`. Rename was intentionally deferred — don't "fix" it.
+- **Internal naming is still `ascortbali`** (package `@ascortbali/api`, DB `ascortbali`) even though the GitHub slug is now `baligirls`. Rename was intentionally deferred — don't "fix" it.
 - **`pnpm-workspace.yaml` lists only `app/*`** — no `packages/` directory exists. Older README text mentioning `packages/*` is stale.
 - **Maintenance gate is file-based**: `touch /var/www/baligirls/maintenance/.on` → nginx returns 503 to everyone except the bypass IP list (currently `194.5.82.35` and `127.0.0.1`). No reload needed. See [README.md](README.md) "Maintenance Mode".
 
@@ -85,4 +93,13 @@ Server access: `gda-pn01` is a GCE instance — use `gcloud compute ssh` / `gclo
 - [README.md](README.md) — full product, infra, endpoints, and migration history (canonical)
 - [twilio_auth_guide.md](twilio_auth_guide.md) — WhatsApp 2FA setup
 - [references/features/](references/features/) — Inventory, architecture, creator info, access info (test creds), TnC, features_api, report
-- [cleanup_engine/](cleanup_engine/) — Python data tooling (scrapers, watermark removal). **Not part of the runtime**; safe to ignore for app-level changes.
+- [creator_engine/cleanup.md](creator_engine/cleanup.md) — full 12-step per-batch creator-data ETL pipeline (cross-batch dedup → import → consolidation)
+
+## Where things are right now (snapshot — verify before relying)
+
+- **Active creators in DB**: ~230 (was 231 before Wulan was deleted on 2026-05-16). The admin panel loads up to 500 in one shot via `/admin/accounts?limit=500`.
+- **`provider_images` row count**: ~976. The on-disk avatar placeholder is `gs://gda-ce01-bucket/baligirls/uploads/avatar-default-lady.png`; 30+ creators have it as their sole image (use `WHERE image_file = 'avatar-default-lady.png'`).
+- **NSFW audit set-up exists**: `audit_engine/` has the report files (`audit_report.{md,tsv}`, `flagged.json`, `all_detections.json`) + `image_manifest.tsv`. Re-running needs an `audit_engine/.venv` with `nudenet onnxruntime pillow` (was deleted post-run; recreate with `python3 -m venv .venv && .venv/bin/pip install ...`).
+- **Stale legacy refs in docs are gone**: All `app/web/...` Next.js paths were swept to their `app/web-vite/...` equivalents on 2026-05-16. If you see one, it's new.
+
+For the actual change history use `git log --oneline -20` against the canonical clone at `/home/azlan/repos/baligirls/`. This tree (`/var/www/baligirls/`) is not a git repo.
