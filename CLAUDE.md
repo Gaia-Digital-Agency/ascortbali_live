@@ -54,8 +54,8 @@ The API uses a mix of **raw `$queryRawUnsafe`** (for legacy tables `providers`, 
 ## Production layout (gda-pn01)
 
 - Production checkout: `/var/www/baligirls/` (this directory) — also the deploy target.
-- Git operations happen from a separate clone at `/home/azlan/repos/ascortbali_live/`. **This tree is not a git repo** — don't run `git` commands here expecting state.
-- GitHub remote: `git@github.com:Gaia-Digital-Agency/ascortbali_live.git` (main branch). The older `ascortbali_staging` repo is no longer source of truth.
+- Git operations happen from a separate clone at `/home/azlan/repos/baligirls/`. **This tree is not a git repo** — don't run `git` commands here expecting state.
+- GitHub remote: `git@github.com:Gaia-Digital-Agency/baligirls.git` (main branch).
 - File ownership is `azlan:www-data`; PM2 runs as user `azlan` (not `www-data`).
 - PM2 processes: `baligirls-api` (cluster, 2 workers) and `baligirls-web-vite` (fork). Saved state in `/home/azlan/.pm2/dump.pm2` — there is no checked-in `ecosystem.config.js`.
 
