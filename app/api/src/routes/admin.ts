@@ -569,7 +569,7 @@ adminRouter.get("/creator-names", async (_req, res) => {
 adminRouter.get("/metrics", async (_req, res) => {
   const pool = getPool();
   try {
-    const [visitorWindows, pageViewWindows, regionRows, topCreators, deviceSplit, newVsReturning, bounce, votingAgg, hourlyHeat] = await Promise.all([
+    const [visitorWindows, pageViewWindows, regionRows, topCreators, deviceSplit, newVsReturning, bounce, votingAgg, hourlyHeat, serviceSplits] = await Promise.all([
       pool.query(`
         SELECT 'today'   AS window, COUNT(DISTINCT ip_hash) AS visitors FROM page_views WHERE viewed_at >= CURRENT_DATE
         UNION ALL SELECT '7d',  COUNT(DISTINCT ip_hash) FROM page_views WHERE viewed_at >= NOW() - INTERVAL '7 days'
@@ -618,6 +618,15 @@ adminRouter.get("/metrics", async (_req, res) => {
           FROM page_views WHERE viewed_at >= NOW() - INTERVAL '30 days'
          GROUP BY dow, hour
       `),
+      pool.query(`
+        SELECT trim(s) AS service, COUNT(*)::int AS creators
+          FROM providers,
+               regexp_split_to_table(COALESCE(services, ''), ',') AS s
+         WHERE is_active = TRUE AND COALESCE(services, '') <> ''
+           AND trim(s) <> ''
+         GROUP BY trim(s)
+         ORDER BY creators DESC
+      `),
     ]);
     res.json({
       visitors_by_window: Object.fromEntries(visitorWindows.rows.map(r => [r.window, Number(r.visitors)])),
@@ -629,6 +638,7 @@ adminRouter.get("/metrics", async (_req, res) => {
       bounce: bounce.rows,
       voting: votingAgg.rows[0] ?? null,
       heatmap: hourlyHeat.rows,
+      service_splits: serviceSplits.rows,
       all_regions: ALL_REGIONS,
     });
   } catch {
