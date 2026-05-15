@@ -6,10 +6,10 @@
 references/files_transfer/
 
 # WATERMARK PROCESSING FOLDERS
-engine/watermark/clean_reject/
-engine/watermark/debug/
-engine/watermark/need_work/
-engine/watermark/watermark_images/
+cleanup_engine/watermark/clean_reject/
+cleanup_engine/watermark/debug/
+cleanup_engine/watermark/need_work/
+cleanup_engine/watermark/watermark_images/
 
 # CLEAN IMAGES (served from GCS)
 app/Assets/Creator/clean_image/
@@ -115,8 +115,8 @@ sites/default/settings.local.php
 *.tar.gz
 
 # Sensitive credentials
-database/login.txt
-database/cPanel.txt
+database_engine/login.txt
+database_engine/cPanel.txt
 
 # TERRAFOM
 .terraform/
@@ -127,12 +127,26 @@ database/cPanel.txt
 *.tfvars.json
 
 # SCRAPER OUTPUT (can grow large)
-engine/page_scrapper/page_output*.json
-engine/page_scrapper/image_output*.json
-engine/page_scrapper/page_output*.md
-engine/*_output.json
-engine/page_source.json
-engine/pages_*.json
+cleanup_engine/page_scrapper/page_output*.json
+cleanup_engine/page_scrapper/image_output*.json
+cleanup_engine/page_scrapper/page_output*.md
+cleanup_engine/*_output.json
+cleanup_engine/page_source.json
+cleanup_engine/pages_*.json
+
+# CREATOR UPLOADS / PER-BATCH DATA
+# Per-batch ETL workspace. Source docs + scripts are tracked; raw data,
+# generated artifacts, credentials, and creator media never are.
+creator_engine/bg_data_*.xlsx
+creator_engine/creator_credentials.csv
+creator_engine/images_*/
+creator_engine/import_run/
+creator_engine/new_ads_*/
+
+# AUDIT ENGINE
+# Per-run audit workspace: NSFW detection artifacts + a `for_delete/` record
+# that may contain creator images. Never committed.
+audit_engine/
 
 # AI FOLDER & FILES
 .claude

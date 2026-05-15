@@ -50,8 +50,8 @@ brew services list
 ```bash
 cd /Users/rogerwoolie/Downloads/AscortBali
 export DATABASE_URL=postgresql://ascort:ascort@localhost:5432/ascortbali
-python3 database/migrate.py
-python3 database/seed.py
+python3 database_engine/migrate.py
+python3 database_engine/seed.py
 ```
 
 ## 3) Start app (recommended: two terminals)

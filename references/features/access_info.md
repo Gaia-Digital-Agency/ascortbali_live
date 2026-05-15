@@ -7,20 +7,20 @@ This file lists the current seeded access information found in the codebase.
 - Portal: `/user`
 - Username: `user@email.com`
 - Password: `User@123`
-- Source: `database/seed.py`
+- Source: `database_engine/seed.py`
 
 ## Admin
 
 - Portal: `/admin`
 - Username: `admin@email.com`
 - Password: `Admin@123`
-- Source: `database/seed.py`
+- Source: `database_engine/seed.py`
 
 ## Creator Seed Access Information
 
 There is no single shared creator master account in the seed logic.
 
-Seeded creator access is generated per provider record from `app/data/page_data.json` in `database/seed.py`:
+Seeded creator access is generated per provider record from `app/data/page_data.json` in `database_engine/seed.py`:
 
 - Portal: `/creator`
 - Username rule: lowercased provider `name`

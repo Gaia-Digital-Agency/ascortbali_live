@@ -31,8 +31,8 @@ API URL: `http://34.124.244.233/baligirls/api`
 - Authorized staging VM IP for DB access.
 - Created database `ascortbali`.
 - Ran DB scripts:
-  - `database/migrate.py`
-  - `database/seed.py`
+  - `database_engine/migrate.py`
+  - `database_engine/seed.py`
 - Reconciled schema requirements so API endpoints are stable on Cloud SQL.
 - Verified API health and service endpoints are returning `200`.
 

@@ -63,8 +63,8 @@ Environment baseline:
 - Database setup:
   - Created DB `ascortbali` on instance `baligirls`.
   - Ran:
-    - `python3 database/migrate.py` -> success
-    - `python3 database/seed.py` -> success
+    - `python3 database_engine/migrate.py` -> success
+    - `python3 database_engine/seed.py` -> success
       - seeded providers/images and base app rows.
   - Applied additional Prisma model tables (additive, no destructive drop of legacy tables).
 - App env (staging):
@@ -314,8 +314,8 @@ gcloud storage ls gs://gda-s01-bucket --project gda-viceroy
 - Set `DATABASE_URL` to Cloud SQL Postgres.
 - Prefer private networking / Cloud SQL connector over public exposure.
 - Run once on GCP target DB:
-  - `python3 database/migrate.py`
-  - `python3 database/seed.py`
+  - `python3 database_engine/migrate.py`
+  - `python3 database_engine/seed.py`
 
 ## 5) Set CORS for real domain
 

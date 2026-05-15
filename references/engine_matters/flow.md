@@ -3,26 +3,26 @@
 This file documents the intended end-to-end pipeline for scraping, cleaning, and preparing data for the database.
 
 ## Starting Point
-- `engine/page_source.json`
+- `cleanup_engine/page_source.json`
 
 ## Step 1 — Page Scraper (URL/JSON)
 Run:
-- `python3 engine/scrape_full_image.py`
+- `python3 cleanup_engine/scrape_full_image.py`
 
 Inputs:
-- `engine/page_source.json`
+- `cleanup_engine/page_source.json`
 
 Outputs:
-- `engine/page_output.json` (all data)
-- `engine/info_output.json` (non-image data)
-- `engine/image_output.json` (image data; `id` + `url`, with `IMW_` prefix)
+- `cleanup_engine/page_output.json` (all data)
+- `cleanup_engine/info_output.json` (non-image data)
+- `cleanup_engine/image_output.json` (image data; `id` + `url`, with `IMW_` prefix)
 
 ## Step 2 — Image Download + Watermark Removal (Images)
 Run:
-- `python3 engine/remove_watermark.py`
+- `python3 cleanup_engine/remove_watermark.py`
 
 Inputs:
-- `engine/image_output.json`
+- `cleanup_engine/image_output.json`
 
 Process:
 - Download each image from `image_output.json`
@@ -40,19 +40,19 @@ Purpose:
 - Keep local image assets aligned with the latest GitHub source of truth before continuing processing.
 
 Image Working Folders:
-- `engine/watermark/clean_reject/`
+- `cleanup_engine/watermark/clean_reject/`
   - Images where watermark removal was attempted but result quality is not good.
-- `engine/watermark/need_work/`
+- `cleanup_engine/watermark/need_work/`
   - Images that still need manual/creator review, saved with creator-attached filename sequence.
-- `engine/watermark/watermark_images/target/`
+- `cleanup_engine/watermark/watermark_images/target/`
   - Scraped source watermark images extracted from the scraping process.
 
 ## Step 4 — Data Assembly (Database-Ready)
 Run:
-- `python3 engine/build_data.py`
+- `python3 cleanup_engine/build_data.py`
 
 Inputs:
-- `engine/info_output.json`
+- `cleanup_engine/info_output.json`
 - `app/data/clean_image/`
 
 Outputs:
@@ -60,10 +60,10 @@ Outputs:
 - `app/data/image_data.json` (references cleaned image files and links to IDs in `page_data.json`)
 
 ## Execution Order
-1. `engine/scrape_full_image.py`
-2. `engine/remove_watermark.py`
+1. `cleanup_engine/scrape_full_image.py`
+2. `cleanup_engine/remove_watermark.py`
 3. `git pull --ff-only origin main`
-4. `python3 engine/build_data.py`
+4. `python3 cleanup_engine/build_data.py`
 
 ## End Results
 - `app/data/page_data.json`

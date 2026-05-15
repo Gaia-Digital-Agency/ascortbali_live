@@ -252,6 +252,44 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 | `baligirls-web-vite` | Vite SSR + Express server (production web) | 8002 | online |
 | `baligirls-api` | Express API | 8001 | online |
 
+## Maintenance Mode
+
+Take the public site offline (e.g. for a risky deploy) without stopping any
+process or breaking SEO. nginx returns `503 Service Temporarily Unavailable`
+with `Retry-After: 3600` and a brand-styled "Back Shortly" page; search
+engines treat this as temporary and do not deindex.
+
+A small allow-list of IPs (currently `194.5.82.35` for the operator and
+`127.0.0.1` for on-server checks) bypasses the gate and sees the live site,
+so you can verify changes during the maintenance window.
+
+```sh
+# Take baligirls offline (everyone except the bypass list sees 503)
+ssh gda-pn01
+touch /var/www/baligirls/maintenance/.on
+
+# Bring it back
+rm /var/www/baligirls/maintenance/.on
+```
+
+No `nginx -s reload` needed — the file-existence test runs per request.
+Both commands are idempotent (running them twice is harmless).
+
+Verify externally with `curl -sI https://baligirls.gaiada2.online/ | head -1`
+— `503` while gated, `200` once cleared.
+
+Implementation:
+
+- nginx vhost: `/etc/nginx/sites-enabled/baligirls` — maintenance block at
+  the top of the HTTPS server, scoped to baligirls only (other vhosts on
+  `gda-pn01` are unaffected).
+- Maintenance HTML: `/var/www/baligirls/maintenance/index.html` (fully
+  inline CSS — no asset dependencies, so it renders even though /assets
+  also returns 503 during the window).
+- Vhost backups: `/etc/nginx/baligirls-backups/`.
+- To add another bypass IP, edit `if ($remote_addr = "...")` in the vhost
+  and `sudo systemctl reload nginx`.
+
 ## GCP Storage Uploads
 
 - Upload storage uses Google Cloud Storage
@@ -393,14 +431,14 @@ Notes:
 |------|------|
 | `/var/www/baligirls/` (total) | 1.2 GB |
 | `node_modules/` (root pnpm store) | 738 MB |
-| `engine/` (Python scrapers + watermark) | 264 MB |
+| `cleanup_engine/` (Python scrapers + watermark) | 264 MB |
 | `references/` (assets + docs) | 8.4 MB |
 | `app/` (api + web-vite source) | 2.1 MB |
 | PostgreSQL `ascortbali` DB | 9.4 MB |
 
-The bulk of disk use is `node_modules` (expected for a pnpm monorepo). The `engine/` Python toolkit is dev-only and not invoked at runtime — candidate to move out of the production tree if disk pressure ever becomes an issue.
+The bulk of disk use is `node_modules` (expected for a pnpm monorepo). The `cleanup_engine/` Python toolkit is dev-only and not invoked at runtime — candidate to move out of the production tree if disk pressure ever becomes an issue.
 
-### `engine/` — Python Tooling
+### `cleanup_engine/` — Python Tooling
 
 Not part of the runtime. Used for one-off data ops:
 
@@ -411,7 +449,7 @@ Not part of the runtime. Used for one-off data ops:
 - `watermark/` — watermark assets
 - `.venv_watermark/` — local Python venv (excluded from runtime)
 
-Requirements: `engine/requirements_remove_watermark.txt`.
+Requirements: `cleanup_engine/requirements_remove_watermark.txt`.
 
 ### Known Discrepancies / Observations
 

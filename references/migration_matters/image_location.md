@@ -29,8 +29,8 @@ Notes:
 | VM file | Repo file | Served URL (staging) | Cloud SQL pointer | References in repo |
 |---|---|---|---|---|
 | `/var/www/baligirls/app/Assets/Admin/baligirls_logo.png` | `app/Assets/Admin/baligirls_logo.png` | `/baligirls/api/admin-asset/baligirls_logo.png` | Postgres: `advertising_spaces.image` (seeded to `/api/admin-asset/baligirls_logo.png`). | ./gcp_move/phase02_move.md:140<br>./app/web/app/layout.tsx:25<br>app/web/app/api/admin-asset/[filename]/route.ts |
-| `/var/www/baligirls/app/Assets/Admin/humapedia.png` | `app/Assets/Admin/humapedia.png` | `/baligirls/api/admin-asset/humapedia.png` | Postgres: `advertising_spaces.image` (seeded to `/api/admin-asset/humapedia.png`). | ./database/seed.py:259<br>./app/web/components/AdvertisingSpaces.tsx:21<br>./app/web/app/admin/logged/page.tsx:18<br>app/web/app/api/admin-asset/[filename]/route.ts |
-| `/var/www/baligirls/app/Assets/Admin/unique.png` | `app/Assets/Admin/unique.png` | `/baligirls/api/admin-asset/unique.png` | Postgres: `advertising_spaces.image` (seeded to `/api/admin-asset/unique.png`). | ./database/seed.py:258<br>./app/web/app/admin/logged/page.tsx:17<br>./app/web/components/AdvertisingSpaces.tsx:20<br>app/web/app/api/admin-asset/[filename]/route.ts |
+| `/var/www/baligirls/app/Assets/Admin/humapedia.png` | `app/Assets/Admin/humapedia.png` | `/baligirls/api/admin-asset/humapedia.png` | Postgres: `advertising_spaces.image` (seeded to `/api/admin-asset/humapedia.png`). | ./database_engine/seed.py:259<br>./app/web/components/AdvertisingSpaces.tsx:21<br>./app/web/app/admin/logged/page.tsx:18<br>app/web/app/api/admin-asset/[filename]/route.ts |
+| `/var/www/baligirls/app/Assets/Admin/unique.png` | `app/Assets/Admin/unique.png` | `/baligirls/api/admin-asset/unique.png` | Postgres: `advertising_spaces.image` (seeded to `/api/admin-asset/unique.png`). | ./database_engine/seed.py:258<br>./app/web/app/admin/logged/page.tsx:17<br>./app/web/components/AdvertisingSpaces.tsx:20<br>app/web/app/api/admin-asset/[filename]/route.ts |
 
 ### `/var/www/baligirls/app/Assets/Creator/clean_image`
 
@@ -79,8 +79,8 @@ Notes:
 | VM file | Repo file | Served URL (staging) | Cloud SQL pointer | References in repo |
 |---|---|---|---|---|
 | `/var/www/baligirls/app/web/public/ads/baligirls_logo.png` | `app/web/public/ads/baligirls_logo.png` | `/baligirls/ads/baligirls_logo.png` | Typically not stored in Cloud SQL (referenced directly by path in frontend). | ./gcp_move/phase02_move.md:140<br>./app/web/app/layout.tsx:25 |
-| `/var/www/baligirls/app/web/public/ads/humapedia.png` | `app/web/public/ads/humapedia.png` | `/baligirls/ads/humapedia.png` | Typically not stored in Cloud SQL (referenced directly by path in frontend). | ./database/seed.py:259<br>./app/web/components/AdvertisingSpaces.tsx:21<br>./app/web/app/admin/logged/page.tsx:18 |
-| `/var/www/baligirls/app/web/public/ads/unique.png` | `app/web/public/ads/unique.png` | `/baligirls/ads/unique.png` | Typically not stored in Cloud SQL (referenced directly by path in frontend). | ./database/seed.py:258<br>./app/web/components/AdvertisingSpaces.tsx:20<br>./app/web/app/admin/logged/page.tsx:17 |
+| `/var/www/baligirls/app/web/public/ads/humapedia.png` | `app/web/public/ads/humapedia.png` | `/baligirls/ads/humapedia.png` | Typically not stored in Cloud SQL (referenced directly by path in frontend). | ./database_engine/seed.py:259<br>./app/web/components/AdvertisingSpaces.tsx:21<br>./app/web/app/admin/logged/page.tsx:18 |
+| `/var/www/baligirls/app/web/public/ads/unique.png` | `app/web/public/ads/unique.png` | `/baligirls/ads/unique.png` | Typically not stored in Cloud SQL (referenced directly by path in frontend). | ./database_engine/seed.py:258<br>./app/web/components/AdvertisingSpaces.tsx:20<br>./app/web/app/admin/logged/page.tsx:17 |
 
 ### `/var/www/baligirls/app/web/public/placeholders`
 

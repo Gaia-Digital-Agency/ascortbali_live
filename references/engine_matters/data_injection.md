@@ -28,7 +28,7 @@ scp -i ~/.ssh/gda-ce01 \
 
 ```bash
 ssh -i ~/.ssh/gda-ce01 azlan@34.124.244.233 \
-  "cd /var/www/baligirls && python3 database/seed.py"
+  "cd /var/www/baligirls && python3 database_engine/seed.py"
 ```
 
 The seed script **upserts** — it inserts new creators and updates existing ones based on `provider_id`. So your existing 2 creators stay, and the 130 new ones get added.

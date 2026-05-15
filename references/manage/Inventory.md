@@ -10,10 +10,10 @@ app/
   web-vite/   Vite SSR + React Router frontend (active production app, port 8002)
   web/        Legacy Next.js App Router frontend (deprecated, not in production)
   data/       Source JSON used by legacy build/import flows
-database/
+database_engine/
   migrate.py  Legacy Python migration helper
   seed.py     Legacy Python seed helper
-engine/
+cleanup_engine/
   build_data.py
   remove_watermark.py
   page_scrapper/

@@ -364,12 +364,12 @@ if __name__ == '__main__':
     parser.add_argument(
         "--page-file",
         default=str(BASE_DIR / "page_source.json"),
-        help="Path to page_source.json (defaults to engine/page_source.json).",
+        help="Path to page_source.json (defaults to cleanup_engine/page_source.json).",
     )
     parser.add_argument(
         "--out-dir",
         default=str(BASE_DIR),
-        help="Output directory for page_output.json/info_output.json/image_output.json (defaults to engine/).",
+        help="Output directory for page_output.json/info_output.json/image_output.json (defaults to cleanup_engine/).",
     )
     parser.add_argument(
         "--max-urls",

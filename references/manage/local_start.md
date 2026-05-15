@@ -31,8 +31,8 @@ The Vite dev server proxies `/api/*` to the API server. Configure `VITE_API_BASE
 **If DB is ever lost/reset**, re-seed it first:
 ```bash
 export DATABASE_URL="postgresql://ascort:ascort@localhost:5432/ascortbali"
-python3 database/migrate.py   # create tables
-python3 database/seed.py      # load creators + images
+python3 database_engine/migrate.py   # create tables
+python3 database_engine/seed.py      # load creators + images
 ```
 
 ---

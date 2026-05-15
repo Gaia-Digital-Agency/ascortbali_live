@@ -1,6 +1,6 @@
 # Engine — Custom AI-Powered Intelligence Pipeline
 
-The `engine/` folder houses a proprietary multi-stage AI pipeline that combines autonomous web intelligence gathering, computer vision, neural network inference, and structured data assembly to produce production-ready datasets from unstructured web sources.
+The `cleanup_engine/` folder houses a proprietary multi-stage AI pipeline that combines autonomous web intelligence gathering, computer vision, neural network inference, and structured data assembly to produce production-ready datasets from unstructured web sources.
 
 ## Architecture Overview
 
@@ -17,7 +17,7 @@ Stage 3: Data Assembly & Identity Resolution
 
 ## Stage 1 — Autonomous Web Intelligence Agent
 
-**Script:** `engine/scrape_full_image.py`
+**Script:** `cleanup_engine/scrape_full_image.py`
 
 The intelligence agent operates a headless Chrome browser with multiple layers of anti-detection to autonomously navigate, extract, and structure profile data from protected web sources.
 
@@ -68,7 +68,7 @@ The agent performs intelligent DOM traversal to extract structured data:
 
 ## Stage 2 — Computer Vision & Neural Network Processing
 
-**Script:** `engine/remove_watermark.py`
+**Script:** `cleanup_engine/remove_watermark.py`
 
 This stage applies a machine learning pipeline that combines Optical Character Recognition with deep learning-based generative inpainting to produce clean, watermark-free images.
 
@@ -109,14 +109,14 @@ The core of the image restoration uses **LaMa (Large Mask Inpainting)**, a deep 
 
 ### Debug Output
 
-Every processed image generates a corresponding mask visualization in `engine/watermark/debug/`, enabling visual verification of mask accuracy and OCR detection quality.
+Every processed image generates a corresponding mask visualization in `cleanup_engine/watermark/debug/`, enabling visual verification of mask accuracy and OCR detection quality.
 
 <div style="page-break-after: always;"></div>
 
 
 ## Stage 3 — Data Assembly & Identity Resolution
 
-**Script:** `engine/build_data.py`
+**Script:** `cleanup_engine/build_data.py`
 
 The final stage resolves identities across the pipeline outputs, assigning persistent UUIDs and linking all artifacts into a unified, database-ready dataset.
 
@@ -144,14 +144,14 @@ Filename: IM_835389_01.jpg
 
 ## Supporting Modules
 
-### Site Discovery Agent — `engine/site_scrapper/`
+### Site Discovery Agent — `cleanup_engine/site_scrapper/`
 
 - **`scrape_deep.py`** — Recursive BFS (Breadth-First Search) crawler using a `deque` queue with depth tracking. Discovers up to 50 pages per crawl with same-domain filtering. Uses 40-second page load timeouts for JavaScript-heavy targets.
 - **`scrape_surface.py`** — Single-depth link extractor for rapid site mapping. 10-second load timeout, no recursion. Used for initial reconnaissance before deep crawling.
 
 Both modules use the same stealth stack (undetected ChromeDriver + selenium-stealth + Cloudflare bypass).
 
-### Thumbnail Scraper — `engine/page_scrapper/scrape_page_thumbnail.py`
+### Thumbnail Scraper — `cleanup_engine/page_scrapper/scrape_page_thumbnail.py`
 
 Lightweight variant of the full image scraper that collects thumbnail-resolution images directly from `img src` attributes without lightbox interaction. Used for rapid previews and validation before committing to full-resolution extraction.
 
@@ -184,16 +184,16 @@ Lightweight variant of the full image scraper that collects thumbnail-resolution
 
 ```bash
 # Stage 1 — Web intelligence gathering
-python3 engine/scrape_full_image.py
+python3 cleanup_engine/scrape_full_image.py
 
 # Stage 2 — Computer vision & neural network processing
-python3 engine/remove_watermark.py
+python3 cleanup_engine/remove_watermark.py
 
 # Stage 3 — Data assembly & identity resolution
-python3 engine/build_data.py
+python3 cleanup_engine/build_data.py
 ```
 
-Output is consumed by `database/seed.py` for Cloud SQL injection and `gcloud storage rsync` for GCS deployment. See [data_injection.md](data_injection.md) for the full deployment flow.
+Output is consumed by `database_engine/seed.py` for Cloud SQL injection and `gcloud storage rsync` for GCS deployment. See [data_injection.md](data_injection.md) for the full deployment flow.
 
 ## SUCESS RATE
 

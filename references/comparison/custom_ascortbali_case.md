@@ -16,7 +16,7 @@ Baligirls is a **custom-built (non-CMS) marketplace application** with:
 - A **Next.js 14 (App Router)** web frontend (`app/web`)
 - An **Express 4** backend API (`app/api`) exposing REST endpoints
 - A **PostgreSQL** database layer (Cloud SQL in deployment docs)
-- A separate **Python engine pipeline** (`engine/`) that generates database-ready JSON from scraped content and processes images (OCR + inpainting), feeding the DB seeding flow
+- A separate **Python engine pipeline** (`cleanup_engine/`) that generates database-ready JSON from scraped content and processes images (OCR + inpainting), feeding the DB seeding flow
 - GCP infrastructure documented for **Compute Engine**, **NGINX** path-based routing, **PM2** process management, **Secret Manager**, and **GCS** for static assets/uploads
 
 ### High-Level Deployment / Runtime Topology (As Documented)
@@ -56,7 +56,7 @@ Baligirls is a **custom-built (non-CMS) marketplace application** with:
 ```
 Engine (Python): scrape -> watermark removal -> build JSON
   -> app/data/page_data.json + app/data/image_data.json
-  -> DB seed (database/seed.py or Prisma seed)
+  -> DB seed (database_engine/seed.py or Prisma seed)
   -> Express API reads DB -> Next.js renders UI
 ```
 
@@ -76,8 +76,8 @@ AscortBali/
 ├── app/
 │   ├── web/                  # Next.js (frontend)
 │   └── api/                  # Express API + Prisma
-├── database/                 # SQL schema + Python migrate/seed (psycopg2)
-├── engine/                   # Python scraping + watermark removal + JSON generation
+├── database_engine/                 # SQL schema + Python migrate/seed (psycopg2)
+├── cleanup_engine/                   # Python scraping + watermark removal + JSON generation
 ├── packages/                 # Shared workspace packages (types/config)
 ├── references/               # Deployment + ops docs
 └── comparison/               # System comparisons (this document lives here)
@@ -86,7 +86,7 @@ AscortBali/
 Notes:
 
 - There are **two DB schema/seed paths present**:
-  - `database/schema.sql` + `database/migrate.py` + `database/seed.py` (direct Postgres via `psycopg2`)
+  - `database_engine/schema.sql` + `database_engine/migrate.py` + `database_engine/seed.py` (direct Postgres via `psycopg2`)
   - `app/api/prisma/schema.prisma` + Prisma migrations + `app/api/prisma/seed.ts`
 
 ## App Compiling Steps (Build)
@@ -112,8 +112,8 @@ Prereqs (as documented): Node.js 20 LTS, PostgreSQL 16, pnpm, Python 3.x for scr
 ```bash
 # database (one documented path)
 export DATABASE_URL=postgresql://ascort:ascort@localhost:5432/ascortbali
-python3 database/migrate.py
-python3 database/seed.py
+python3 database_engine/migrate.py
+python3 database_engine/seed.py
 
 # start all services
 pnpm dev
@@ -130,7 +130,7 @@ pnpm dev
   - `curl http://127.0.0.1:4000/health`
   - Exercise one protected endpoint after login (JWT + refresh flow)
 - **DB**
-  - Re-run migrate/seed against a fresh local database and validate core tables/views exist (for the `database/` SQL path)
+  - Re-run migrate/seed against a fresh local database and validate core tables/views exist (for the `database_engine/` SQL path)
   - If using Prisma: run `pnpm --filter @ascortbali/api db:migrate` and `pnpm --filter @ascortbali/api db:seed`
 
 ## System Architecture
