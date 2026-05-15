@@ -240,12 +240,14 @@ const CreatorProfileSchema = z.object({
   tattoo: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   piercing: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   services: z.string().min(2),
+  bustType: z.string().trim().min(1).max(20),
+  pubicHair: z.string().trim().min(1).max(20),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])),
   availableFor: z.preprocess(normalizeAvailableFor, z.enum(["incall", "outcall", "both"])),
   // Category (was "Form"): Freelance / Girlfriend / Sugar Baby / Escort /
   // Hot Wife. Persisted to providers.escort_type. Accept any short string so
   // the option list can grow without a schema change.
-  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("freelance"),
+  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("escort"),
 });
 
 // Route to get the authenticated creator's profile details.
@@ -286,6 +288,8 @@ meRouter.get("/creator-profile", requireAuth, requireRole(["creator"]), async (r
              smoker,
              tattoo,
              piercing,
+             bust_type,
+             pubic_hair,
              services,
              meeting_with,
              available_for,
@@ -420,6 +424,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                wechat_id = $34,
                escort_type = $35,
                slug = $36,
+               bust_type = $37,
+               pubic_hair = $38,
                updated_at = NOW()
        WHERE uuid = $1::uuid
        RETURNING uuid::text AS uuid,
@@ -454,6 +460,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                  smoker,
                  tattoo,
                  piercing,
+                 bust_type,
+                 pubic_hair,
                  services,
                  meeting_with,
                  available_for,
@@ -496,6 +504,8 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         p.wechatId,
         p.form,
         nextSlug,
+        p.bustType,
+        p.pubicHair,
       ]
     );
     let row = updateRes.rows[0];

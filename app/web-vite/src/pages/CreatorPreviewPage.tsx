@@ -5,6 +5,8 @@ import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
 import { CreatorLeftSideAd, CreatorRightSideAd } from "../components/SidebarAds";
 import { PageMeta, SITE_BASE } from "../components/PageMeta";
+import { BodyFaceVotes } from "../components/BodyFaceVotes";
+import { getVisitorId } from "../lib/cookies";
 
 type CreatorData = {
   title: string;
@@ -112,13 +114,13 @@ export default function CreatorPreviewPage() {
           // first thing a viewer sees.
           ["Category", categoryDisplay],
           ["Age", raw.age],
-          ["Gender", raw.gender],
+          ["Gender", titleCase(String(raw.gender ?? ""))],
           ["Orientation", orientationDisplay],
-          ["Available For", raw.available_for],
-          ["Meeting With", raw.meeting_with],
-          ["Smoker", raw.smoker],
-          ["Tattoo", raw.tattoo],
-          ["Piercing", raw.piercing],
+          ["Incall/Outcall", titleCase(String(raw.available_for ?? ""))],
+          ["Meet Men/Women/Couples", titleCase(String(raw.meeting_with ?? ""))],
+          ["Smoker", titleCase(String(raw.smoker ?? ""))],
+          ["Tattoo", titleCase(String(raw.tattoo ?? ""))],
+          ["Piercing", titleCase(String(raw.piercing ?? ""))],
           ["Nationality", raw.nationality],
           ["Ethnicity", raw.ethnicity],
           // Editor stores comma-split Bali zones in providers.city; the
@@ -129,7 +131,7 @@ export default function CreatorPreviewPage() {
           ["Hair Length", hairLength],
           ["Height", raw.height],
           ["Weight", raw.weight],
-          ["Travel", raw.travel],
+          ["Travel", titleCase(String(raw.travel ?? ""))],
           // Services row — always visible. About Me below is a separate field.
           ["Services", raw.services],
           // About Me: editor's ABOUT ME textarea (notes column). Fallback to
@@ -150,6 +152,21 @@ export default function CreatorPreviewPage() {
         const description = rawNotes
           ? (rawNotes.length > 160 ? rawNotes.slice(0, 157) + "..." : rawNotes)
           : `${displayName} on Bali Girls — meet creators in Bali. Photos, profile, contact.`;
+        // Page-view analytics ping with providerUuid (for top-creators metric)
+        try {
+          const visitorId = getVisitorId();
+          fetch(`${API_BASE}/analytics/visit`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              userAgent: navigator.userAgent,
+              visitorId,
+              path: typeof location !== "undefined" ? location.pathname : "/",
+              providerUuid: String(raw.uuid ?? ""),
+              referer: typeof document !== "undefined" ? document.referrer : null,
+            }),
+          }).catch(() => {});
+        } catch { /* non-critical */ }
         setData({
           title: displayName,
           creatorName: displayName,
@@ -206,7 +223,7 @@ export default function CreatorPreviewPage() {
         <section><div className="skeleton h-3 w-20" /><div className="skeleton mt-2 h-8 w-48" /></section>
         {/* Feature image + DETAILS card */}
         <section className="grid gap-4 md:grid-cols-2">
-          <div className="aspect-[9/16] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
+          <div className="aspect-[3/4] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
           <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6 space-y-3">
             {Array.from({ length: 18 }).map((_, i) => (<div key={i} className="skeleton h-5 w-full" />))}
             <div className="mt-6 border-t border-brand-line pt-5 space-y-3">
@@ -218,7 +235,7 @@ export default function CreatorPreviewPage() {
         <section>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="aspect-[9/16] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
+              <div key={i} className="aspect-[3/4] w-full overflow-hidden rounded-2xl"><div className="skeleton h-full w-full" /></div>
             ))}
           </div>
         </section>
@@ -227,7 +244,7 @@ export default function CreatorPreviewPage() {
           <div className="skeleton mb-3 h-3 w-32" />
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-[9/16] overflow-hidden rounded-xl"><div className="skeleton h-full w-full" /></div>
+              <div key={i} className="aspect-[3/4] overflow-hidden rounded-xl"><div className="skeleton h-full w-full" /></div>
             ))}
           </div>
         </section>
@@ -298,7 +315,7 @@ export default function CreatorPreviewPage() {
             <button
               type="button"
               onClick={() => data.primaryImageUrl && setLightboxImage(data.primaryImageUrl)}
-              className="block aspect-[9/16] w-full overflow-hidden rounded-2xl cursor-zoom-in"
+              className="block aspect-[3/4] w-full overflow-hidden rounded-2xl cursor-zoom-in"
               aria-label="Open photo in popup"
             >
               {data.primaryImageUrl ? (
@@ -332,12 +349,6 @@ export default function CreatorPreviewPage() {
               <div className="text-xs tracking-luxe text-brand-muted">DETAILS</div>
               <div className="mt-4 grid gap-3">
                 {profileFields.map(([label, value]) => (
-                  // items-start (not center) so long values wrap cleanly under
-                  // their own column without overlapping the label.
-                  // gap-4 keeps the label legible when the value wraps.
-                  // Value: min-w-0 + break-words let long un-spaced strings
-                  // (e.g. concatenated services) break across lines instead
-                  // of overflowing into the label.
                   <div
                     key={label}
                     className="flex items-start justify-between gap-4 border-b border-brand-line/60 pb-2 text-sm"
@@ -348,6 +359,8 @@ export default function CreatorPreviewPage() {
                     </span>
                   </div>
                 ))}
+                {/* Body / Face votes — the lowest fields, anonymous click voting */}
+                {data.slug ? <BodyFaceVotes slug={data.slug} /> : null}
               </div>
 
               {/* Visual separator + CONTACT sub-heading. mt-8 + a top border
@@ -411,7 +424,7 @@ export default function CreatorPreviewPage() {
                     onClick={() => img.imageUrl && setLightboxImage(img.imageUrl)}
                     className="group overflow-hidden rounded-2xl cursor-zoom-in"
                   >
-                    <div className="aspect-[9/16] w-full overflow-hidden">
+                    <div className="aspect-[3/4] w-full overflow-hidden">
                       {img.imageUrl ? (
                         <img
                           src={`${img.imageUrl}?w=480`}
@@ -442,7 +455,7 @@ export default function CreatorPreviewPage() {
                 <Link
                   key={c.uuid}
                   to={`/creator/preview/${c.slug || c.uuid}`}
-                  className="group aspect-[9/16] overflow-hidden rounded-xl border border-brand-line bg-brand-surface/50"
+                  className="group aspect-[3/4] overflow-hidden rounded-xl border border-brand-line bg-brand-surface/50"
                 >
                   <img
                     src={`${c.imageUrl}?w=240`}

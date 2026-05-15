@@ -40,6 +40,8 @@ type CreatorProfile = {
   services: string;
   meeting_with: "men" | "women" | "couples" | "all";
   available_for: "incall" | "outcall" | "both";
+  bust_type: string;
+  pubic_hair: string;
 };
 
 type CreatorImage = {
@@ -78,6 +80,8 @@ const ETHNICITY_OPTIONS = [
 import {
   TRAVEL_OPTIONS,
   HAIR_LENGTH_OPTIONS,
+  BUST_TYPE_OPTIONS,
+  PUBIC_HAIR_OPTIONS,
   SERVICES_OPTIONS,
   SERVICE_AREA_OPTIONS,
   CATEGORY_OPTIONS,
@@ -172,6 +176,8 @@ export default function CreatorPanel() {
       ["Eyes", String(profile.eyes ?? "").trim()],
       ["Hair Color", String(profile.hair_color ?? "").trim()],
       ["Hair Length", String(profile.hair_length ?? "").trim()],
+      ["Bust Type", String(profile.bust_type ?? "").trim()],
+      ["Pubic Hair", String(profile.pubic_hair ?? "").trim()],
       ["Height", String(profile.height ?? "").trim()],
       ["Weight", String(profile.weight ?? "").trim()],
       ["Services", String(profile.services ?? "").trim()],
@@ -206,6 +212,8 @@ export default function CreatorPanel() {
         eyes: profile.eyes ?? "",
         hairColor: profile.hair_color ?? "",
         hairLength: profile.hair_length ?? "",
+        bustType: profile.bust_type ?? "Natural",
+        pubicHair: profile.pubic_hair ?? "Trimmed",
         // Default TRAVEL to "Travel To Meet" when the stored value is empty
         // so new / unmigrated creators have a sensible pre-selected option.
         travel: profile.travel || "Travel To Meet",
@@ -328,6 +336,8 @@ export default function CreatorPanel() {
         eyes: profile.eyes ?? "",
         hairColor: profile.hair_color ?? "",
         hairLength: profile.hair_length ?? "",
+        bustType: profile.bust_type ?? "Natural",
+        pubicHair: profile.pubic_hair ?? "Trimmed",
         // Default TRAVEL to "Travel To Meet" when the stored value is empty
         // so new / unmigrated creators have a sensible pre-selected option.
         travel: profile.travel || "Travel To Meet",
@@ -480,6 +490,16 @@ export default function CreatorPanel() {
               {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
+          <Field label="BUST TYPE">
+            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.bust_type ?? "Natural"} onChange={(e) => updateProfile("bust_type", e.target.value)}>
+              {BUST_TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="PUBIC HAIR">
+            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.pubic_hair ?? "Trimmed"} onChange={(e) => updateProfile("pubic_hair", e.target.value)}>
+              {PUBIC_HAIR_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </Field>
           <Field label="HEIGHT">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.height ?? ""} onChange={(e) => updateProfile("height", e.target.value)}>
               <option value="">Select height</option>
@@ -510,8 +530,8 @@ export default function CreatorPanel() {
           {/* CATEGORY (formerly "FORM"): Freelance | Escort. Persisted to providers.escort_type. */}
           <ChoiceGroup label="CATEGORY" value={profile.form ?? CATEGORY_OPTIONS[0]} options={CATEGORY_OPTIONS} onChange={(v) => updateProfile("form", v as CreatorProfile["form"])} />
           <ChoiceGroup label="ORIENTATION" value={profile.orientation || ORIENTATION_OPTIONS[0]} options={ORIENTATION_OPTIONS} onChange={(v) => updateProfile("orientation", v as CreatorProfile["orientation"])} />
-          <ChoiceGroup label="AVAILABLE FOR" value={profile.available_for} options={["incall", "outcall", "both"]} onChange={(v) => updateProfile("available_for", v as CreatorProfile["available_for"])} />
-          <ChoiceGroup label="MEETING WITH" value={profile.meeting_with} options={["men", "women", "couples", "all"]} onChange={(v) => updateProfile("meeting_with", v as CreatorProfile["meeting_with"])} />
+          <ChoiceGroup label="INCALL/OUTCALL" value={profile.available_for} options={["incall", "outcall", "both"]} onChange={(v) => updateProfile("available_for", v as CreatorProfile["available_for"])} />
+          <ChoiceGroup label="MEET MEN/WOMEN/COUPLES" value={profile.meeting_with} options={["men", "women", "couples", "all"]} onChange={(v) => updateProfile("meeting_with", v as CreatorProfile["meeting_with"])} />
           <ChoiceGroup label="SMOKER" value={profile.smoker} options={["yes", "no"]} onChange={(v) => updateProfile("smoker", v as CreatorProfile["smoker"])} />
           <ChoiceGroup label="TATTOO" value={profile.tattoo} options={["yes", "no"]} onChange={(v) => updateProfile("tattoo", v as CreatorProfile["tattoo"])} />
           <ChoiceGroup label="PIERCING" value={profile.piercing} options={["yes", "no"]} onChange={(v) => updateProfile("piercing", v as CreatorProfile["piercing"])} />
@@ -704,7 +724,7 @@ function ImageSlotEditor({
   return (
     <div className="space-y-3 rounded-2xl border border-brand-line bg-brand-surface2/40 p-4">
       <div className="text-xs tracking-[0.22em] text-brand-muted">{slot === 1 ? "MAIN IMAGE" : `IMAGE ${slot}`}</div>
-      <div className="aspect-[9/16] overflow-hidden rounded-xl border border-brand-line">
+      <div className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
         {imageUrl ? (
           <img src={imageUrl} alt={`Creator photo, slot ${slot}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (

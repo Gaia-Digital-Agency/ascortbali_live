@@ -1,25 +1,32 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { API_BASE } from "../lib/api";
+import { getVisitorId } from "../lib/cookies";
 
 export function AnalyticsBeacon() {
+  const loc = useLocation();
   useEffect(() => {
     const run = async () => {
       try {
-        const base = API_BASE;
         const ua = navigator.userAgent;
-        const res = await fetch(`${base}/analytics/visit`, {
+        const visitorId = getVisitorId();
+        const res = await fetch(`${API_BASE}/analytics/visit`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ userAgent: ua }),
+          body: JSON.stringify({
+            userAgent: ua,
+            visitorId,
+            path: loc.pathname,
+            referer: document.referrer || null,
+          }),
         });
         const json = await res.json();
         if (json?.visitorId) localStorage.setItem("visitorId", json.visitorId);
       } catch {
-        // Ignore any errors to avoid disrupting the main application flow.
+        // Ignore — analytics is non-critical.
       }
     };
     run();
-  }, []);
-
+  }, [loc.pathname]);
   return null;
 }

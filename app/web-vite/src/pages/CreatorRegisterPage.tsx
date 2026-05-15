@@ -8,6 +8,8 @@ import {
   ORIENTATION_OPTIONS,
   SERVICE_AREA_OPTIONS,
   SERVICES_OPTIONS,
+  BUST_TYPE_OPTIONS,
+  PUBIC_HAIR_OPTIONS,
 } from "../lib/creatorOptions";
 
 const NATIONALITIES = [
@@ -53,6 +55,8 @@ export default function CreatorRegisterPage() {
   const [nationality, setNationality] = useState("");
   const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
   const [services, setServices] = useState<string[]>([]);
+  const [bustType, setBustType] = useState<string>(BUST_TYPE_OPTIONS[0]);
+  const [pubicHair, setPubicHair] = useState<string>("Trimmed");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
@@ -116,6 +120,8 @@ export default function CreatorRegisterPage() {
           form,
           orientation,
           services,
+          bustType,
+          pubicHair,
         }),
       });
       const json = await res.json();
@@ -234,6 +240,21 @@ export default function CreatorRegisterPage() {
                 <option key={o} value={o}>{titleCase(o)}</option>
               ))}
             </select>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">BUST TYPE</label>
+              <select className={sel} value={bustType} onChange={(e) => setBustType(e.target.value)} aria-label="Bust Type">
+                {BUST_TYPE_OPTIONS.map((v) => (<option key={v} value={v}>{v}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">PUBIC HAIR</label>
+              <select className={sel} value={pubicHair} onChange={(e) => setPubicHair(e.target.value)} aria-label="Pubic Hair">
+                {PUBIC_HAIR_OPTIONS.map((v) => (<option key={v} value={v}>{v}</option>))}
+              </select>
+            </div>
           </div>
 
           <div>

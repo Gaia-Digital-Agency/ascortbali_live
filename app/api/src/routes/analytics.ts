@@ -4,6 +4,7 @@ import { z } from "zod";
 import { hmacIp } from "../lib/security.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { getPool } from "../lib/pg.js";
+import { countryToRegion } from "../lib/regions.js";
 
 export const analyticsRouter = Router();
 
@@ -162,6 +163,11 @@ const VisitSchema = z.object({
   country: z.string().max(80).optional().nullable(),
   city: z.string().max(80).optional().nullable(),
   userAgent: z.string().max(300).optional().nullable(),
+  // New: per-page-view fields
+  visitorId: z.string().max(64).optional().nullable(),
+  path: z.string().max(500).optional().nullable(),
+  providerUuid: z.string().uuid().optional().nullable(),
+  referer: z.string().max(500).optional().nullable(),
 });
 
 // Route to record a new visitor or update an existing one.
@@ -210,6 +216,28 @@ analyticsRouter.post("/visit", async (req, res) => {
       const sel = await pool.query("SELECT id::text AS id FROM visitor_analytics WHERE ip_hash = $1 LIMIT 1", [ipHash]);
       visitorId = sel.rows[0]?.id ?? null;
     }
+
+    // Per-page-view granular log (powers the admin dashboard metrics)
+    try {
+      const region = countryToRegion(country);
+      const device = /Mobi|Android|iPhone/i.test(String(userAgent || "")) ? "mobile"
+                   : /Tablet|iPad/i.test(String(userAgent || ""))         ? "tablet"
+                   : "desktop";
+      await pool.query(
+        `INSERT INTO page_views (visitor_id, ip_hash, path, provider_uuid, country, region, device, referer)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          parsed.data.visitorId ?? null,
+          ipHash,
+          parsed.data.path ?? "/",
+          parsed.data.providerUuid ?? null,
+          country,
+          region,
+          device,
+          parsed.data.referer ?? null,
+        ]
+      );
+    } catch { /* analytics is non-critical */ }
 
     return res.json({ visitorId });
   } catch {

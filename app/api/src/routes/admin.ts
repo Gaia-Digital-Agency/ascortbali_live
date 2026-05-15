@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getPool } from "../lib/pg.js";
+import { countryToRegion, ALL_REGIONS } from "../lib/regions.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 // Create a new router for admin routes.
@@ -21,7 +22,7 @@ adminRouter.get("/accounts", async (req, res) => {
   try {
     const [usersRes, creatorsRes, userCountRes, creatorCountRes] = await Promise.all([
       pool.query(
-        `SELECT id::text AS id, username, password, created_at, updated_at
+        `SELECT id::text AS id, username, password, created_at, updated_at, COALESCE(verified, false) AS verified
            FROM app_accounts
           WHERE role = 'user'
           ORDER BY created_at DESC
@@ -29,7 +30,7 @@ adminRouter.get("/accounts", async (req, res) => {
         [limit, offset]
       ),
       pool.query(
-        `SELECT uuid::text AS id, username, password, temp_password, last_seen, created_at, updated_at, COALESCE(is_active, false) AS is_active
+        `SELECT uuid::text AS id, username, password, temp_password, last_seen, created_at, updated_at, COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified
            FROM providers
           ORDER BY is_active DESC NULLS LAST, created_at DESC
           LIMIT $1 OFFSET $2`,
@@ -77,10 +78,13 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT uuid::text AS id, username, password, temp_password, model_name, gender, age, nationality, city,
-              phone_number, cell_phone, telegram_id, last_seen, notes, location, eyes, hair_color, hair_length,
+      `SELECT uuid::text AS id, provider_id, username, password, temp_password, model_name, gender, age, nationality, city,
+              phone_number, cell_phone, telegram_id, wechat_id, last_seen, notes, location, eyes, hair_color, hair_length,
               travel, weight, height, ethnicity, languages, country, orientation, smoker, tattoo, piercing,
-              services, meeting_with, available_for, COALESCE(is_active, false) AS is_active, created_at, updated_at
+              bust_type, pubic_hair, escort_type,
+              body_votes, face_votes,
+              services, meeting_with, available_for, COALESCE(is_active, false) AS is_active,
+              COALESCE(verified, false) AS verified, slug, url, title, created_at, updated_at
          FROM providers
         WHERE uuid = $1::uuid`,
       [req.params.id]
@@ -105,6 +109,7 @@ const UpdateUserSchema = z.object({
   city: z.string().max(80).optional(),
   preferredContact: z.string().max(20).optional(),
   relationshipStatus: z.string().max(20).optional(),
+  verified: z.boolean().optional(),
 });
 
 // Route to update a user account (all fields).
@@ -122,6 +127,7 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
     if (p.password !== undefined) { const hashed = await bcrypt.hash(p.password, 10); accVals.push(hashed); accSet.push(`password = $${accVals.length}`); }
     if (p.phone !== undefined) { accVals.push(p.phone || null); accSet.push(`phone = $${accVals.length}`); }
     if (p.whatsapp !== undefined) { accVals.push(p.whatsapp || null); accSet.push(`whatsapp = $${accVals.length}`); }
+    if (p.verified !== undefined) { accVals.push(p.verified); accSet.push(`verified = $${accVals.length}`); }
     await pool.query(`UPDATE app_accounts SET ${accSet.join(", ")} WHERE id = $1::uuid AND role = 'user'`, accVals);
 
     // Update user_profiles fields.
@@ -188,8 +194,16 @@ const UpdateCreatorSchema = z.object({
   services: z.string().max(500).optional(),
   meeting_with: z.string().max(20).optional(),
   available_for: z.string().max(20).optional(),
+  bust_type: z.string().max(20).optional(),
+  pubic_hair: z.string().max(20).optional(),
+  wechat_id: z.string().max(100).optional(),
+  escort_type: z.string().max(50).optional(),
+  title: z.string().max(255).optional(),
+  body_votes: z.record(z.string(), z.number().int().min(0).max(10000000)).optional(),
+  face_votes: z.record(z.string(), z.number().int().min(0).max(10000000)).optional(),
   notes: z.string().max(5000).optional(),
   is_active: z.boolean().optional(),
+  verified: z.boolean().optional(),
 });
 
 // Route to update a creator account (all fields).
@@ -231,8 +245,16 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     if (p.services !== undefined) add("services", p.services);
     if (p.meeting_with !== undefined) add("meeting_with", p.meeting_with);
     if (p.available_for !== undefined) add("available_for", p.available_for);
+    if (p.bust_type !== undefined)    add("bust_type", p.bust_type);
+    if (p.pubic_hair !== undefined)   add("pubic_hair", p.pubic_hair);
+    if (p.wechat_id !== undefined)    add("wechat_id", p.wechat_id);
+    if (p.escort_type !== undefined)  add("escort_type", p.escort_type);
+    if (p.title !== undefined)        add("title", p.title);
+    if (p.body_votes !== undefined)   { values.push(p.body_votes); setClauses.push(`body_votes = $${values.length}::jsonb`); }
+    if (p.face_votes !== undefined)   { values.push(p.face_votes); setClauses.push(`face_votes = $${values.length}::jsonb`); }
     if (p.notes !== undefined) add("notes", p.notes);
     if (p.is_active !== undefined) add("is_active", p.is_active);
+    if (p.verified !== undefined) add("verified", p.verified);
 
     const rowCount = await pool.query(
       `UPDATE providers SET ${setClauses.join(", ")} WHERE uuid = $1::uuid`,
@@ -538,5 +560,78 @@ adminRouter.get("/creator-names", async (_req, res) => {
     res.json(rows);
   } catch {
     res.status(500).json({ error: "creator_names_load_failed" });
+  }
+});
+
+
+// ── Dashboard metrics ─────────────────────────────────────────────────
+// Returns aggregated visitor + page-view stats for the admin dashboard.
+adminRouter.get("/metrics", async (_req, res) => {
+  const pool = getPool();
+  try {
+    const [visitorWindows, pageViewWindows, regionRows, topCreators, deviceSplit, newVsReturning, bounce, votingAgg, hourlyHeat] = await Promise.all([
+      pool.query(`
+        SELECT 'today'   AS window, COUNT(DISTINCT ip_hash) AS visitors FROM page_views WHERE viewed_at >= CURRENT_DATE
+        UNION ALL SELECT '7d',  COUNT(DISTINCT ip_hash) FROM page_views WHERE viewed_at >= NOW() - INTERVAL '7 days'
+        UNION ALL SELECT '30d', COUNT(DISTINCT ip_hash) FROM page_views WHERE viewed_at >= NOW() - INTERVAL '30 days'
+        UNION ALL SELECT 'all', COUNT(DISTINCT ip_hash) FROM page_views
+      `),
+      pool.query(`
+        SELECT 'today'   AS window, COUNT(*) AS views FROM page_views WHERE viewed_at >= CURRENT_DATE
+        UNION ALL SELECT '7d',  COUNT(*) FROM page_views WHERE viewed_at >= NOW() - INTERVAL '7 days'
+        UNION ALL SELECT '30d', COUNT(*) FROM page_views WHERE viewed_at >= NOW() - INTERVAL '30 days'
+        UNION ALL SELECT 'all', COUNT(*) FROM page_views
+      `),
+      pool.query(`
+        SELECT COALESCE(region, 'Other') AS region, COUNT(DISTINCT ip_hash) AS visitors
+          FROM page_views GROUP BY region ORDER BY visitors DESC
+      `),
+      pool.query(`
+        SELECT p.uuid::text AS uuid, p.model_name, p.slug, COUNT(*)::int AS views
+          FROM page_views pv JOIN providers p ON p.uuid = pv.provider_uuid
+         WHERE pv.viewed_at >= NOW() - INTERVAL '7 days'
+         GROUP BY p.uuid, p.model_name, p.slug
+         ORDER BY views DESC LIMIT 10
+      `),
+      pool.query(`
+        SELECT COALESCE(device,'unknown') AS device, COUNT(DISTINCT ip_hash) AS n
+          FROM page_views GROUP BY device ORDER BY n DESC
+      `),
+      pool.query(`
+        WITH visits AS (SELECT ip_hash, COUNT(*) AS c FROM page_views GROUP BY ip_hash)
+        SELECT CASE WHEN c = 1 THEN 'new' ELSE 'returning' END AS kind, COUNT(*) AS n
+          FROM visits GROUP BY 1
+      `),
+      pool.query(`
+        WITH visits AS (SELECT ip_hash, COUNT(*) AS c FROM page_views GROUP BY ip_hash)
+        SELECT CASE WHEN c = 1 THEN 'one_page' ELSE 'multi_page' END AS kind, COUNT(*) AS n
+          FROM visits GROUP BY 1
+      `),
+      pool.query(`
+        SELECT
+          (SELECT COALESCE(SUM((body_votes->>'firm')::int + (body_votes->>'curvy')::int + (body_votes->>'huggable')::int), 0) FROM providers) AS body_total,
+          (SELECT COALESCE(SUM((face_votes->>'cute')::int + (face_votes->>'sexy')::int + (face_votes->>'pleasant')::int), 0) FROM providers) AS face_total,
+          (SELECT COUNT(DISTINCT visitor_id) FROM creator_votes) AS voters
+      `),
+      pool.query(`
+        SELECT EXTRACT(DOW FROM viewed_at)::int AS dow, EXTRACT(HOUR FROM viewed_at)::int AS hour, COUNT(*)::int AS n
+          FROM page_views WHERE viewed_at >= NOW() - INTERVAL '30 days'
+         GROUP BY dow, hour
+      `),
+    ]);
+    res.json({
+      visitors_by_window: Object.fromEntries(visitorWindows.rows.map(r => [r.window, Number(r.visitors)])),
+      page_views_by_window: Object.fromEntries(pageViewWindows.rows.map(r => [r.window, Number(r.views)])),
+      regions: regionRows.rows.map(r => ({ region: r.region, visitors: Number(r.visitors) })),
+      top_creators_7d: topCreators.rows,
+      devices: deviceSplit.rows,
+      new_vs_returning: newVsReturning.rows,
+      bounce: bounce.rows,
+      voting: votingAgg.rows[0] ?? null,
+      heatmap: hourlyHeat.rows,
+      all_regions: ALL_REGIONS,
+    });
+  } catch {
+    res.status(500).json({ error: "metrics_failed" });
   }
 });

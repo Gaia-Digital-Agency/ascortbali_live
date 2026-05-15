@@ -178,7 +178,7 @@ export default function HomePage() {
     categories: [],
   });
 
-  const tagline = settings?.tagline || "FREE BALI GIRLS";
+  const tagline = settings?.tagline || "BALI GIRLS";
 
   // Server-paginated + filtered creator list. Refires when the URL params
   // change. Was a single fetch of /creators?limit=500 with client-side
@@ -358,7 +358,7 @@ export default function HomePage() {
         {loading ? (
           <div className="grid gap-4 grid-cols-2 [.step-4_&]:grid-cols-2 [.step-3_&]:grid-cols-3 [.step-2_&]:grid-cols-4 [.step-1_&]:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="skeleton aspect-[9/16] rounded-2xl" />
+              <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />
             ))}
           </div>
         ) : (
@@ -369,10 +369,10 @@ export default function HomePage() {
               </div>
             ) : buildPageCells(pageItems, page).map((cell, i) => {
               if (cell.kind === "ad") {
-                // In-grid ad cards. aspect="auto" so the operator's image
+                // In-grid ad cards. aspect="3/4" so they visually match the creator cards.
                 // renders at its natural ratio (matching the home-9..12
                 // first-row treatment we replaced).
-                return <AdSlot key={`ad-${cell.slot}-${i}`} slot={cell.slot} aspect="auto" />;
+                return <AdSlot key={`ad-${cell.slot}-${i}`} slot={cell.slot} aspect="3/4" />;
               }
               const creator = cell.data;
               const displayName = normalizeName(creator.model_name || creator.username || "Creator");
@@ -389,7 +389,7 @@ export default function HomePage() {
                   // prevents the previous min-h-[44px] + h-[10%] combo from
                   // pushing the image past the aspect-ratio box and getting
                   // clipped (which made the NAME look off-center).
-                  className="group flex aspect-[9/16] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
+                  className="group flex aspect-[3/4] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
                 >
                   <div className="flex-1 overflow-hidden">
                     <img

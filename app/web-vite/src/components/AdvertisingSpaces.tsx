@@ -237,7 +237,7 @@ export function FeaturedCarousel() {
   }, [settings]);
 
   // 4 girls full width: grid-cols-4 on all non-tiny screens (2x2 on very small)
-  const cardClass = "aspect-[9/16] w-full";
+  const cardClass = "aspect-[3/4] w-full";
 
   // The "FEATURED GIRLS" label is rendered by HomePage above this component
   // (so it sits above the relative wrapper that contains the side ads — letting
@@ -277,7 +277,7 @@ export function FeaturedCarousel() {
               srcSet={`${imageUrl}?w=240 240w, ${imageUrl}?w=360 360w, ${imageUrl}?w=480 480w`}
               sizes="(max-width: 640px) 50vw, 240px"
               alt={name + " profile photo"}
-              width={360}
+              width={480}
               height={640}
               // First card is the mobile LCP candidate — sync decode + high
               // fetchpriority push it to the top of the browser's queue.
@@ -369,7 +369,7 @@ export function AdSlot({
   // 4/1 = leaderboard banner (1940x500). "auto" = no fixed aspect, the card
   // sizes to the image's natural ratio (used for home-9..12 / home-17..20 so
   // admin-supplied images of any shape display without cropping).
-  aspect?: "9/16" | "16/9" | "4/1" | "4/15" | "auto";
+  aspect?: "9/16" | "3/4" | "16/9" | "4/1" | "4/15" | "auto";
   className?: string;
   alt?: string;
   eager?: boolean;
@@ -385,8 +385,9 @@ export function AdSlot({
     aspect === "16/9" ? "aspect-[16/9]"
     : aspect === "4/1" ? "aspect-[4/1]"
     : aspect === "4/15" ? "aspect-[4/15]"
+    : aspect === "3/4" ? "aspect-[3/4]"
     : aspect === "auto" ? ""
-    : "aspect-[9/16]";
+    : "aspect-[3/4]";
 
   // For aspect="auto" the image renders at its natural ratio (w-full h-auto)
   // and the card height follows. Every other aspect uses a fixed aspect box
@@ -402,7 +403,7 @@ export function AdSlot({
   if (!ad) {
     // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
     // needs some height before the image arrives.
-    const skClass = aspectClass || "aspect-[9/16]";
+    const skClass = aspectClass || "aspect-[3/4]";
     return <div className={`${skClass} w-full ${bare ? "rounded-2xl" : "skeleton rounded-2xl border border-brand-line"} ${className}`} />;
   }
 
@@ -447,7 +448,7 @@ export function AdSlot({
       isAuto
         // No fixed parent height with aspect="auto" — use a 9:16 placeholder
         // box so empty slots stay visible.
-        ? "flex aspect-[9/16] w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
+        ? "flex aspect-[3/4] w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
         : "flex h-full w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
     }>
       {slot.toUpperCase()}

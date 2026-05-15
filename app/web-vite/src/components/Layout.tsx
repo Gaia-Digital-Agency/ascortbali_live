@@ -131,7 +131,7 @@ export default function Layout() {
               onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
             <div className="leading-none">
-              <div className="font-display text-lg tracking-[0.22em] text-brand-gold">FREE BALI GIRLS</div>
+              <div className="font-display text-lg tracking-[0.22em] text-brand-gold">BALI GIRLS</div>
               {subtitle ? <div className="mt-1 text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
             </div>
             <span className="ml-1 h-[1px] w-10 bg-brand-gold/70 opacity-70 transition group-hover:opacity-100" />

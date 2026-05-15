@@ -20,15 +20,30 @@ export const HAIR_LENGTH_OPTIONS = [
   "Very Long",
 ];
 
+export const BUST_TYPE_OPTIONS = [
+  "Natural",
+  "Perky",
+  "Enhanced",
+  "Big",
+  "Petite",
+  "Firm",
+  "Extra",
+];
+
+export const PUBIC_HAIR_OPTIONS = [
+  "Kept",
+  "Shaved",
+  "Trimmed",
+  "Shaped",
+];
+
 export const SERVICES_OPTIONS = [
   "Full Services",
-  "Massage",
   "Sex",
   "Anal",
   "BDSM",
   "Role Play",
   "Vanilla",
-  "Refer Notes",
 ];
 
 // Major / main service areas in Bali. Stored comma-separated in providers.city
@@ -39,17 +54,18 @@ export const SERVICE_AREA_OPTIONS = [
   "Sanur",
   "Canggu",
   "Nusa Dua",
+  "Kuta",
+  "Seminyak",
 ];
 
 // Category replaces the legacy "FORM" field. Stored lower-case in
 // providers.escort_type (column name kept for backward-compat). The
 // ChoiceGroup component capitalises on render, so "sugar baby" -> "Sugar Baby".
 export const CATEGORY_OPTIONS = [
-  "freelance",
-  "girlfriend",
-  "sugar baby",
   "escort",
-  "hot wife",
+  "sugar babies",
+  "massage",
+  "dating/brides",
 ];
 
 // Orientation values. Stored lower-case. Older accounts may have "bisexual"
