@@ -7,9 +7,11 @@ Current-state inventory for the deployed `Baligirls` repo.
 ```text
 app/
   api/        Express API, auth, admin, analytics, creators, profile routes (port 8001)
-  web-vite/   Vite SSR + React Router frontend (active production app, port 8002)
-  web/        Legacy Next.js App Router frontend (deprecated, not in production)
-  data/       Source JSON used by legacy build/import flows
+              src/routes/  auth · admin · creators · ads · me · services · analytics · blogs · orders · votes
+  web-vite/   Vite SPA + React Router frontend (active production app, port 8002)
+              src/pages/admin/  per-tab components for AdminLoggedPage:
+                Dashboard/Stats/Ads/Users/CreatorsTab + AccountEditModal +
+                ImageAdEditor + shared types.ts + constants.ts
 database_engine/
   migrate.py  Legacy Python migration helper
   seed.py     Legacy Python seed helper
@@ -28,20 +30,19 @@ references/
 
 ## Frontend Surface
 
-Pages currently present under `app/web/app`:
+Pages currently present under `app/web-vite/src/pages` (Vite SPA):
 
 - `/`
 - `/admin`
-- `/admin/logged`
+- `/admin/logged`  (sub-routes: `/dashboard`, `/stats`, `/ads`, `/users`, `/creators` — each rendered by a `pages/admin/*Tab.tsx` component)
 - `/creator`
 - `/creator/logged`
 - `/creator/register`
-- `/creator/preview/[id]`
+- `/creator/preview/:id`
 - `/user`
 - `/user/logged`
 - `/user/register`
-- `/services`
-- `/services/[id]`
+- `/blog` and `/blog/:slug`
 - `/terms`
 - `/privacy`
 

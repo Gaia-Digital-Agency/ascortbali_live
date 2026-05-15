@@ -97,11 +97,14 @@ app/
 │   ├── server.ts          ← Express server (port 8002): static SPA + GCS image routes + sitemap
 │   └── src/
 │       ├── pages/         ← route components (HomePage, AdminLoggedPage, etc.)
+│       │   └── admin/     ← admin sub-components: {Dashboard,Stats,Ads,Users,Creators}Tab,
+│       │                    AccountEditModal, ImageAdEditor, plus types.ts + constants.ts.
+│       │                    AdminLoggedPage.tsx is the orchestrator (state + handlers).
 │       ├── components/    ← shared components (Layout, AuthNavButton, etc.)
 │       └── lib/           ← api client, paths, utilities
 └── api/                   ← Express API (port 8001)
     └── src/
-        ├── routes/        ← auth, admin, creators, ads, me, services, analytics
+        ├── routes/        ← auth, admin, creators, ads, me, services, analytics, blogs, orders, votes
         ├── lib/           ← pg, jwt, twilio, otp, env
         └── middleware/    ← auth, rateLimit
 ```
@@ -191,19 +194,18 @@ pm2 save
 - Error messages shown as red banner below page title
 
 ### Admin CMS (`/admin/logged`)
-- **Homepage Image Ads (1-4)**: upload images, set click URLs, auto-save on upload, home-4 shown as landscape
-- **Homepage Tagline**: editable text shown on homepage
-- **Featured Girls Carousel**: select 4 active creators by name from dropdown
-- **Bottom Card Text**: editable bottom ad text
-- **Stats**: registered creators and users count
-- **User management**: view all users, VIEW button opens popup with all fields
-- **Creator management**: separated into Active and Inactive sections with status indicators
-- **View/Edit/Delete popup**: 
+Sub-routes (each rendered by its own `pages/admin/*Tab.tsx` component, parent
+keeps the state): `/dashboard`, `/stats`, `/ads`, `/users`, `/creators`.
+- **Dashboard tab**: registered creators + users counts, editable Header Subtitle and Homepage Tagline, Featured Girls Carousel (select 4 active creators), password change
+- **Stats / Analytics tab**: visitors / page views by window (today/7d/30d/all), regions, top creators 7d, device split, new vs returning, votes, service splits
+- **Ads tab**: 20 image-ad slots split into HOMEPAGE (10) + CREATOR PAGE (10) groups; mixes landscape (16:9) and portrait (3:4) and card (9:16) formats; edit many and click **SAVE ALL ADS** to apply
+- **Users tab**: view all users, VIEW button opens popup with all fields
+- **Creators tab**: SEARCH box filters active+inactive lists client-side by username or id (CLEAR button to reset); separated into Active and Inactive sections with status indicators. Loads up to 500 creators per request (`/admin/accounts?limit=500`)
+- **View/Edit/Delete popup** (shared between users and creators):
   - CLOSE button (white, visible)
   - EDIT mode makes all fields editable
   - DELETE has inline confirmation ("Are you sure?")
   - Creator delete is soft delete (deactivates, moves to Inactive)
-- Password change
 
 ### Authentication
 - JWT-based auth with Ed25519 keys (access + refresh tokens)

@@ -45,6 +45,9 @@ app/api/src/
 app/web-vite/src/
 ├── App.tsx, entry-client.tsx
 ├── pages/         Home, Admin*, Creator*, User*, Blog*, Privacy, Terms
+│   └── admin/     {Dashboard,Stats,Ads,Users,Creators}Tab + AccountEditModal +
+│                  ImageAdEditor + types.ts + constants.ts. AdminLoggedPage.tsx
+│                  is the orchestrator (state, handlers, sub-route switch).
 ├── components/    Layout, AuthNavButton, ...
 └── lib/           api client, paths, utilities
 ```
