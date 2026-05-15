@@ -8,7 +8,7 @@
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:4000
 ```
 
-File: `/Users/rogerwoolie/Downloads/AscortBali/app/web/.env`
+File: `/Users/rogerwoolie/Downloads/AscortBali/app/web-vite/.env`
 
 2) Clear occupied ports before startup:
 

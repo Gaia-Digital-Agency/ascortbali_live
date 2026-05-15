@@ -164,7 +164,7 @@ Architectures not evidenced by this repo (and therefore not claimed here): CQRS,
 - **Mobile-view friendly:** Responsive Tailwind layout usage (`sm:`, `md:`, `lg:` breakpoints across pages/components).
 - **JWT auth:** Access + refresh tokens stored in `sessionStorage` with `localStorage` fallback; role-based protected routes.
 - **APIs:** REST-style endpoints served via NGINX path routing; Next.js also exposes routes under `/api/*` for storage-backed asset serving.
-- **SEO:** `metadata` in `app/web/app/layout.tsx`, plus `public/robots.txt` and `public/sitemap.xml`.
+- **SEO:** `metadata` in `app/web-vite/src/App.tsx`, plus `public/robots.txt` and `public/sitemap.xml`.
 - **Payment (partial/stub):** Prisma `Payment` model and an `/orders/payment` API route exist; no external payment gateway integration is evidenced in this repo.
 
 ## System Design Elements 

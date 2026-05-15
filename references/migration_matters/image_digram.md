@@ -16,7 +16,7 @@ flowchart TB
   %% Storage
   VM_ASSETS_ADMIN["VM filesystem\n/var/www/baligirls/app/Assets/Admin"]
   VM_CLEAN["VM filesystem\n/var/www/baligirls/app/Assets/Creator/clean_image"]
-  VM_PUBLIC["VM filesystem\n/var/www/baligirls/app/web/public"]
+  VM_PUBLIC["VM filesystem\n/var/www/baligirls/app/web-vite/public"]
   GCS["GCS\ngs://gda-s01-bucket/baligirls/uploads"]
   SQL["Cloud SQL (Postgres)\ninstance: baligirls\ndb: ascortbali"]
 

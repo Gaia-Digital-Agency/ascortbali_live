@@ -97,15 +97,15 @@ Issue A: `/admin`, `/user`, `/creator` sign-in did not land on logged-in pages.
   - Client-side redirects used absolute paths like `/admin/logged`, which breaks when the app is mounted under base path `/baligirls`.
 - Fix:
   - Added helper to prefix the base path at runtime:
-    - `app/web/lib/paths.ts` (`withBasePath`)
+    - `app/web-vite/src/lib/paths.ts` (`withBasePath`)
   - Updated redirects (login + role guard + logout) to use `withBasePath(...)`:
-    - `app/web/app/admin/page.tsx`
-    - `app/web/app/user/page.tsx`
-    - `app/web/app/creator/page.tsx`
-    - `app/web/app/admin/logged/page.tsx`
-    - `app/web/app/user/logged/page.tsx`
-    - `app/web/app/creator/logged/page.tsx`
-    - `app/web/components/AuthNavButton.tsx`
+    - `app/web-vite/src/pages/AdminLoginPage.tsx`
+    - `app/web-vite/src/pages/UserLoginPage.tsx`
+    - `app/web-vite/src/pages/CreatorLoginPage.tsx`
+    - `app/web-vite/src/pages/AdminLoggedPage.tsx`
+    - `app/web-vite/src/pages/UserLoggedPage.tsx`
+    - `app/web-vite/src/pages/CreatorLoggedPage.tsx`
+    - `app/web-vite/src/components/AuthNavButton.tsx`
 
 Issue B: Images not showing.
 - Root cause:
@@ -113,13 +113,13 @@ Issue B: Images not showing.
   - Upload code path showed GCS errors: “The specified bucket does not exist.” This was traced to an incorrect default bucket being used when runtime env was not honored.
 - Fixes:
   - Updated asset and clean-image URLs to use `withBasePath("/api/...")`:
-    - `app/web/app/layout.tsx` (logo)
-    - `app/web/components/AdvertisingSpaces.tsx` (fallback ads)
-    - `app/web/app/page.tsx` (creator images)
-    - `app/web/app/creator/logged/page.tsx` (creator panel images)
-    - `app/web/app/creator/preview/[id]/page.tsx` (preview images)
+    - `app/web-vite/src/App.tsx` (logo)
+    - `app/web-vite/src/components/AdvertisingSpaces.tsx` (fallback ads)
+    - `app/web-vite/src/pages/HomePage.tsx` (creator images)
+    - `app/web-vite/src/pages/CreatorLoggedPage.tsx` (creator panel images)
+    - `app/web-vite/src/pages/CreatorPreviewPage.tsx` (preview images)
   - Ensured GCS env vars are read at runtime (avoids build-time inlining surprises):
-    - `app/web/lib/gcs.ts` now uses `process.env["GCS_BUCKET_NAME"]` and `process.env["GCS_UPLOAD_PREFIX"]`
+    - `app/web-vite/server.ts` now uses `process.env["GCS_BUCKET_NAME"]` and `process.env["GCS_UPLOAD_PREFIX"]`
 
 Deployment actions (on VM, 2026-02-08):
 - Updated web files under `/var/www/baligirls/app/web`

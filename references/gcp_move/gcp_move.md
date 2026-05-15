@@ -367,5 +367,5 @@ gcloud storage ls gs://gda-s01-bucket --project gda-viceroy
 - Local and GCP can coexist with separate `.env` values.
 - Use:
   - `app/api/.env.gcp.example`
-  - `app/web/.env.gcp.example`
+  - `app/web-vite/.env.gcp.example`
   as templates for production env setup.

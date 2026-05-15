@@ -16,7 +16,7 @@
 
 - The Cloud SQL PostgreSQL database (so you keep rows like `advertising_spaces.image`, `provider_images.image_file`, etc.).
 - The GCS objects under `gs://gda-s01-bucket/baligirls/uploads/` (so the uploaded image bytes still exist for URLs like `/baligirls/api/uploads/<object-key>`).
-- Additionally, if you're moving to a new VM or rebuilding from scratch, also include the repo-tracked static assets that live on the VM filesystem when deployed (for example `app/Assets/**` and `app/web/public/**`).
+- Additionally, if you're moving to a new VM or rebuilding from scratch, also include the repo-tracked static assets that live on the VM filesystem when deployed (for example `app/Assets/**` and `app/web-vite/public/**`).
 
 ## Creator
 
