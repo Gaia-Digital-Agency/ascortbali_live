@@ -397,7 +397,11 @@ export function AdSlot({
   // so they sit cleanly next to the creator cards. Every other aspect keeps
   // the legacy border-brand-line frame.
   const isCreatorGridAd = aspect === "3/4";
-  const hasDescription = isCreatorGridAd && Boolean(ad?.text && ad.text.trim());
+  // Every in-grid 3/4 ad gets the bottom strip regardless of whether the
+  // admin filled in a description — the strip is what keeps the ad card
+  // the same total height as the creator card next to it. The text just
+  // becomes empty when nothing is configured for that slot.
+  const showGridStrip = isCreatorGridAd;
   const chrome = bare
     ? "overflow-hidden rounded-2xl"
     : isCreatorGridAd
@@ -459,15 +463,16 @@ export function AdSlot({
     </div>
   );
 
-  // For in-grid 3/4 ads with a description, mirror the creator card's
-  // image-plus-name-strip layout: image fills the remaining vertical space,
-  // a fixed strip below holds the admin-typed description. h-14 keeps the
-  // in-grid ad cards aligned with the creator cards' name+DEMS strip.
-  const card = hasDescription ? (
+  // For every in-grid 3/4 ad we mirror the creator card layout: image fills
+  // the remaining vertical space, a fixed h-14 strip holds the admin-typed
+  // description (or sits empty when there is no description). Keeping the
+  // strip always-present is what makes ad rows visually line up with the
+  // creator rows next to them.
+  const card = showGridStrip ? (
     <div className={`${aspectClass} w-full flex flex-col ${chrome} ${className}`}>
       <div className="flex-1 overflow-hidden">{inner}</div>
       <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight">
-        {ad.text}
+        {ad?.text?.trim() || ""}
       </div>
     </div>
   ) : (
