@@ -7,6 +7,7 @@ import { FeaturedCarousel, AdSlot, useSiteSettings } from "../components/Adverti
 import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
 import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
+import { CATEGORY_DEMS, parseCategoryCsv } from "../lib/creatorOptions";
 
 type Creator = {
   uuid: string;
@@ -17,7 +18,30 @@ type Creator = {
   age?: number | null;
   nationality?: string | null;
   height?: string | null;
+  // Comma-separated category tokens (e.g. "escort,massage"). Drives the
+  // DEMS badge under each name on the card.
+  escort_type?: string | null;
 };
+
+// 4-letter category indicator rendered under each creator's name. The letter
+// is bright when the creator's escort_type CSV includes that DEMS token;
+// otherwise it's dimmed. Non-interactive — purely a visual indicator.
+function DemsBadge({ form }: { form?: string | null }) {
+  const set = parseCategoryCsv(form);
+  return (
+    <span className="flex gap-1 text-[10px] tracking-[0.18em]" aria-label="Categories" role="text">
+      {CATEGORY_DEMS.map(({ letter, token }) => (
+        <span
+          key={letter}
+          aria-hidden="true"
+          className={set.has(token) ? "text-brand-gold" : "text-brand-muted/30"}
+        >
+          {letter}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const toImageUrl = (file?: string | null) => {
   if (!file) return null;
@@ -404,11 +428,13 @@ export default function HomePage() {
                       className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                     />
                   </div>
-                  {/* Fixed-height (h-11 = 44px) name strip. flex + items-center
-                      vertically centers the text. shrink-0 keeps the strip
-                      from being squeezed when the name wraps. */}
-                  <div className="flex h-11 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
-                    {displayName}
+                  {/* Two-row name strip: creator name on top, DEMS badge
+                      underneath. h-14 (56px) keeps the layout fixed so cards
+                      still align. shrink-0 prevents the aspect-ratio image
+                      from being squeezed when names wrap. */}
+                  <div className="flex h-14 shrink-0 flex-col items-center justify-center gap-0.5 border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
+                    <span className="line-clamp-1">{displayName}</span>
+                    <DemsBadge form={creator.escort_type} />
                   </div>
                 </Link>
               );

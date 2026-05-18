@@ -86,6 +86,8 @@ import {
   SERVICE_AREA_OPTIONS,
   CATEGORY_OPTIONS,
   ORIENTATION_OPTIONS,
+  parseCategoryCsv,
+  buildCategoryCsv,
 } from "../lib/creatorOptions";
 
 // ## 5. Height 5cm ranges with feet/inch equivalents, 140-200cm
@@ -527,8 +529,15 @@ export default function CreatorPanel() {
               selected radio until the creator picks one of the two valid
               choices and saves. */}
           <ChoiceGroup label="GENDER" value={profile.gender} options={["female", "transgender"]} onChange={(v) => updateProfile("gender", v as CreatorProfile["gender"])} />
-          {/* CATEGORY (formerly "FORM"): Freelance | Escort. Persisted to providers.escort_type. */}
-          <ChoiceGroup label="CATEGORY" value={profile.form ?? CATEGORY_OPTIONS[0]} options={CATEGORY_OPTIONS} onChange={(v) => updateProfile("form", v as CreatorProfile["form"])} />
+          {/* CATEGORY: multi-select. Stored as a comma-separated CSV in
+              providers.escort_type (e.g. "escort,massage"). The API normalizes
+              either an array or a CSV string back into CSV on save. */}
+          <MultiChoiceGroup
+            label="CATEGORY"
+            value={parseCategoryCsv(profile.form)}
+            options={CATEGORY_OPTIONS}
+            onChange={(next) => updateProfile("form", buildCategoryCsv(Array.from(next)))}
+          />
           <ChoiceGroup label="ORIENTATION" value={profile.orientation || ORIENTATION_OPTIONS[0]} options={ORIENTATION_OPTIONS} onChange={(v) => updateProfile("orientation", v as CreatorProfile["orientation"])} />
           <ChoiceGroup label="INCALL/OUTCALL" value={profile.available_for} options={["incall", "outcall", "both"]} onChange={(v) => updateProfile("available_for", v as CreatorProfile["available_for"])} />
           <ChoiceGroup label="MEET MEN/WOMEN/COUPLES" value={profile.meeting_with} options={["men", "women", "couples", "all"]} onChange={(v) => updateProfile("meeting_with", v as CreatorProfile["meeting_with"])} />
@@ -706,6 +715,38 @@ function ChoiceGroup({
         {options.map((option) => (
           <label key={option} className="flex items-center gap-2 text-sm">
             <input type="radio" checked={value === option} onChange={() => onChange(option)} />
+            <span className="capitalize">{option}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Multi-select counterpart used by CATEGORY since 2026-05. Renders the same
+// visual style as ChoiceGroup but with checkboxes instead of radios. The
+// onChange handler receives the next selection as a Set so the caller can
+// decide how to serialize (we currently CSV-encode into providers.escort_type).
+function MultiChoiceGroup({
+  label, value, options, onChange,
+}: {
+  label: string; value: Set<string>; options: string[]; onChange: (value: Set<string>) => void;
+}) {
+  const toggle = (option: string) => {
+    const next = new Set(value);
+    if (next.has(option)) next.delete(option);
+    else next.add(option);
+    onChange(next);
+  };
+  return (
+    <div>
+      <div className="text-xs tracking-[0.22em] text-brand-muted">
+        {label} <span className="normal-case text-brand-muted/60">(select one or more)</span>
+      </div>
+      <div className="mt-2 space-y-2">
+        {options.map((option) => (
+          <label key={option} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={value.has(option)} onChange={() => toggle(option)} />
             <span className="capitalize">{option}</span>
           </label>
         ))}

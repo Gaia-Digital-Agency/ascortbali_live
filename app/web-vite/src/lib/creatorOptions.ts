@@ -60,20 +60,52 @@ export const SERVICE_AREA_OPTIONS = [
 
 // Category replaces the legacy "FORM" field. Stored lower-case in
 // providers.escort_type (column name kept for backward-compat). The
-// ChoiceGroup component capitalises on render, so "sugar baby" -> "Sugar Baby".
+// field is multi-select since 2026-05: multiple values are stored as a
+// comma-separated CSV in the same column (e.g. "escort,massage"). A
+// single token like the legacy "escort" is still valid and treated as
+// a one-element list.
 export const CATEGORY_OPTIONS = [
   "escort",
   "sugar babies",
   "massage",
-  "dating",
+  "dating/brides",
 ];
 
-// Legacy stored values for the renamed CATEGORY_OPTIONS. Lower-cased; keys
-// resolve to their replacement so existing DB rows still match.
-const CATEGORY_ALIASES: Record<string, string> = {
-  "dating/brides": "dating",
-  "dating/bride": "dating",
-};
+// Default category if the creator leaves the multi-select empty. Kept the
+// same value as before the multi-select migration so behaviour matches.
+export const DEFAULT_CATEGORY = "escort";
+
+// DEMS badge mapping shown on creator cards. The letter is the public-facing
+// initial; the token is the value stored in providers.escort_type. Keep in
+// sync with CATEGORY_OPTIONS.
+export const CATEGORY_DEMS: ReadonlyArray<{ letter: "D" | "E" | "M" | "S"; token: string }> = [
+  { letter: "D", token: "dating/brides" },
+  { letter: "E", token: "escort" },
+  { letter: "M", token: "massage" },
+  { letter: "S", token: "sugar babies" },
+];
+
+// Parse the comma-separated escort_type into a normalized Set of tokens.
+// Tolerates legacy single-token rows, surrounding whitespace, mixed case,
+// and the empty string.
+export function parseCategoryCsv(stored: string | null | undefined): Set<string> {
+  if (!stored) return new Set();
+  return new Set(
+    stored
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+// Normalize an array of category tokens into the CSV string that goes back
+// into providers.escort_type. Trims, lower-cases, dedupes, and falls back to
+// DEFAULT_CATEGORY when the array is empty.
+export function buildCategoryCsv(values: ReadonlyArray<string>): string {
+  const cleaned = Array.from(new Set(values.map((s) => s.trim().toLowerCase()).filter(Boolean)));
+  if (cleaned.length === 0) return DEFAULT_CATEGORY;
+  return cleaned.join(",");
+}
 
 // Orientation values. Stored lower-case. Older accounts may have "bisexual"
 // (no space), "gay", or "other"; the API backfill migrates those into this
@@ -89,9 +121,8 @@ export const ORIENTATION_OPTIONS = [
 export function matchOption(stored: string | null | undefined, options: string[]): string {
   if (!stored) return options[0];
   const norm = stored.trim().toLowerCase().replace(/\s+/g, " ");
-  const aliased = CATEGORY_ALIASES[norm] ?? norm;
   for (const o of options) {
-    if (o.toLowerCase() === aliased) return o;
+    if (o.toLowerCase() === norm) return o;
   }
   return options[0];
 }

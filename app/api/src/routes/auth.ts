@@ -23,6 +23,28 @@ function isBcryptHash(value: string): boolean {
   return /^\$2[aby]?\$/.test(value);
 }
 
+/**
+ * Normalize the creator `form` field into the CSV string we persist in
+ * providers.escort_type. Accepts either an array of tokens or a CSV/single
+ * string and returns a comma-separated lowercase string with duplicates and
+ * blanks removed. Returns "escort" (the default) when the input is empty.
+ *
+ * Exported as part of the multi-select category migration — see
+ * web-vite/src/lib/creatorOptions.ts for the matching client-side helpers.
+ */
+export function normalizeCategoryCsv(input: unknown): string {
+  const tokens = Array.isArray(input)
+    ? input.map((v) => String(v))
+    : typeof input === "string"
+      ? input.split(",")
+      : [];
+  const cleaned = Array.from(new Set(
+    tokens.map((s) => s.trim().toLowerCase()).filter(Boolean)
+  ));
+  if (cleaned.length === 0) return "escort";
+  return cleaned.join(",");
+}
+
 /** Compare plaintext against a stored password (bcrypt hash or legacy plaintext). */
 async function verifyPassword(plaintext: string, stored: string): Promise<boolean> {
   if (!stored) return false;
@@ -612,11 +634,12 @@ const CreatorRegisterSchema = z.object({
   telegramId: z.string().max(100).optional().default(""),
   // WeChat ID is optional at registration time. Stored in providers.wechat_id.
   wechatId: z.string().max(100).optional().default(""),
-  // Category (was "FORM"): Freelance / Girlfriend / Sugar Baby / Escort /
-  // Hot Wife. Persisted to providers.escort_type. Stored lower-case; accept
-  // any short string so the option list can be extended later without a
-  // schema change.
-  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("escort"),
+  // Category (was "FORM"): one or more of escort / sugar babies / massage /
+  // dating/brides. Persisted to providers.escort_type as a comma-separated
+  // CSV (e.g. "escort,massage"). Accept either an array (preferred) or a
+  // string for backward compat with older clients; both are normalized to
+  // CSV via normalizeCategoryCsv. Default is "escort" when nothing is sent.
+  form: z.preprocess(normalizeCategoryCsv, z.string().min(1).max(60).optional().default("escort")),
   // Orientation: Straight / Bi Sexual / Lesbian. Stored lower-case in
   // providers.orientation.
   orientation: z.string().trim().toLowerCase().min(1).max(30).optional().default("straight"),

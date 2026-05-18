@@ -49,7 +49,11 @@ export default function CreatorRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
-  const [form, setForm] = useState<string>(CATEGORY_OPTIONS[0]);
+  // Category is multi-select since 2026-05; default to a single-element list
+  // so the API still receives "escort" if nothing else is picked.
+  const [form, setForm] = useState<string[]>([CATEGORY_OPTIONS[0]]);
+  const toggleForm = (option: string) =>
+    setForm((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
   const [orientation, setOrientation] = useState<string>(ORIENTATION_OPTIONS[0]);
   const [age, setAge] = useState("");
   const [nationality, setNationality] = useState("");
@@ -201,12 +205,25 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">CATEGORY</label>
-              <select className={sel} value={form} onChange={(e) => setForm(e.target.value)} aria-label="Category">
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>{titleCase(c)}</option>
-                ))}
-              </select>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">CATEGORY <span className="normal-case text-brand-muted/60">(select one or more)</span></label>
+              <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Category">
+                {CATEGORY_OPTIONS.map((c) => {
+                  const active = form.includes(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggleForm(c)}
+                      className={`min-h-[44px] rounded-2xl border px-3 py-2 text-sm transition ${active
+                        ? "border-brand-gold/70 bg-brand-gold/15 text-brand-text"
+                        : "border-brand-line bg-brand-surface2/40 text-brand-muted hover:text-brand-text"}`}
+                    >
+                      {titleCase(c)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">AGE</label>

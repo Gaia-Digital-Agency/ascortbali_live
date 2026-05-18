@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getPool } from "../lib/pg.js";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth.js";
 import { slugify, uniqueCreatorSlug } from "../lib/slug.js";
+import { normalizeCategoryCsv } from "./auth.js";
 
 export const meRouter = Router();
 
@@ -244,10 +245,11 @@ const CreatorProfileSchema = z.object({
   pubicHair: z.string().trim().min(1).max(20),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])),
   availableFor: z.preprocess(normalizeAvailableFor, z.enum(["incall", "outcall", "both"])),
-  // Category (was "Form"): Freelance / Girlfriend / Sugar Baby / Escort /
-  // Hot Wife. Persisted to providers.escort_type. Accept any short string so
-  // the option list can grow without a schema change.
-  form: z.string().trim().toLowerCase().min(1).max(30).optional().default("escort"),
+  // Category: one or more of escort / sugar babies / massage / dating/brides.
+  // Persisted as a comma-separated CSV in providers.escort_type. Normalized
+  // by normalizeCategoryCsv (auth.ts) — accepts array or string and emits CSV.
+  // Default "escort" is preserved from the pre-multi-select schema.
+  form: z.preprocess(normalizeCategoryCsv, z.string().min(1).max(60).optional().default("escort")),
 });
 
 // Route to get the authenticated creator's profile details.

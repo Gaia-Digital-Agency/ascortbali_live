@@ -22,6 +22,7 @@ const CARD_COLUMNS = `p.uuid,
        p.country,
        p.url,
        p.username,
+       p.escort_type,
        img.image_file`;
 
 // Reusable LATERAL join that picks the first non-empty image for each provider.
@@ -140,14 +141,18 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
             AND BTRIM(zone) <> ''
           ORDER BY v ASC`
       ),
-      // Category = escort_type (Freelance / Escort once Phase E backfills,
-      // plus any legacy values like "Pornstar" that already exist).
+      // Category = escort_type. Stored as a comma-separated CSV (e.g.
+      // "escort,massage") since the multi-select migration, so we explode
+      // each row into its individual tokens before DISTINCT. Legacy single-
+      // token rows still work — string_to_array('escort', ',') returns
+      // ['escort'].
       pool.query(
-        `SELECT DISTINCT LOWER(BTRIM(escort_type)) AS v
-           FROM providers
+        `SELECT DISTINCT BTRIM(LOWER(token)) AS v
+           FROM providers, unnest(string_to_array(escort_type, ',')) AS token
           WHERE is_active IS TRUE
             AND escort_type IS NOT NULL
             AND BTRIM(escort_type) <> ''
+            AND BTRIM(token) <> ''
           ORDER BY v ASC`
       ),
     ]);
@@ -305,8 +310,13 @@ creatorsRouter.get("/", async (req, res) => {
       )`);
     }
     if (category) {
+      // escort_type is a comma-separated CSV; match the requested category
+      // as one of those tokens. Mirrors the city/zone matcher above.
       filterParams.push(category.toLowerCase());
-      conds.push(`LOWER(BTRIM(p.escort_type)) = $${filterParams.length}`);
+      conds.push(`EXISTS (
+        SELECT 1 FROM unnest(string_to_array(p.escort_type, ',')) AS t
+         WHERE LOWER(BTRIM(t)) = $${filterParams.length}
+      )`);
     }
     const whereClause = conds.join(" AND ");
     const rowsParams = [...filterParams, limit, offset];

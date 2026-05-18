@@ -105,8 +105,13 @@ export default function CreatorPreviewPage() {
         // Title-case any lower-case enum value for display
         // ("sugar baby" -> "Sugar Baby", "escort" -> "Escort").
         const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+        // Category is multi-select since 2026-05 — stored as a comma-separated
+        // CSV (e.g. "escort,massage"). Split into individual tokens, title-
+        // case each, and join with " · " for the display row.
         const formRaw = String(raw.form ?? raw.escort_type ?? "").trim().toLowerCase();
-        const categoryDisplay = formRaw ? titleCase(formRaw) : "";
+        const categoryDisplay = formRaw
+          ? formRaw.split(",").map((t) => titleCase(t.trim())).filter(Boolean).join(" · ")
+          : "";
         const orientationDisplay = titleCase(String(raw.orientation ?? "").trim().toLowerCase());
         const fields: Array<[string, string | number | undefined]> = [
           ["Name", displayName],
