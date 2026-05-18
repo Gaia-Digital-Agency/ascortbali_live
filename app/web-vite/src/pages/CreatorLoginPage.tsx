@@ -36,13 +36,13 @@ export default function CreatorLoginPage() {
   return (
     <>
       <PageMeta
-        title="Creator Sign In — Bali Girls"
+        title="Girls Sign In — Bali Girls"
         description="Sign in to your Bali Girls creator account."
         path="/creator"
       />
       <LoginForm
         portal="creator"
-        label="CREATOR"
+        label="GIRLS"
         defaultEmail="callista@email.com"
         defaultPassword="Admin@123"
         emailPlaceholder="username@email.com"

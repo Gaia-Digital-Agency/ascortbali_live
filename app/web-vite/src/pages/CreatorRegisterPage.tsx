@@ -148,14 +148,14 @@ export default function CreatorRegisterPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <PageMeta
-        title={"Create Creator Account — Bali Girls"}
+        title={"Girls Account — Bali Girls"}
         description={"Become a Bali Girls creator. Set up your profile, photos, and contact details."}
         path={"/creator/register"}
         index={true}
       />
       <div className="text-center">
-        <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
-        <h1 className="mt-2 font-display text-3xl">Create Creator Account</h1>
+        <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
+        <h1 className="mt-2 font-display text-3xl">Girls Account</h1>
       </div>
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
