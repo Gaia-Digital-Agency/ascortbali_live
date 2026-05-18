@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { AgeGateModal } from './AgeGateModal'
 import { AnalyticsBeacon } from './AnalyticsBeacon'
 import { AuthNavButton } from './AuthNavButton'
 import { FooterStatus } from './FooterStatus'
 import { useSiteSettings } from './AdvertisingSpaces'
+
+// Header nav placeholders — three menu slots we can wire up later. Kept
+// here (not in their own component) so the burger drawer can reuse the
+// same list. Real labels and hrefs will land in a follow-up.
+const HEADER_LINKS: Array<{ label: string; href: string }> = [
+  { label: 'MENU 1', href: '#' },
+  { label: 'MENU 2', href: '#' },
+  { label: 'MENU 3', href: '#' },
+]
 
 // Layout has exactly 4 steps. Cmd+ advances one step, Cmd− retreats one step.
 // Browser zoom is fully overridden — each press = one step (no in-between).
@@ -29,6 +38,12 @@ export default function Layout() {
   const subtitle = settings?.subtitle || settings?.tagline || ''
   const [zoomToast, setZoomToast] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
+
+  // Burger drawer state for narrow viewports. Auto-closes on route change
+  // so navigating from the drawer doesn't leave it hanging open.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+  useEffect(() => { setMenuOpen(false) }, [location.pathname])
   const [layoutStep, setLayoutStep] = useState<number>(() =>
     typeof window === 'undefined' ? 1 : STEP_FROM_WIDTH(window.innerWidth)
   )
@@ -115,37 +130,74 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col">
       <AnalyticsBeacon />
-      <header className="sticky top-0 z-10 border-b border-brand-line bg-brand-bg/70 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-          <Link to="/" className="group flex items-center gap-3">
+      <header className="sticky top-0 z-20 border-b border-brand-line bg-brand-bg/70 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4">
+          <Link to="/" className="group flex min-w-0 items-center gap-3">
             <img
               src="/baligirls_logo.png?v=4"
               alt="BaliGirls"
               width={56}
               height={56}
-              // Bumped from h-8/w-8 (32px) to h-14/w-14 (56px) so the figure +
-              // palm-tree silhouette is actually legible in the header. The
-              // source PNG is now 256x256, giving us a clean ~2x retina render
-              // at this display size.
-              className="h-14 w-14 object-contain"
+              className="h-14 w-14 shrink-0 object-contain"
               onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
-            <div className="leading-none">
-              <div className="font-display text-lg tracking-[0.22em] text-brand-gold">BALI GIRLS</div>
-              {subtitle ? <div className="mt-1 text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
+            <div className="min-w-0 leading-none">
+              <div className="truncate font-display text-lg tracking-[0.22em] text-brand-gold">BALI GIRLS</div>
+              {subtitle ? <div className="mt-1 truncate text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
             </div>
-            <span className="ml-1 h-[1px] w-10 bg-brand-gold/70 opacity-70 transition group-hover:opacity-100" />
           </Link>
 
-          {/* overflow-x-clip (instead of overflow-hidden) keeps long button
-              chains from spilling horizontally, while letting vertical hover
-              effects (focus rings, inset shadows) render fully. The previous
-              `overflow-hidden` was clipping the buttons' hover state and
-              making borders look truncated. */}
-          <nav className="flex w-full min-w-0 flex-nowrap items-center justify-center gap-1 overflow-x-clip whitespace-nowrap md:w-auto md:justify-start">
+          {/* Desktop nav — visible at lg+ (>=1024px). Below that we switch to
+              a burger so the header never wraps onto a second row. */}
+          <nav className="hidden items-center gap-1 whitespace-nowrap lg:flex">
+            {HEADER_LINKS.map((m) => (
+              <a
+                key={m.label}
+                href={m.href}
+                className="btn btn-outline min-h-[44px] px-3 py-2.5 text-xs tracking-[0.14em]"
+              >
+                {m.label}
+              </a>
+            ))}
             <AuthNavButton />
           </nav>
+
+          {/* Burger — shown below lg. aria-expanded reflects state for a11y. */}
+          <button
+            type="button"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-drawer"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="btn btn-outline inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center !p-0 lg:hidden"
+          >
+            <span aria-hidden="true" className="text-base leading-none">{menuOpen ? '✕' : '☰'}</span>
+          </button>
         </div>
+
+        {/* Mobile drawer — slides down beneath the bar. Only mounted when
+            open so it doesn't intercept taps. Same link set as desktop so
+            the two stay in sync. */}
+        {menuOpen ? (
+          <div
+            id="mobile-nav-drawer"
+            className="border-t border-brand-line bg-brand-bg/95 backdrop-blur lg:hidden"
+          >
+            <nav className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3">
+              {HEADER_LINKS.map((m) => (
+                <a
+                  key={m.label}
+                  href={m.href}
+                  className="btn btn-outline min-h-[44px] py-2.5 text-center text-xs tracking-[0.14em]"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {m.label}
+                </a>
+              ))}
+              <AuthNavButton />
+            </nav>
+          </div>
+        ) : null}
       </header>
 
       <main id="top" className="mx-auto max-w-5xl w-full px-4 py-10 flex-1">
