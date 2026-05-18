@@ -175,7 +175,43 @@ export default function Layout() {
             onClick={() => setMenuOpen((o) => !o)}
             className="btn btn-outline inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center !p-0 lg:hidden"
           >
-            <span aria-hidden="true" className="text-base leading-none">{menuOpen ? '✕' : '☰'}</span>
+            {/* Inline SVG instead of the Unicode bars/x glyphs — those have
+                uneven internal padding and sat visibly off-centre in the
+                round button (especially U+2630 ☰). The SVG viewBox is
+                centred on (12,12) so the icon lines up with the button's
+                geometric centre. */}
+            {menuOpen ? (
+              <svg
+                aria-hidden="true"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            ) : (
+              <svg
+                aria-hidden="true"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            )}
           </button>
         </div>
 
