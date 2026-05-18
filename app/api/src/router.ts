@@ -8,7 +8,6 @@ import { analyticsRouter } from "./routes/analytics.js";
 import { adsRouter } from "./routes/ads.js";
 import { adminRouter } from "./routes/admin.js";
 import { creatorsRouter } from "./routes/creators.js";
-import { votesRouter }    from "./routes/votes.js";
 import { blogsRouter, adminBlogsRouter } from "./routes/blogs.js";
 
 // Creates and configures the main API router.
@@ -25,7 +24,6 @@ export function createRouter() {
   r.use("/analytics", analyticsRouter);
   r.use("/ads", adsRouter);
   r.use("/creators", creatorsRouter);
-  r.use("/votes", votesRouter);
   r.use("/blogs", blogsRouter);
   r.use("/admin/blogs", adminBlogsRouter);
   r.use("/admin", adminRouter);

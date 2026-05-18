@@ -104,7 +104,7 @@ app/
 │       └── lib/           ← api client, paths, utilities
 └── api/                   ← Express API (port 8001)
     └── src/
-        ├── routes/        ← auth, admin, creators, ads, me, services, analytics, blogs, orders, votes
+        ├── routes/        ← auth, admin, creators, ads, me, services, analytics, blogs, orders
         ├── lib/           ← pg, jwt, twilio, otp, env
         └── middleware/    ← auth, rateLimit
 ```
@@ -216,7 +216,8 @@ admin-issued `temp_password` on file but no permanent password yet.
 Sub-routes (each rendered by its own `pages/admin/*Tab.tsx` component, parent
 keeps the state): `/dashboard`, `/stats`, `/ads`, `/users`, `/creators`.
 - **Dashboard tab**: registered creators + users counts, editable Header Subtitle and Homepage Tagline, Featured Girls Carousel (select 4 active creators), password change
-- **Stats / Analytics tab**: visitors / page views by window (today/7d/30d/all), regions, top creators 7d, device split, new vs returning, votes, service splits
+- **Stats / Analytics tab**: visitors / page views by window (today/7d/30d/all), regions, top creators 7d, device split, new vs returning, service splits
+- **Creators tab**: BODY and FACE columns (A–F dropdowns, left of VERIFIED) replace the deprecated public voting feature. Editable inline; persisted to `providers.body_rating` / `providers.face_rating`. Hidden everywhere else (no longer rendered on homepage, creator card, or creator preview).
 - **Ads tab**: 20 image-ad slots split into HOMEPAGE (10) + CREATOR PAGE (10) groups; mixes landscape (16:9) and portrait (3:4) and card (9:16) formats; edit many and click **SAVE ALL ADS** to apply
 - **Users tab**: view all users, VIEW button opens popup with all fields
 - **Creators tab**: SEARCH box filters active+inactive lists client-side by username or id (CLEAR button to reset); separated into Active and Inactive sections with status indicators. Loads up to 500 creators per request (`/admin/accounts?limit=500`)

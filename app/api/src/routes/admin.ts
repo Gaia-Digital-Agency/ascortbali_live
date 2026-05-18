@@ -30,7 +30,9 @@ adminRouter.get("/accounts", async (req, res) => {
         [limit, offset]
       ),
       pool.query(
-        `SELECT uuid::text AS id, username, password, temp_password, last_seen, created_at, updated_at, COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified
+        `SELECT uuid::text AS id, username, password, temp_password, last_seen, created_at, updated_at,
+                COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified,
+                body_rating, face_rating
            FROM providers
           ORDER BY is_active DESC NULLS LAST, created_at DESC
           LIMIT $1 OFFSET $2`,
@@ -82,7 +84,7 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
               phone_number, cell_phone, telegram_id, wechat_id, last_seen, notes, location, eyes, hair_color, hair_length,
               travel, weight, height, ethnicity, languages, country, orientation, smoker, tattoo, piercing,
               bust_type, pubic_hair, escort_type,
-              body_votes, face_votes,
+              body_rating, face_rating,
               services, meeting_with, available_for, COALESCE(is_active, false) AS is_active,
               COALESCE(verified, false) AS verified, slug, url, title, created_at, updated_at
          FROM providers
@@ -199,8 +201,10 @@ const UpdateCreatorSchema = z.object({
   wechat_id: z.string().max(100).optional(),
   escort_type: z.string().max(50).optional(),
   title: z.string().max(255).optional(),
-  body_votes: z.record(z.string(), z.number().int().min(0).max(10000000)).optional(),
-  face_votes: z.record(z.string(), z.number().int().min(0).max(10000000)).optional(),
+  // Admin-set A-F ratings. Replace the deprecated vote tallies (body_votes /
+  // face_votes JSONB) that the public site used to populate. null = clear.
+  body_rating: z.enum(["A","B","C","D","E","F"]).nullable().optional(),
+  face_rating: z.enum(["A","B","C","D","E","F"]).nullable().optional(),
   notes: z.string().max(5000).optional(),
   is_active: z.boolean().optional(),
   verified: z.boolean().optional(),
@@ -250,8 +254,8 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     if (p.wechat_id !== undefined)    add("wechat_id", p.wechat_id);
     if (p.escort_type !== undefined)  add("escort_type", p.escort_type);
     if (p.title !== undefined)        add("title", p.title);
-    if (p.body_votes !== undefined)   { values.push(p.body_votes); setClauses.push(`body_votes = $${values.length}::jsonb`); }
-    if (p.face_votes !== undefined)   { values.push(p.face_votes); setClauses.push(`face_votes = $${values.length}::jsonb`); }
+    if (p.body_rating !== undefined)  add("body_rating", p.body_rating);
+    if (p.face_rating !== undefined)  add("face_rating", p.face_rating);
     if (p.notes !== undefined) add("notes", p.notes);
     if (p.is_active !== undefined) add("is_active", p.is_active);
     if (p.verified !== undefined) add("verified", p.verified);

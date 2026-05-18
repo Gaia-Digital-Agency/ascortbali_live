@@ -24,7 +24,13 @@ export type CreatorAccount = {
   updated_at: string;
   is_active: boolean;
   verified: boolean;
+  // Admin-set A-F (or null = not yet rated). Replaces the public vote tally
+  // that used to drive the body/face badge on CreatorPreviewPage.
+  body_rating: Rating | null;
+  face_rating: Rating | null;
 };
+
+export type Rating = "A" | "B" | "C" | "D" | "E" | "F";
 
 export type AdSlot =
   | "home-1" | "home-2" | "home-3" | "home-4"

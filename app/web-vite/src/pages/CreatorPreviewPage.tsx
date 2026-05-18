@@ -5,7 +5,6 @@ import { withBasePath } from "../lib/paths";
 import { AdSlot } from "../components/AdvertisingSpaces";
 import { CreatorLeftSideAd, CreatorRightSideAd } from "../components/SidebarAds";
 import { PageMeta, SITE_BASE } from "../components/PageMeta";
-import { BodyFaceVotes } from "../components/BodyFaceVotes";
 import { getVisitorId } from "../lib/cookies";
 
 type CreatorData = {
@@ -364,8 +363,6 @@ export default function CreatorPreviewPage() {
                     </span>
                   </div>
                 ))}
-                {/* Body / Face votes — the lowest fields, anonymous click voting */}
-                {data.slug ? <BodyFaceVotes slug={data.slug} /> : null}
               </div>
 
               {/* Visual separator + CONTACT sub-heading. mt-8 + a top border

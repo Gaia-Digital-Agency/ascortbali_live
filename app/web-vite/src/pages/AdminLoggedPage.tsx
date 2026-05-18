@@ -235,6 +235,26 @@ export default function AdminDashboard() {
     }
   };
 
+  // Admin-set Body / Face rating change. Optimistically updates local state
+  // before the PUT lands; reverts on failure so the dropdown matches truth.
+  const setCreatorRating = async (
+    id: string,
+    field: "body_rating" | "face_rating",
+    value: "A" | "B" | "C" | "D" | "E" | "F" | null,
+  ) => {
+    const prev = creators.find((c) => c.id === id);
+    setCreators((list) => list.map((c) => c.id === id ? { ...c, [field]: value } : c));
+    try {
+      await apiFetch(`/admin/accounts/creators/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ [field]: value }),
+      });
+    } catch {
+      setAccountMsg(`Failed to update ${field === "body_rating" ? "body" : "face"} rating.`);
+      if (prev) setCreators((list) => list.map((c) => c.id === id ? { ...c, [field]: prev[field] } : c));
+    }
+  };
+
   const openView = async (type: ViewType, id: string) => {
     setViewType(type); setViewId(id); setViewEditing(false); setViewLoading(true); setError(null);
     try {
@@ -356,6 +376,7 @@ export default function AdminDashboard() {
           search={creatorSearch}
           setSearch={setCreatorSearch}
           onToggleVerified={(id, current) => toggleVerified("creator", id, current)}
+          onSetRating={setCreatorRating}
           onView={(id) => openView("creator", id)}
         />
       )}

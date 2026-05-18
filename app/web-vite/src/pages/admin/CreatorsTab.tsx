@@ -1,13 +1,16 @@
-import type { CreatorAccount } from "./types";
+import type { CreatorAccount, Rating } from "./types";
 import { fmtDate } from "./constants";
 
+const RATING_OPTIONS: Rating[] = ["A", "B", "C", "D", "E", "F"];
+
 export function CreatorsTab({
-  creators, search, setSearch, onToggleVerified, onView,
+  creators, search, setSearch, onToggleVerified, onSetRating, onView,
 }: {
   creators: CreatorAccount[];
   search: string;
   setSearch: (v: string) => void;
   onToggleVerified: (id: string, current: boolean) => void;
+  onSetRating: (id: string, field: "body_rating" | "face_rating", value: Rating | null) => void;
   onView: (id: string) => void;
 }) {
   const q = search.trim().toLowerCase();
@@ -24,6 +27,8 @@ export function CreatorsTab({
         <thead>
           <tr className="border-b border-brand-line text-left text-xs tracking-[0.18em] text-brand-muted">
             <th className="pb-3 pr-4 font-normal">USERNAME</th>
+            <th className="pb-3 pr-4 font-normal">BODY</th>
+            <th className="pb-3 pr-4 font-normal">FACE</th>
             <th className="pb-3 pr-4 font-normal">VERIFIED</th>
             <th className="pb-3 pr-4 font-normal">LAST SEEN</th>
             <th className="pb-3 pr-4 font-normal">REGISTERED</th>
@@ -32,10 +37,24 @@ export function CreatorsTab({
         </thead>
         <tbody>
           {list.length === 0 ? (
-            <tr><td colSpan={5} className="py-4 text-xs text-brand-muted">{emptyMsg}</td></tr>
+            <tr><td colSpan={7} className="py-4 text-xs text-brand-muted">{emptyMsg}</td></tr>
           ) : list.map((c) => (
             <tr key={c.id} className="border-b border-brand-line/40 last:border-0">
               <td className="py-3 pr-4 font-mono text-xs">{c.username || "—"}</td>
+              <td className="py-3 pr-4">
+                <RatingSelect
+                  value={c.body_rating}
+                  ariaLabel={`Body rating for ${c.username || c.id}`}
+                  onChange={(v) => onSetRating(c.id, "body_rating", v)}
+                />
+              </td>
+              <td className="py-3 pr-4">
+                <RatingSelect
+                  value={c.face_rating}
+                  ariaLabel={`Face rating for ${c.username || c.id}`}
+                  onChange={(v) => onSetRating(c.id, "face_rating", v)}
+                />
+              </td>
               <td className="py-3 pr-4">
                 <button
                   type="button"
@@ -100,5 +119,32 @@ export function CreatorsTab({
         {renderTable(inactive, search ? "No matches." : "No inactive creators.")}
       </div>
     </>
+  );
+}
+
+// Compact A-F dropdown. An empty selection clears the rating (PUT body_rating
+// = null). Optimistic update happens in the caller's onChange.
+function RatingSelect({
+  value, ariaLabel, onChange,
+}: {
+  value: Rating | null;
+  ariaLabel: string;
+  onChange: (next: Rating | null) => void;
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      aria-label={ariaLabel}
+      onChange={(e) => {
+        const v = e.target.value;
+        onChange(v === "" ? null : (v as Rating));
+      }}
+      className="rounded-md border border-brand-line bg-transparent px-2 py-1 text-xs uppercase tracking-[0.18em] text-brand-text focus:border-brand-text focus:outline-none"
+    >
+      <option value="">—</option>
+      {RATING_OPTIONS.map((r) => (
+        <option key={r} value={r}>{r}</option>
+      ))}
+    </select>
   );
 }
