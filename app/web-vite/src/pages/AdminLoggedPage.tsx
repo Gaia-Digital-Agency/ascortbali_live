@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const sectionTitle =
     sub === "ads" ? "ADS MANAGEMENT"
     : sub === "stats" ? "STATS / ANALYTICS"
-    : sub === "creators" ? "CREATOR MANAGEMENT"
+    : sub === "creators" ? "GIRLS MANAGEMENT"
     : sub === "users" ? "USER MANAGEMENT"
     : "ADMIN CMS PAGE";
 
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
       const accountsData = await apiFetch("/admin/accounts?limit=500");
       if (accountsData?.users) setUsers(accountsData.users);
       if (accountsData?.creators) setCreators(accountsData.creators);
-      setAccountMsg(`${viewType === "user" ? "User" : "Creator"} updated.`);
+      setAccountMsg(`${viewType === "user" ? "User" : "Girl"} updated.`);
       closeView();
     } catch (err: any) { setError(err.message ?? "Save failed"); }
     finally { setViewSaving(false); }
@@ -289,7 +289,7 @@ export default function AdminDashboard() {
       if (viewType === "creator") {
         await apiFetch(`/admin/accounts/creators/${viewId}`, { method: "PUT", body: JSON.stringify({ is_active: false }) });
         setCreators((prev) => prev.map((c) => c.id === viewId ? { ...c, is_active: false } : c));
-        setAccountMsg("Creator deactivated (soft deleted).");
+        setAccountMsg("Girl deactivated (soft deleted).");
       } else {
         await apiFetch(`/admin/accounts/${viewType}s/${viewId}`, { method: "DELETE" });
         setUsers((prev) => prev.filter((u) => u.id !== viewId));

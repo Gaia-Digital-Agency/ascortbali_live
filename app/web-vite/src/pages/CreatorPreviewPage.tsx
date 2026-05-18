@@ -35,7 +35,7 @@ const toImageUrl = (file?: string | null) => {
 
 const normalizeCreatorName = (value?: string | null) => {
   const raw = (value ?? "").trim();
-  if (!raw) return "CREATOR";
+  if (!raw) return "GIRL";
   const stripped = raw
     .replace(/^\s*(?:Escort|Girl|Miss)\s+/i, "")
     .replace(/\s*-\s*.*$/, "")
@@ -73,7 +73,7 @@ export default function CreatorPreviewPage() {
           file: img.image_file,
         }));
 
-        const displayName = normalizeCreatorName(raw.model_name || raw.name || "Creator");
+        const displayName = normalizeCreatorName(raw.model_name || raw.name || "Girl");
         const hairLength = raw.hair_length || raw["Hair lenght"];
         const primaryImageUrl = images.length > 0 ? toImageUrl(images[0]?.file) : null;
 
@@ -90,7 +90,7 @@ export default function CreatorPreviewPage() {
             const picks: ExploreCreator[] = list.map((c: any) => ({
               uuid: c.uuid,
               slug: c.slug ?? null,
-              displayName: normalizeCreatorName(c.model_name || c.username || "Creator"),
+              displayName: normalizeCreatorName(c.model_name || c.username || "Girl"),
               imageUrl: toImageUrl(c.image_file) || "",
             })).filter((c: ExploreCreator) => c.imageUrl);
             setExploreCreators(picks);
@@ -261,7 +261,7 @@ export default function CreatorPreviewPage() {
   if (notFound || !data) {
     return (
       <div className="py-20 text-center space-y-4">
-        <div className="text-brand-muted">Creator not found.</div>
+        <div className="text-brand-muted">Girl not found.</div>
         <Link to="/" className="btn btn-outline">BACK HOME</Link>
       </div>
     );
@@ -303,9 +303,9 @@ export default function CreatorPreviewPage() {
         <AdSlot slot="home-7" aspect="4/1" eager />
       </section>
 
-      {/* CREATOR / Name header */}
+      {/* GIRLS / Name header */}
       <section>
-        <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
+        <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
         <h1 className="mt-2 font-display text-3xl">{data.title}</h1>
       </section>
 

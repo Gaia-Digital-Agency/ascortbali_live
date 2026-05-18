@@ -25,7 +25,7 @@ export function AccountEditModal({
       <div className="w-full max-w-2xl rounded-3xl border border-brand-line bg-brand-bg p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-xl text-brand-text">
-            {viewEditing ? "Edit" : "View"} {viewType === "user" ? "User" : "Creator"}
+            {viewEditing ? "Edit" : "View"} {viewType === "user" ? "User" : "Girl"}
           </h2>
           <button onClick={onClose} className="btn btn-outline px-4 py-1.5 text-xs text-white border-white/40 hover:border-white">CLOSE</button>
         </div>

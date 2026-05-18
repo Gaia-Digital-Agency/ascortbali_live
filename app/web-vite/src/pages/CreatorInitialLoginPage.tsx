@@ -66,13 +66,13 @@ export default function CreatorInitialLoginPage() {
   return (
     <div className="mx-auto max-w-md space-y-6">
       <PageMeta
-        title="Creator Initial Login — Bali Girls"
+        title="Girls Initial Login — Bali Girls"
         description="First-time sign-in for creators using a phone number and temporary password."
         path="/creator/initial-login"
         index={false}
       />
       <div className="text-center">
-        <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
+        <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
         <h1 className="mt-2 font-display text-3xl">Initial Login</h1>
         <p className="mt-2 text-xs text-brand-muted">
           For first-time use only. Limited to 3 sign-ins; after that please

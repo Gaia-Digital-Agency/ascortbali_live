@@ -154,7 +154,7 @@ export default function CreatorPanel() {
     const creatorName = (profile.model_name ?? "").trim();
     const username = (profile.username ?? "").trim().toLowerCase();
     if (!CREATOR_NAME_REGEX.test(creatorName)) {
-      setError("Creator name must be one word (letters/numbers only), max 50 characters.");
+      setError("Girl name must be one word (letters/numbers only), max 50 characters.");
       setMessage(null);
       return;
     }
@@ -240,12 +240,12 @@ export default function CreatorPanel() {
       };
       await apiFetch("/me/creator-profile", { method: "PUT", body: JSON.stringify(payload) });
       setProfile((prev) => (prev ? { ...prev, last_seen: autoLastSeen } : prev));
-      setMessage("Creator profile updated.");
+      setMessage("Girl profile updated.");
     } catch (err: any) {
       if (err?.message === "creator_name_taken") {
-        setError("Creator name is already in use. Please choose another one.");
+        setError("Girl name is already in use. Please choose another one.");
       } else if (err?.message === "invalid_creator_name") {
-        setError("Creator name must be one word (letters/numbers only), max 50 characters.");
+        setError("Girl name must be one word (letters/numbers only), max 50 characters.");
       } else if (err?.message === "username_taken") {
         setError("Username is already in use.");
       } else {
@@ -379,14 +379,14 @@ export default function CreatorPanel() {
   return (
     <div className="space-y-8">
       <PageMeta
-        title={"Creator Profile — Bali Girls"}
-        description={"Manage your Bali Girls creator profile."}
+        title={"Girls Profile — Bali Girls"}
+        description={"Manage your Bali Girls profile."}
         path={"/creator/logged"}
         index={false}
       />
       <div>
-        <div className="text-xs tracking-luxe text-brand-muted">CREATOR</div>
-        <h1 className="mt-2 font-display text-2xl md:text-3xl">Creator Profile Page</h1>
+        <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
+        <h1 className="mt-2 font-display text-2xl md:text-3xl">Girls Profile Page</h1>
         <p className="mt-1 text-[11px] text-brand-muted">Username: {profile.username}</p>
       </div>
 
@@ -767,7 +767,7 @@ function ImageSlotEditor({
       <div className="text-xs tracking-[0.22em] text-brand-muted">{slot === 1 ? "MAIN IMAGE" : `IMAGE ${slot}`}</div>
       <div className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
         {imageUrl ? (
-          <img src={imageUrl} alt={`Creator photo, slot ${slot}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={`Girl photo, slot ${slot}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-brand-muted">EMPTY</div>
         )}

@@ -53,7 +53,7 @@ export default function CreatorLoginPage() {
         footer={
           <>
             <a href={withBasePath("/creator/register")} className="btn btn-outline btn-block py-3 text-center">
-              REGISTER AS CREATOR
+              REGISTER AS GIRL
             </a>
             <div className="text-xs text-brand-muted">
               Sign in using your creator email and password.

@@ -162,7 +162,7 @@ const normalize = (value?: string | null) => (value ?? "").trim().toLowerCase();
 
 const normalizeName = (value?: string | null) => {
   const raw = (value ?? "").trim();
-  if (!raw) return "CREATOR";
+  if (!raw) return "GIRL";
   const stripped = raw
     .replace(/^\s*(?:Escort|Girl|Miss)\s+/i, "")
     .replace(/\s*-\s*.*$/, "")
@@ -399,7 +399,7 @@ export default function HomePage() {
                 return <AdSlot key={`ad-${cell.slot}-${i}`} slot={cell.slot} aspect="3/4" />;
               }
               const creator = cell.data;
-              const displayName = normalizeName(creator.model_name || creator.username || "Creator");
+              const displayName = normalizeName(creator.model_name || creator.username || "Girl");
               const imageUrl = toImageUrl(creator.image_file);
 
               if (!imageUrl) return null;

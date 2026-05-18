@@ -345,7 +345,7 @@ export default function CreatorRegisterPage() {
           {error ? <div className="text-xs text-red-400">{error}</div> : null}
 
           <button disabled={loading || !hasAllConfirmations} className="btn btn-primary btn-block min-h-[44px] py-3">
-            {loading ? "CREATING ACCOUNT..." : "CREATE CREATOR ACCOUNT"}
+            {loading ? "CREATING ACCOUNT..." : "CREATE GIRLS ACCOUNT"}
           </button>
 
           <div className="text-center text-xs text-brand-muted">

@@ -53,7 +53,7 @@ export function AdsTab({
           ],
         },
         {
-          heading: "CREATOR PAGE",
+          heading: "GIRLS PAGE",
           rows: [
             ["home-7","home-8"] as const,
             ["home-13","home-14","home-15","home-16"] as const,
