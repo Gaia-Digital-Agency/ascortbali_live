@@ -68,7 +68,7 @@ export const CATEGORY_OPTIONS = [
   "escort",
   "sugar babies",
   "massage",
-  "dating/brides",
+  "dating",
 ];
 
 // Default category if the creator leaves the multi-select empty. Kept the
@@ -79,7 +79,7 @@ export const DEFAULT_CATEGORY = "escort";
 // initial; the token is the value stored in providers.escort_type. Keep in
 // sync with CATEGORY_OPTIONS.
 export const CATEGORY_DEMS: ReadonlyArray<{ letter: "D" | "E" | "M" | "S"; token: string }> = [
-  { letter: "D", token: "dating/brides" },
+  { letter: "D", token: "dating" },
   { letter: "E", token: "escort" },
   { letter: "M", token: "massage" },
   { letter: "S", token: "sugar babies" },
