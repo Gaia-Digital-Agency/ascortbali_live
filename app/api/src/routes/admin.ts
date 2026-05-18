@@ -368,9 +368,15 @@ type AdSlotName = typeof VALID_AD_SLOTS[number];
 const UpsertAdSchema = z.object({
   slot: z.enum(VALID_AD_SLOTS),
   image: z.string().optional().nullable(),
-  text: z.string().optional().nullable(),
+  text: z.string().max(200).optional().nullable(),
   link_url: z.string().optional().nullable(),
 });
+
+const cleanAdText = (slot: AdSlotName, value?: string | null) => {
+  const trimmed = value?.trim() ?? "";
+  if (slot === "bottom") return trimmed || "Your Ads Here";
+  return trimmed ? trimmed.slice(0, 50) : null;
+};
 
 // Normalizes a URL for an ad link.
 const normalizeLinkUrl = (slot: AdSlotName, value?: string | null) => {
@@ -397,7 +403,7 @@ adminRouter.post("/ads", async (req, res) => {
   const pool = getPool();
   const item = parsed.data;
   // Sanitize and normalize the input data.
-  const cleanText = item.slot === "bottom" ? (item.text?.trim() || "Your Ads Here") : null;
+  const cleanText = cleanAdText(item.slot, item.text);
   const cleanImage = item.slot === "bottom" ? null : (item.image?.trim() || null);
   const cleanLinkUrl = normalizeLinkUrl(item.slot, item.link_url);
   // Validate the link URL.
@@ -443,7 +449,7 @@ adminRouter.put("/ads/:slot", async (req, res) => {
   const pool = getPool();
   const item = parsed.data;
   // Sanitize and normalize the input data.
-  const cleanText = item.slot === "bottom" ? (item.text?.trim() || "Your Ads Here") : null;
+  const cleanText = cleanAdText(item.slot, item.text);
   const cleanImage = item.slot === "bottom" ? null : (item.image?.trim() || null);
   const cleanLinkUrl = normalizeLinkUrl(item.slot, item.link_url);
   // Validate the link URL.

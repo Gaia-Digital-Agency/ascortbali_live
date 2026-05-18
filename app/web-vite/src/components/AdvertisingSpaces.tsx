@@ -258,7 +258,7 @@ export function FeaturedCarousel() {
       <div className={trackClass}>
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className={slotClass}>
-            <div className={`${cardClass} skeleton rounded-2xl border border-brand-line`} />
+            <div className={`${cardClass} skeleton rounded-2xl border border-brand-gold/70`} />
           </div>
         ))}
       </div>
@@ -269,7 +269,7 @@ export function FeaturedCarousel() {
     const imageUrl = toCreatorImageUrl(creator?.image_file);
     const name = creator?.model_name ?? `Featured ${index}`;
     const card = (
-      <div className={`${cardClass} flex flex-col overflow-hidden rounded-2xl bg-brand-surface/30`}>
+      <div className={`${cardClass} flex flex-col overflow-hidden rounded-2xl border border-brand-gold/70 bg-brand-surface/30`}>
         <div className="flex-1 overflow-hidden">
           {imageUrl ? (
             <img
@@ -394,11 +394,16 @@ export function AdSlot({
   // with object-cover for crop-to-fill.
   const isAuto = aspect === "auto";
 
-  // Card chrome turns into nothing when bare=true — but we still apply the
-  // same corner radius as the framed ads, so all ad cards match.
+  // In-grid 3/4 ads mirror the creator-card chrome (no border, same surface bg)
+  // so they sit cleanly next to the creator cards. Every other aspect keeps
+  // the legacy border-brand-line frame.
+  const isCreatorGridAd = aspect === "3/4";
+  const hasDescription = isCreatorGridAd && Boolean(ad?.text && ad.text.trim());
   const chrome = bare
     ? "overflow-hidden rounded-2xl"
-    : "overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50";
+    : isCreatorGridAd
+      ? "overflow-hidden rounded-2xl bg-brand-surface/30"
+      : "overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50";
 
   if (!ad) {
     // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
@@ -455,7 +460,17 @@ export function AdSlot({
     </div>
   );
 
-  const card = (
+  // For in-grid 3/4 ads with a description, mirror the creator card's
+  // image-plus-name-strip layout: image fills the remaining vertical space,
+  // a fixed 44px strip below holds the admin-typed description.
+  const card = hasDescription ? (
+    <div className={`${aspectClass} w-full flex flex-col ${chrome} ${className}`}>
+      <div className="flex-1 overflow-hidden">{inner}</div>
+      <div className="flex h-11 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight">
+        {ad.text}
+      </div>
+    </div>
+  ) : (
     <div className={`${aspectClass} w-full ${chrome} ${className}`}>
       {inner}
     </div>

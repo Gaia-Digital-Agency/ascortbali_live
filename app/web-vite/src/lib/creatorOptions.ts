@@ -65,8 +65,15 @@ export const CATEGORY_OPTIONS = [
   "escort",
   "sugar babies",
   "massage",
-  "dating/brides",
+  "dating",
 ];
+
+// Legacy stored values for the renamed CATEGORY_OPTIONS. Lower-cased; keys
+// resolve to their replacement so existing DB rows still match.
+const CATEGORY_ALIASES: Record<string, string> = {
+  "dating/brides": "dating",
+  "dating/bride": "dating",
+};
 
 // Orientation values. Stored lower-case. Older accounts may have "bisexual"
 // (no space), "gay", or "other"; the API backfill migrates those into this
@@ -82,8 +89,9 @@ export const ORIENTATION_OPTIONS = [
 export function matchOption(stored: string | null | undefined, options: string[]): string {
   if (!stored) return options[0];
   const norm = stored.trim().toLowerCase().replace(/\s+/g, " ");
+  const aliased = CATEGORY_ALIASES[norm] ?? norm;
   for (const o of options) {
-    if (o.toLowerCase() === norm) return o;
+    if (o.toLowerCase() === aliased) return o;
   }
   return options[0];
 }

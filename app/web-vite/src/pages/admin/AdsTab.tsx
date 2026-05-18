@@ -81,17 +81,20 @@ export function AdsTab({
                     const slotDirty =
                       !prev ||
                       (prev.image ?? null) !== (ad?.image ?? null) ||
-                      (prev.link_url ?? null) !== (ad?.link_url ?? null);
+                      (prev.link_url ?? null) !== (ad?.link_url ?? null) ||
+                      (prev.text ?? null) !== (ad?.text ?? null);
                     return (
                       <ImageAdEditor
                         key={slot}
                         slot={slot}
                         image={ad?.image ?? null}
                         linkUrl={ad?.link_url ?? null}
+                        text={ad?.text ?? null}
                         busy={savingSlot === slot || savingAllAds}
                         dirty={slotDirty}
                         onChange={(image) => { onUpdateAd(slot, { image }); onClearAdsMsg(); }}
                         onChangeLinkUrl={(link_url) => { onUpdateAd(slot, { link_url }); onClearAdsMsg(); }}
+                        onChangeText={(text) => { onUpdateAd(slot, { text }); onClearAdsMsg(); }}
                         onClear={() => onClearSlot(slot)}
                       />
                     );

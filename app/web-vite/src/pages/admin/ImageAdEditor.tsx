@@ -5,11 +5,12 @@ import type { AdSlot } from "./types";
 type ImageSlot = Exclude<AdSlot, "bottom">;
 
 export function ImageAdEditor({
-  slot, image, busy, dirty, linkUrl, onChange, onChangeLinkUrl, onClear,
+  slot, image, busy, dirty, linkUrl, text, onChange, onChangeLinkUrl, onChangeText, onClear,
 }: {
   slot: ImageSlot;
-  image: string | null; busy: boolean; dirty: boolean; linkUrl: string | null;
+  image: string | null; busy: boolean; dirty: boolean; linkUrl: string | null; text: string | null;
   onChange: (value: string) => void; onChangeLinkUrl: (value: string) => void;
+  onChangeText: (value: string) => void;
   onClear: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -94,6 +95,16 @@ export function ImageAdEditor({
         onChange={(e) => onChangeLinkUrl(e.target.value)}
         placeholder="Click URL (https://...)"
       />
+      <div>
+        <input
+          className="w-full rounded-xl border border-brand-line bg-brand-surface2/40 px-3 py-1.5 text-[10px] outline-none placeholder:text-brand-muted/50 focus:border-brand-gold/60"
+          value={text ?? ""}
+          maxLength={50}
+          onChange={(e) => onChangeText(e.target.value.slice(0, 50))}
+          placeholder="Description (max 50 chars)"
+        />
+        <div className="mt-0.5 text-right text-[9px] text-brand-muted/60">{(text ?? "").length}/50</div>
+      </div>
       <div className="flex flex-col gap-1.5">
         <button type="button" onClick={() => fileRef.current?.click()} disabled={busy || uploading} className="btn btn-primary btn-block px-2 py-2 text-[11px]">
           {uploading ? "UPLOADING..." : busy ? "..." : "UPLOAD"}

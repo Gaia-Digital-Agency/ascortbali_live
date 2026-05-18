@@ -170,7 +170,9 @@ export default function AdminDashboard() {
 
         const imageNow = ad.slot === "bottom" ? null : toStoredImage(ad.image);
         const linkNow = ad.slot === "bottom" ? null : (ad.link_url?.trim() || null);
-        const textNow = ad.slot === "bottom" ? ad.text : null;
+        const textNow = ad.slot === "bottom"
+          ? ad.text
+          : ((ad.text ?? "").trim().slice(0, 50) || null);
 
         if (!imageNow && !linkNow && !textNow) {
           tasks.push(apiFetch(`/admin/ads/${ad.slot}`, { method: "DELETE" }));
