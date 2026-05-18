@@ -145,6 +145,10 @@ export default function Layout() {
               <div className="truncate font-display text-lg tracking-[0.22em] text-brand-gold">BALI GIRLS</div>
               {subtitle ? <div className="mt-1 truncate text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
             </div>
+            {/* Vertical gold divider — sits at the right edge of the brand
+                block. 40px tall, 1px wide; opacity lifts on hover so the
+                whole brand cluster reads as one interactive group. */}
+            <span aria-hidden="true" className="ml-3 h-10 w-[1px] shrink-0 bg-brand-gold/70 opacity-70 transition group-hover:opacity-100" />
           </Link>
 
           {/* Desktop nav — visible at lg+ (>=1024px). Below that we switch to
