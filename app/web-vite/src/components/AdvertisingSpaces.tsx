@@ -237,7 +237,7 @@ export function FeaturedCarousel() {
   }, [settings]);
 
   // 4 girls full width: grid-cols-4 on all non-tiny screens (2x2 on very small)
-  const cardClass = "aspect-[3/4] w-full";
+  const cardClass = "aspect-[9/16] w-full";
 
   // The "FEATURED GIRLS" label is rendered by HomePage above this component
   // (so it sits above the relative wrapper that contains the side ads — letting
@@ -292,11 +292,10 @@ export function FeaturedCarousel() {
             </div>
           )}
         </div>
-        {/* Fixed-height name strip with vertical center alignment. h-11 = 44px
-            (matches min-h tap target). flex + items-center handles centering;
-            previous h-[10%] + min-h-[44px] combination forced overflow that
-            cropped the image and made the label look off-center. */}
-        <div className="flex h-11 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
+        {/* Fixed-height name strip. h-14 (56px) matches the in-grid creator
+            and ad cards (HomePage two-row strip with DEMS badge), so the
+            featured row aligns vertically with the grid below. */}
+        <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
           {name}
         </div>
       </div>
@@ -385,9 +384,9 @@ export function AdSlot({
     aspect === "16/9" ? "aspect-[16/9]"
     : aspect === "4/1" ? "aspect-[4/1]"
     : aspect === "4/15" ? "aspect-[4/15]"
-    : aspect === "3/4" ? "aspect-[3/4]"
+    : aspect === "3/4" ? "aspect-[9/16]"
     : aspect === "auto" ? ""
-    : "aspect-[3/4]";
+    : "aspect-[9/16]";
 
   // For aspect="auto" the image renders at its natural ratio (w-full h-auto)
   // and the card height follows. Every other aspect uses a fixed aspect box
@@ -408,7 +407,7 @@ export function AdSlot({
   if (!ad) {
     // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
     // needs some height before the image arrives.
-    const skClass = aspectClass || "aspect-[3/4]";
+    const skClass = aspectClass || "aspect-[9/16]";
     return <div className={`${skClass} w-full ${bare ? "rounded-2xl" : "skeleton rounded-2xl border border-brand-line"} ${className}`} />;
   }
 
@@ -453,7 +452,7 @@ export function AdSlot({
       isAuto
         // No fixed parent height with aspect="auto" — use a 9:16 placeholder
         // box so empty slots stay visible.
-        ? "flex aspect-[3/4] w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
+        ? "flex aspect-[9/16] w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
         : "flex h-full w-full items-center justify-center text-xs tracking-[0.22em] text-brand-muted"
     }>
       {slot.toUpperCase()}
@@ -462,11 +461,12 @@ export function AdSlot({
 
   // For in-grid 3/4 ads with a description, mirror the creator card's
   // image-plus-name-strip layout: image fills the remaining vertical space,
-  // a fixed 44px strip below holds the admin-typed description.
+  // a fixed strip below holds the admin-typed description. h-14 keeps the
+  // in-grid ad cards aligned with the creator cards' name+DEMS strip.
   const card = hasDescription ? (
     <div className={`${aspectClass} w-full flex flex-col ${chrome} ${className}`}>
       <div className="flex-1 overflow-hidden">{inner}</div>
-      <div className="flex h-11 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight">
+      <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight">
         {ad.text}
       </div>
     </div>

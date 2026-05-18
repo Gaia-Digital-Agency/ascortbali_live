@@ -18,7 +18,6 @@ import { PasswordInput } from "../components/LoginForm";
 // /creator/register. 2FA is skipped here — the trade-off is documented in
 // the API handler.
 export default function CreatorInitialLoginPage() {
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [tempPassword, setTempPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -29,11 +28,6 @@ export default function CreatorInitialLoginPage() {
     e.preventDefault();
     setError(null);
     setUsesRemaining(null);
-    const phone = phoneNumber.replace(/[\s\-()]/g, "");
-    if (!/^\+?\d{6,20}$/.test(phone)) {
-      setError("Enter the phone number on record (with or without country code).");
-      return;
-    }
     if (!tempPassword) {
       setError("Enter the temporary password your administrator gave you.");
       return;
@@ -44,16 +38,16 @@ export default function CreatorInitialLoginPage() {
       const res = await fetch(`${API_BASE}/auth/login/creator-initial`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phoneNumber: phone, tempPassword }),
+        body: JSON.stringify({ tempPassword }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (json?.error === "initial_login_exhausted") {
           setError("This initial-login link has been used the maximum number of times. Please sign in normally or register a new account.");
-        } else if (json?.error === "phone_ambiguous") {
-          setError("Multiple accounts match that phone number. Please use the normal sign-in.");
+        } else if (json?.error === "multiple_matches") {
+          setError("That temporary password is shared by more than one account. Please use the normal sign-in.");
         } else {
-          setError("Phone number or temporary password did not match our records.");
+          setError("Temporary password did not match our records.");
         }
         return;
       }
@@ -68,9 +62,6 @@ export default function CreatorInitialLoginPage() {
       setLoading(false);
     }
   };
-
-  const fieldClass =
-    "mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60";
 
   return (
     <div className="mx-auto max-w-md space-y-6">
@@ -92,19 +83,6 @@ export default function CreatorInitialLoginPage() {
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE NUMBER</label>
-            <input
-              required
-              className={fieldClass}
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+6281234567890"
-              autoComplete="tel"
-              aria-label="Phone number"
-            />
-          </div>
-
           <div>
             <label className="text-xs tracking-[0.22em] text-brand-muted">TEMPORARY PASSWORD</label>
             <PasswordInput

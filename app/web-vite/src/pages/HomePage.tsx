@@ -382,7 +382,7 @@ export default function HomePage() {
         {loading ? (
           <div className="grid gap-4 grid-cols-2 [.step-4_&]:grid-cols-2 [.step-3_&]:grid-cols-3 [.step-2_&]:grid-cols-4 [.step-1_&]:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />
+              <div key={i} className="skeleton aspect-[9/16] rounded-2xl" />
             ))}
           </div>
         ) : (
@@ -413,7 +413,7 @@ export default function HomePage() {
                   // prevents the previous min-h-[44px] + h-[10%] combo from
                   // pushing the image past the aspect-ratio box and getting
                   // clipped (which made the NAME look off-center).
-                  className="group flex aspect-[3/4] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
+                  className="group flex aspect-[9/16] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
                 >
                   <div className="flex-1 overflow-hidden">
                     <img

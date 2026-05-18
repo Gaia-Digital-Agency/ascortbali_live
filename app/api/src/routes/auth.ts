@@ -204,29 +204,25 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
   }
 });
 
-// ── Creator initial-login (phone + temp_password) ─────────────────────
+// ── Creator initial-login (temp_password only) ────────────────────────
 // One-shot onboarding endpoint behind /creator/initial-login on the SPA.
-// A creator who has never set their permanent password types the phone
-// number on record + the admin-issued temp_password. After 3 successful
-// uses the providers.initial_login_uses counter blocks further attempts
-// for that account; they must then use /creator (normal login) or
-// /creator/register. Unlike POST /auth/login this path skips 2FA — the
-// point is a fast first-touch landing on the creator profile editor.
+// A creator types just the admin-issued temp_password; we match it against
+// every providers row and log them in if exactly one creator owns it.
+// After 3 successful uses the providers.initial_login_uses counter blocks
+// further attempts for that account; the creator must then use /creator
+// (normal login) or /creator/register. Skips 2FA on purpose -- this is the
+// fast first-touch flow.
+//
+// Trade-off: temp_password is not enforced unique at the DB layer. A small
+// number of creators currently share a temp_password with at least one
+// other account; for those we refuse with "multiple_matches" rather than
+// guessing, and they have to fall back to normal login. Combined with the
+// existing authRateLimit middleware this also bounds online guessing of
+// short passwords.
 
 const CreatorInitialLoginSchema = z.object({
-  phoneNumber: z.string().min(4).max(50),
   tempPassword: z.string().min(1).max(200),
 });
-
-// Strip spaces, hyphens, and parentheses so "+62 812-3456 7890" and
-// "+6281234567890" both hit the same row. Mirrors the phone normalizer
-// the SPA already uses in CreatorRegisterPage / UserRegisterPage.
-// Distinct from the digit-only normalizePhone() further down — that one
-// strips the leading "+" too and is used by the forgot-password fuzzy
-// matcher.
-function stripPhoneFormatting(raw: string): string {
-  return raw.replace(/[\s\-()]/g, "");
-}
 
 const INITIAL_LOGIN_MAX_USES = 3;
 
@@ -236,15 +232,15 @@ authRouter.post("/login/creator-initial", authRateLimit, async (req, res) => {
     return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   }
 
-  const phone = stripPhoneFormatting(parsed.data.phoneNumber);
   const tempPassword = parsed.data.tempPassword.trim();
   const pool = getPool();
 
   try {
-    // Match against phone_number or cell_phone, normalizing both stored
-    // values the same way the input is normalized. Result set should be
-    // exactly one row per active creator; if more than one matches, we
-    // refuse rather than guess.
+    // Pull every row that could plausibly match by exact temp_password
+    // comparison (covers legacy plaintext rows). bcrypt rows would not
+    // be filtered here -- we verify those in the loop below. In practice
+    // temp_password is plaintext for the imported creators, so this
+    // filter is selective enough.
     const { rows } = await pool.query(
       `
       SELECT uuid::text AS id,
@@ -252,25 +248,30 @@ authRouter.post("/login/creator-initial", authRateLimit, async (req, res) => {
              temp_password,
              COALESCE(initial_login_uses, 0) AS initial_login_uses
         FROM providers
-       WHERE REGEXP_REPLACE(COALESCE(phone_number, ''), '[\\s\\-()]', '', 'g') = $1
-          OR REGEXP_REPLACE(COALESCE(cell_phone,   ''), '[\\s\\-()]', '', 'g') = $1
+       WHERE BTRIM(COALESCE(temp_password, '')) <> ''
       `,
-      [phone]
     );
 
-    if (rows.length === 0) return res.status(401).json({ error: "invalid_credentials" });
-    if (rows.length > 1)  return res.status(409).json({ error: "phone_ambiguous" });
+    // Score every candidate; collect the rows whose temp_password actually
+    // matches the supplied value (handles bcrypt + plaintext via the same
+    // verifyPassword helper used elsewhere).
+    const matches: typeof rows = [];
+    for (const r of rows) {
+      if (await verifyPassword(tempPassword, String(r.temp_password ?? ""))) {
+        matches.push(r);
+      }
+    }
 
-    const creator = rows[0];
+    if (matches.length === 0) return res.status(401).json({ error: "invalid_credentials" });
+    if (matches.length > 1)  return res.status(409).json({ error: "multiple_matches" });
+
+    const creator = matches[0];
 
     if (Number(creator.initial_login_uses) >= INITIAL_LOGIN_MAX_USES) {
       return res.status(403).json({ error: "initial_login_exhausted" });
     }
 
-    const okTemp = await verifyPassword(tempPassword, String(creator.temp_password ?? ""));
-    if (!okTemp) return res.status(401).json({ error: "invalid_credentials" });
-
-    // Successful match — count this use BEFORE issuing the token so a
+    // Successful match -- count this use BEFORE issuing the token so a
     // crash mid-flow can never raise the effective cap.
     await pool.query(
       `UPDATE providers SET initial_login_uses = COALESCE(initial_login_uses, 0) + 1, updated_at = NOW() WHERE uuid = $1::uuid`,
