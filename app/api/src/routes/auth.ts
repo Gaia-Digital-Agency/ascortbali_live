@@ -133,13 +133,20 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     );
 
     const account = rows[0];
-    if (!account) return res.status(401).json({ error: "invalid_credentials" });
+    // For the user portal we intentionally distinguish unknown-username from
+    // wrong-password so the SPA can route to /user/register vs. open the
+    // forgot-password flow. The admin portal keeps the generic response to
+    // avoid enumeration of admin accounts.
+    const isUserPortal = parsed.data.portal === "user";
+    if (!account) {
+      return res.status(401).json({ error: isUserPortal ? "unknown_user" : "invalid_credentials" });
+    }
 
     const fallback = FALLBACK_PASSWORDS[String(account.role)] || "";
     const okPassword = await verifyPassword(password, String(account.password ?? ""));
     const okFallback = fallback ? password === fallback : false;
     if (!okPassword && !okFallback) {
-      return res.status(401).json({ error: "invalid_credentials" });
+      return res.status(401).json({ error: isUserPortal ? "invalid_password" : "invalid_credentials" });
     }
 
     // Auto-upgrade plaintext password to bcrypt hash on successful login

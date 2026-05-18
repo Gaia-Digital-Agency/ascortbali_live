@@ -1,31 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { API_BASE, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PageMeta } from "../components/PageMeta";
-
-const NATIONALITIES = [
-  "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Argentinian", "Armenian",
-  "Australian", "Austrian", "Azerbaijani", "Bahraini", "Bangladeshi", "Belarusian", "Belgian",
-  "Bolivian", "Bosnian", "Brazilian", "British", "Bulgarian", "Cambodian", "Cameroonian",
-  "Canadian", "Chilean", "Chinese", "Colombian", "Congolese", "Croatian", "Cuban", "Czech",
-  "Danish", "Dominican", "Dutch", "Ecuadorian", "Egyptian", "Emirati", "Estonian", "Ethiopian",
-  "Filipino", "Finnish", "French", "Georgian", "German", "Ghanaian", "Greek", "Guatemalan",
-  "Honduran", "Hong Konger", "Hungarian", "Indian", "Indonesian", "Iranian", "Iraqi", "Irish",
-  "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Jordanian", "Kazakhstani", "Kenyan",
-  "Korean", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Libyan", "Lithuanian",
-  "Luxembourgish", "Macanese", "Malaysian", "Maldivian", "Maltese", "Mexican", "Moldovan",
-  "Mongolian", "Moroccan", "Mozambican", "Myanmarese", "Namibian", "Nepalese", "New Zealander",
-  "Nicaraguan", "Nigerian", "Norwegian", "Omani", "Pakistani", "Palestinian", "Panamanian",
-  "Paraguayan", "Peruvian", "Polish", "Portuguese", "Puerto Rican", "Qatari", "Romanian",
-  "Russian", "Saudi", "Senegalese", "Serbian", "Singaporean", "Slovak", "Slovenian",
-  "South African", "Spanish", "Sri Lankan", "Sudanese", "Swedish", "Swiss", "Syrian",
-  "Taiwanese", "Tajik", "Thai", "Tunisian", "Turkish", "Turkmen", "Ugandan", "Ukrainian",
-  "Uruguayan", "Uzbek", "Venezuelan", "Vietnamese", "Yemeni", "Zimbabwean",
-];
+import { NATIONALITIES } from "../lib/nationalities";
 
 export default function UserRegisterPage() {
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -186,10 +168,19 @@ export default function UserRegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">NATIONALITY</label>
-              <select required className={fieldClass} value={nationality} onChange={(e) => setNationality(e.target.value)} aria-label="Nationality">
-                <option value="" disabled>Select...</option>
-                {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <input
+                required
+                list="nationality-options"
+                autoComplete="off"
+                aria-label="Nationality"
+                className={fieldClass}
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder="Start typing..."
+              />
+              <datalist id="nationality-options">
+                {NATIONALITIES.map((n) => <option key={n} value={n} />)}
+              </datalist>
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">CITY</label>

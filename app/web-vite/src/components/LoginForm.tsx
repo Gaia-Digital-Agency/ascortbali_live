@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { API_BASE, apiFetch, clearTokens, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 
@@ -91,6 +92,8 @@ export default function LoginForm({
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResending, setOtpResending] = useState(false);
 
+  const navigate = useNavigate();
+
   const doLogin = async () => {
     setLoading(true);
     setError(null);
@@ -101,7 +104,22 @@ export default function LoginForm({
         body: JSON.stringify({ username, password, portal }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? "Login failed");
+      if (!res.ok) {
+        // User portal: branch the UX off the specific error code returned by
+        // /auth/login (see auth.ts — `unknown_user` vs `invalid_password`).
+        // Other portals keep the generic flow.
+        if (portal === "user" && json?.error === "unknown_user") {
+          navigate(`/user/register?email=${encodeURIComponent(username.trim())}`);
+          return;
+        }
+        if (portal === "user" && json?.error === "invalid_password") {
+          setShowForgot(true);
+          setRecoverEmail(username.trim());
+          setError("Incorrect password. Recover your account or set a new one below.");
+          return;
+        }
+        throw new Error(json?.error ?? "Login failed");
+      }
 
       // Handle 2FA challenge
       if (json.twoFactorRequired) {
