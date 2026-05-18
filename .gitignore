@@ -111,6 +111,9 @@ sites/default/settings.local.php
 *.sqlite
 *.sqlite3
 *.sqlite-journal
+# Allow Prisma migration SQL through the blanket *.sql rule above so a fresh
+# checkout + "prisma migrate deploy" picks up every schema change.
+!app/api/prisma/migrations/**/migration.sql
 *.db
 *.tar.gz
 
