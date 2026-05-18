@@ -8,6 +8,7 @@ import { AdsProvider } from './components/AdvertisingSpaces'
 const CreatorLoginPage = lazy(() => import('./pages/CreatorLoginPage'))
 const CreatorLoggedPage = lazy(() => import('./pages/CreatorLoggedPage'))
 const CreatorRegisterPage = lazy(() => import('./pages/CreatorRegisterPage'))
+const CreatorInitialLoginPage = lazy(() => import('./pages/CreatorInitialLoginPage'))
 const CreatorPreviewPage = lazy(() => import('./pages/CreatorPreviewPage'))
 const UserLoginPage = lazy(() => import('./pages/UserLoginPage'))
 const UserLoggedPage = lazy(() => import('./pages/UserLoggedPage'))
@@ -38,6 +39,9 @@ export default function App() {
         <Route path="/creator" element={<Suspense fallback={<PageLoader />}><CreatorLoginPage /></Suspense>} />
         <Route path="/creator/logged" element={<Suspense fallback={<PageLoader />}><CreatorLoggedPage /></Suspense>} />
         <Route path="/creator/register" element={<Suspense fallback={<PageLoader />}><CreatorRegisterPage /></Suspense>} />
+        {/* Phone + temp_password onboarding entry (max 3 uses per creator,
+            enforced by providers.initial_login_uses). See README §URL. */}
+        <Route path="/creator/initial-login" element={<Suspense fallback={<PageLoader />}><CreatorInitialLoginPage /></Suspense>} />
         {/* :slug accepts either a slug or a UUID — the API resolves both
             (Phase D). Old /creator/preview/<uuid> bookmarks keep working. */}
         <Route path="/creator/preview/:slug" element={<Suspense fallback={<PageLoader />}><CreatorPreviewPage /></Suspense>} />

@@ -204,6 +204,91 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
   }
 });
 
+// ── Creator initial-login (phone + temp_password) ─────────────────────
+// One-shot onboarding endpoint behind /creator/initial-login on the SPA.
+// A creator who has never set their permanent password types the phone
+// number on record + the admin-issued temp_password. After 3 successful
+// uses the providers.initial_login_uses counter blocks further attempts
+// for that account; they must then use /creator (normal login) or
+// /creator/register. Unlike POST /auth/login this path skips 2FA — the
+// point is a fast first-touch landing on the creator profile editor.
+
+const CreatorInitialLoginSchema = z.object({
+  phoneNumber: z.string().min(4).max(50),
+  tempPassword: z.string().min(1).max(200),
+});
+
+// Strip spaces, hyphens, and parentheses so "+62 812-3456 7890" and
+// "+6281234567890" both hit the same row. Mirrors the phone normalizer
+// the SPA already uses in CreatorRegisterPage / UserRegisterPage.
+// Distinct from the digit-only normalizePhone() further down — that one
+// strips the leading "+" too and is used by the forgot-password fuzzy
+// matcher.
+function stripPhoneFormatting(raw: string): string {
+  return raw.replace(/[\s\-()]/g, "");
+}
+
+const INITIAL_LOGIN_MAX_USES = 3;
+
+authRouter.post("/login/creator-initial", authRateLimit, async (req, res) => {
+  const parsed = CreatorInitialLoginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  }
+
+  const phone = stripPhoneFormatting(parsed.data.phoneNumber);
+  const tempPassword = parsed.data.tempPassword.trim();
+  const pool = getPool();
+
+  try {
+    // Match against phone_number or cell_phone, normalizing both stored
+    // values the same way the input is normalized. Result set should be
+    // exactly one row per active creator; if more than one matches, we
+    // refuse rather than guess.
+    const { rows } = await pool.query(
+      `
+      SELECT uuid::text AS id,
+             username,
+             temp_password,
+             COALESCE(initial_login_uses, 0) AS initial_login_uses
+        FROM providers
+       WHERE REGEXP_REPLACE(COALESCE(phone_number, ''), '[\\s\\-()]', '', 'g') = $1
+          OR REGEXP_REPLACE(COALESCE(cell_phone,   ''), '[\\s\\-()]', '', 'g') = $1
+      `,
+      [phone]
+    );
+
+    if (rows.length === 0) return res.status(401).json({ error: "invalid_credentials" });
+    if (rows.length > 1)  return res.status(409).json({ error: "phone_ambiguous" });
+
+    const creator = rows[0];
+
+    if (Number(creator.initial_login_uses) >= INITIAL_LOGIN_MAX_USES) {
+      return res.status(403).json({ error: "initial_login_exhausted" });
+    }
+
+    const okTemp = await verifyPassword(tempPassword, String(creator.temp_password ?? ""));
+    if (!okTemp) return res.status(401).json({ error: "invalid_credentials" });
+
+    // Successful match — count this use BEFORE issuing the token so a
+    // crash mid-flow can never raise the effective cap.
+    await pool.query(
+      `UPDATE providers SET initial_login_uses = COALESCE(initial_login_uses, 0) + 1, updated_at = NOW() WHERE uuid = $1::uuid`,
+      [creator.id]
+    );
+
+    const accessToken = await signAccessToken({
+      sub: creator.id,
+      role: "creator",
+      username: String(creator.username),
+    });
+    const usesRemaining = INITIAL_LOGIN_MAX_USES - (Number(creator.initial_login_uses) + 1);
+    return res.json({ accessToken, usesRemaining });
+  } catch {
+    return res.status(500).json({ error: "login_failed" });
+  }
+});
+
 // ── WhatsApp 2FA verification ──────────────────────────────────────────
 
 const TwoFactorVerifySchema = z.object({

@@ -146,6 +146,7 @@ pm2 save
 | `https://baligirls.gaiada2.online/user/logged` | User profile dashboard |
 | `https://baligirls.gaiada2.online/creator` | Creator login |
 | `https://baligirls.gaiada2.online/creator/register` | Creator registration |
+| `https://baligirls.gaiada2.online/creator/initial-login` | Creator first-time sign-in — phone number + temp password, **max 3 uses per account** |
 | `https://baligirls.gaiada2.online/creator/logged` | Creator profile dashboard |
 | `https://baligirls.gaiada2.online/creator/preview/:id` | Public creator profile page |
 | `https://baligirls.gaiada2.online/admin` | Admin login |
@@ -192,6 +193,24 @@ pm2 save
   - Creator can reactivate at any time
 - Password change
 - Error messages shown as red banner below page title
+
+#### Initial login (`/creator/initial-login`)
+First-time onboarding entry for creators who have a phone number and an
+admin-issued `temp_password` on file but no permanent password yet.
+- Two fields: phone number + temporary password.
+- Phone is normalized (`[\s\-()]` stripped) and matched against
+  `providers.phone_number` OR `providers.cell_phone`. Ambiguous matches
+  (the same phone on multiple rows) are rejected.
+- On success the route issues a JWT and redirects to `/creator/logged`.
+  Skips WhatsApp 2FA on purpose — this is the fast first-touch flow.
+- **Hard cap: 3 uses per creator.** A successful sign-in increments
+  `providers.initial_login_uses`; once it reaches 3 the endpoint returns
+  `initial_login_exhausted` and the page directs the creator to `/creator`
+  (normal login) or `/creator/register`.
+- Endpoint: `POST /api/auth/login/creator-initial`. Subject to the same
+  `authRateLimit` middleware as `/auth/login`.
+- Schema migration: `app/api/prisma/migrations/20260518180000_add_initial_login_uses/migration.sql`
+  adds the counter column with default `0` and `NOT NULL`.
 
 ### Admin CMS (`/admin/logged`)
 Sub-routes (each rendered by its own `pages/admin/*Tab.tsx` component, parent
@@ -330,6 +349,7 @@ Implementation:
 
 ### Auth
 - `POST /auth/login` — login (returns tokens or 2FA challenge)
+- `POST /auth/login/creator-initial` — phone + temp_password sign-in for `/creator/initial-login` (max 3 uses per account, skips 2FA)
 - `POST /auth/register` — user registration
 - `POST /auth/register/creator` — creator registration
 - `POST /auth/2fa/verify` — OTP verification
