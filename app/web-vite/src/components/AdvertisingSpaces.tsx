@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from "react";
 import { API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
+import { CATEGORY_DEMS, parseCategoryCsv } from "../lib/creatorOptions";
+import { DemsIcon } from "./DemsIcons";
 
 type AdSpace = {
   slot:
@@ -24,7 +26,21 @@ type FeaturedCreator = {
   slug?: string | null;
   model_name: string;
   image_file: string | null;
+  // CSV of DEMS category tokens — drives the overlay badge in featured cards
+  // (mirrors the in-grid creator cards on HomePage).
+  escort_type?: string | null;
 };
+
+function FeaturedDemsBadge({ form }: { form?: string | null }) {
+  const set = parseCategoryCsv(form);
+  return (
+    <span className="flex shrink-0 items-center gap-1" aria-label="Categories" role="text">
+      {CATEGORY_DEMS.map(({ letter, token }) => (
+        <DemsIcon key={letter} letter={letter} active={set.has(token)} />
+      ))}
+    </span>
+  );
+}
 
 // Default links in case DB has no URL yet.
 const fallbackLinkBySlot: Record<string, string> = {
@@ -270,7 +286,7 @@ export function FeaturedCarousel() {
     const name = creator?.model_name ?? `Featured ${index}`;
     const card = (
       <div className={`${cardClass} flex flex-col overflow-hidden rounded-2xl border border-brand-gold/70 bg-brand-surface/30`}>
-        <div className="flex-1 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden">
           {imageUrl ? (
             <img
               src={`${imageUrl}?w=480`}
@@ -291,6 +307,11 @@ export function FeaturedCarousel() {
               {creator ? "NO IMAGE" : "NOT SET"}
             </div>
           )}
+          {creator ? (
+            <div className="absolute bottom-1.5 right-1.5 rounded-lg bg-black/30 px-1.5 py-1 backdrop-blur-md ring-1 ring-white/10">
+              <FeaturedDemsBadge form={creator.escort_type} />
+            </div>
+          ) : null}
         </div>
         {/* Fixed-height name strip. h-14 (56px) matches the in-grid creator
             and ad cards (HomePage two-row strip with DEMS badge), so the
