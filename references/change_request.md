@@ -262,3 +262,11 @@ Living log of change requests, grouped by date. Each section captures the work l
 ### Ads
 
 25. In-grid ad description: admin can now type a 50-char description per ad slot; renders as a name-strip on the ad card mirroring creator card
+
+---
+
+## 19th May
+
+### Featured Girls cards
+
+1. Added the DEMS category overlay to the 4 Featured Girls cards in `FeaturedCarousel`, bottom-right of the image with a translucent `backdrop-blur` panel — matches the in-grid creator cards. `escort_type` was already on the `/creators/by-names` payload (part of `CARD_COLUMNS`); no API change needed. Local `FeaturedDemsBadge` mirrors the `DemsBadge` in `HomePage.tsx`. Deployed: rebuilt `app/web-vite` and restarted `baligirls-web-vite` PM2 process.
