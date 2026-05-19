@@ -69,6 +69,11 @@ export default function AdminDashboard() {
   const [viewType, setViewType] = useState<ViewType | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [viewData, setViewData] = useState<ViewData | null>(null);
+  // Snapshot of viewData at load time. saveView diffs against this so we only
+  // PUT the fields the admin actually changed — prevents stale row values
+  // (e.g. legacy non-email username, out-of-range age) from re-entering Zod
+  // validation and 400-ing the save with invalid_body.
+  const [viewOriginal, setViewOriginal] = useState<ViewData | null>(null);
   const [viewEditing, setViewEditing] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewSaving, setViewSaving] = useState(false);
@@ -260,18 +265,31 @@ export default function AdminDashboard() {
     try {
       const data = await apiFetch(`/admin/accounts/${type}s/${id}`);
       setViewData(data);
+      setViewOriginal(data);
     } catch (err: any) { setError(err.message ?? "Failed to load details"); setViewType(null); }
     finally { setViewLoading(false); }
   };
-  const closeView = () => { setViewType(null); setViewId(null); setViewData(null); setViewEditing(false); setShowDeleteConfirm(false); };
+  const closeView = () => { setViewType(null); setViewId(null); setViewData(null); setViewOriginal(null); setViewEditing(false); setShowDeleteConfirm(false); };
 
   const saveView = async () => {
     if (!viewType || !viewId || !viewData) return;
     setViewSaving(true); setError(null); setAccountMsg(null);
     try {
       const skip = new Set(["id", "created_at", "updated_at"]);
+      // Diff against the loaded snapshot — only PUT fields the admin actually
+      // edited. Sending the full row trips Zod on legacy bad values (e.g. a
+      // non-email username) the admin never touched.
       const payload: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(viewData)) { if (!skip.has(k)) payload[k] = v; }
+      for (const [k, v] of Object.entries(viewData)) {
+        if (skip.has(k)) continue;
+        if (viewOriginal && v === (viewOriginal as Record<string, unknown>)[k]) continue;
+        payload[k] = v;
+      }
+      if (Object.keys(payload).length === 0) {
+        setAccountMsg("No changes to save.");
+        closeView();
+        return;
+      }
       await apiFetch(`/admin/accounts/${viewType}s/${viewId}`, { method: "PUT", body: JSON.stringify(payload) });
       const accountsData = await apiFetch("/admin/accounts?limit=500");
       if (accountsData?.users) setUsers(accountsData.users);

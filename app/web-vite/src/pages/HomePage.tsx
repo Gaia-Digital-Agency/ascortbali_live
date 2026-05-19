@@ -8,6 +8,7 @@ import { LeftSidebarAd, RightSidebarAd } from "../components/SidebarAds";
 import { CreatorFilterControls } from "../components/CreatorFilterControls";
 import { PageMeta, SITE_BASE, SITE_NAME } from "../components/PageMeta";
 import { CATEGORY_DEMS, parseCategoryCsv } from "../lib/creatorOptions";
+import { DemsIcon } from "../components/DemsIcons";
 
 type Creator = {
   uuid: string;
@@ -23,21 +24,16 @@ type Creator = {
   escort_type?: string | null;
 };
 
-// 4-letter category indicator rendered under each creator's name. The letter
-// is bright when the creator's escort_type CSV includes that DEMS token;
-// otherwise it's dimmed. Non-interactive — purely a visual indicator.
+// 4-icon category indicator rendered next to each creator's name. The icon
+// uses an active (gold circle) variant when the creator's escort_type CSV
+// includes that DEMS token; otherwise a dim (charcoal) variant.
+// Non-interactive — purely a visual indicator.
 function DemsBadge({ form }: { form?: string | null }) {
   const set = parseCategoryCsv(form);
   return (
-    <span className="flex gap-1 text-[10px] tracking-[0.18em]" aria-label="Categories" role="text">
+    <span className="flex shrink-0 items-center gap-1" aria-label="Categories" role="text">
       {CATEGORY_DEMS.map(({ letter, token }) => (
-        <span
-          key={letter}
-          aria-hidden="true"
-          className={set.has(token) ? "text-brand-gold" : "text-brand-muted/30"}
-        >
-          {letter}
-        </span>
+        <DemsIcon key={letter} letter={letter} active={set.has(token)} />
       ))}
     </span>
   );
@@ -415,7 +411,7 @@ export default function HomePage() {
                   // clipped (which made the NAME look off-center).
                   className="group flex aspect-[9/16] flex-col overflow-hidden rounded-2xl bg-brand-surface/30"
                 >
-                  <div className="flex-1 overflow-hidden">
+                  <div className="relative flex-1 overflow-hidden">
                     <img
                       src={`${imageUrl}?w=480`}
                       srcSet={`${imageUrl}?w=360 360w, ${imageUrl}?w=480 480w, ${imageUrl}?w=640 640w`}
@@ -427,14 +423,18 @@ export default function HomePage() {
                       decoding="async"
                       className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                     />
+                    {/* DEMS category badge — overlaid on the image bottom-right
+                        with a translucent blurred backdrop so the icons stay
+                        legible against any photo. */}
+                    <div className="absolute bottom-1.5 right-1.5 rounded-lg bg-black/30 px-1.5 py-1 backdrop-blur-md ring-1 ring-white/10">
+                      <DemsBadge form={creator.escort_type} />
+                    </div>
                   </div>
-                  {/* Two-row name strip: creator name on top, DEMS badge
-                      underneath. h-14 (56px) keeps the layout fixed so cards
-                      still align. shrink-0 prevents the aspect-ratio image
-                      from being squeezed when names wrap. */}
-                  <div className="flex h-14 shrink-0 flex-col items-center justify-center gap-0.5 border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
+                  {/* Name strip: creator name only. h-14 (56px) keeps the
+                      layout fixed so cards still align. shrink-0 prevents the
+                      aspect-ratio image from being squeezed when names wrap. */}
+                  <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-xs uppercase tracking-[0.14em] leading-tight">
                     <span className="line-clamp-1">{displayName}</span>
-                    <DemsBadge form={creator.escort_type} />
                   </div>
                 </Link>
               );

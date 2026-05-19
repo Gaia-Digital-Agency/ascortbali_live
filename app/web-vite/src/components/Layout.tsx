@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { AgeGateModal } from './AgeGateModal'
 import { AnalyticsBeacon } from './AnalyticsBeacon'
 import { AuthNavButton } from './AuthNavButton'
 import { FooterStatus } from './FooterStatus'
 import { useSiteSettings } from './AdvertisingSpaces'
+import { DemsIcon } from './DemsIcons'
+import { CATEGORY_DEMS } from '../lib/creatorOptions'
 
-// Header nav placeholders — three menu slots we can wire up later. Kept
-// here (not in their own component) so the burger drawer can reuse the
-// same list. Real labels and hrefs will land in a follow-up.
-const HEADER_LINKS: Array<{ label: string; href: string }> = [
-  { label: 'MENU 1', href: '#' },
-  { label: 'MENU 2', href: '#' },
-  { label: 'MENU 3', href: '#' },
-]
+// Header nav = the 4 DEMS category filters. Clicking an icon navigates to
+// the homepage with ?category=<token>; the homepage filter reads that and
+// narrows the grid. The currently-active filter (if any) gets a gold ring.
+const DEMS_LABELS: Record<'D' | 'E' | 'M' | 'S', string> = {
+  D: 'Dating',
+  E: 'Escort',
+  M: 'Massage',
+  S: 'Sugar Babies',
+}
 
 // Layout has exactly 4 steps. Cmd+ advances one step, Cmd− retreats one step.
 // Browser zoom is fully overridden — each press = one step (no in-between).
@@ -44,6 +47,12 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
+
+  // Read the active category filter so the matching DEMS nav icon can show
+  // a gold ring. `searchParams.get('category')` is `null` when no filter is
+  // applied; that's fine — no icon will match.
+  const [searchParams] = useSearchParams()
+  const currentCategory = searchParams.get('category')
   const [layoutStep, setLayoutStep] = useState<number>(() =>
     typeof window === 'undefined' ? 1 : STEP_FROM_WIDTH(window.innerWidth)
   )
@@ -152,17 +161,29 @@ export default function Layout() {
           </Link>
 
           {/* Desktop nav — visible at lg+ (>=1024px). Below that we switch to
-              a burger so the header never wraps onto a second row. */}
-          <nav className="hidden items-center gap-1 whitespace-nowrap lg:flex">
-            {HEADER_LINKS.map((m) => (
-              <a
-                key={m.label}
-                href={m.href}
-                className="btn btn-outline min-h-[44px] px-3 py-2.5 text-xs tracking-[0.14em]"
-              >
-                {m.label}
-              </a>
-            ))}
+              a burger so the header never wraps onto a second row. The 4 DEMS
+              icons each filter the homepage by category; active filter shows
+              a gold ring. */}
+          <nav className="hidden items-center gap-1.5 whitespace-nowrap lg:flex">
+            {CATEGORY_DEMS.map(({ letter, token }) => {
+              const isActive = currentCategory === token
+              return (
+                <Link
+                  key={letter}
+                  to={`/?category=${encodeURIComponent(token)}`}
+                  aria-label={`Filter: ${DEMS_LABELS[letter]}`}
+                  title={DEMS_LABELS[letter]}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg transition ${
+                    isActive
+                      ? 'ring-2 ring-brand-gold ring-offset-2 ring-offset-brand-bg'
+                      : 'hover:ring-1 hover:ring-brand-gold/60'
+                  }`}
+                >
+                  <DemsIcon letter={letter} active={true} />
+                </Link>
+              )
+            })}
             <AuthNavButton />
           </nav>
 
@@ -216,24 +237,32 @@ export default function Layout() {
         </div>
 
         {/* Mobile drawer — slides down beneath the bar. Only mounted when
-            open so it doesn't intercept taps. Same link set as desktop so
-            the two stay in sync. */}
+            open so it doesn't intercept taps. Same DEMS filter set as
+            desktop, but here each row shows the icon next to its label for
+            tap clarity. */}
         {menuOpen ? (
           <div
             id="mobile-nav-drawer"
             className="border-t border-brand-line bg-brand-bg/95 backdrop-blur lg:hidden"
           >
             <nav className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3">
-              {HEADER_LINKS.map((m) => (
-                <a
-                  key={m.label}
-                  href={m.href}
-                  className="btn btn-outline min-h-[44px] py-2.5 text-center text-xs tracking-[0.14em]"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {m.label}
-                </a>
-              ))}
+              {CATEGORY_DEMS.map(({ letter, token }) => {
+                const isActive = currentCategory === token
+                return (
+                  <Link
+                    key={letter}
+                    to={`/?category=${encodeURIComponent(token)}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={`btn btn-outline flex min-h-[44px] items-center justify-center gap-3 py-2.5 text-center text-xs tracking-[0.14em] ${
+                      isActive ? 'ring-2 ring-brand-gold' : ''
+                    }`}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <DemsIcon letter={letter} active={true} />
+                    <span>{DEMS_LABELS[letter]}</span>
+                  </Link>
+                )
+              })}
               <AuthNavButton />
             </nav>
           </div>

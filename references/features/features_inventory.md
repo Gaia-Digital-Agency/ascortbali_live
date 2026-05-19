@@ -15,6 +15,7 @@ Current live routing state:
 
 - Homepage under `/`
 - Creator listing cards driven by provider data
+  - Card NAME strip (`h-14` / 56 px) shows the creator display name only. The 4 **DEMS** category icons (Dating / Escort / Massage / Sugar-babies) are overlaid on the image at bottom-right, inside a translucent `backdrop-blur` panel. Each icon is a circle-bound SVG, gold-filled when the creator's `providers.escort_type` CSV includes that token and dim charcoal otherwise. Source: [`app/web-vite/src/components/DemsIcons.tsx`](../../app/web-vite/src/components/DemsIcons.tsx).
 - Filtering controls for creator discovery
 - Ad placement display for `home-1`, `home-2`, `home-3`, and bottom text slot
 - Public creator preview pages under `/creator/preview/[id]`

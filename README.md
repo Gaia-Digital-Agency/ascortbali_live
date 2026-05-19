@@ -1,7 +1,7 @@
 # Baligirls
 
 - README.md creation date: February 24, 2026
-- Last updated: May 7, 2026 (migrated from `gda-ce01` to `gda-pn01`; live at `baligirls.gaiada2.online`; new repo `ascortbali_live`)
+- Last updated: May 19, 2026 (homepage creator card: name + 4-icon DEMS row on one line; see "Recent Changes")
 - GitHub remote name: `origin`
 - GitHub remote URL: `git@github.com:Gaia-Digital-Agency/ascortbali_live.git` (this is the production tree; the older `ascortbali_staging` repo is no longer the source of truth)
 - Developed by Gaida.com
@@ -42,7 +42,7 @@ The app moved from `gda-ce01` (`baligirls.gaiada1.online`) to `gda-pn01` (`balig
 - Two stacked side ads per side (left = `home-1` + `home-2`, right = `home-3` + `home-4`) on every page that has side ads.
 - Top pagination removed from the homepage; bottom pagination retained.
 - Site-wide button hover states reworked (no more clipping inside `overflow-hidden` containers); custom gold chevron + 2.75 rem right padding on every `<select>`.
-- Creator card NAME strip is now a fixed-height (44 px) row that always vertically centers correctly.
+- Creator card NAME strip is back to a fixed-height (`h-14` / 56 px) **name-only** row. The 4 **DEMS category icons** (Dating / Escort / Massage / Sugar-babies) now sit as a **bottom-right overlay on the creator image**, wrapped in a translucent black panel with `backdrop-blur-md` + `ring-white/10` so they stay legible over any photo. Each icon is a circle-bound SVG — gold-filled when the creator's `providers.escort_type` CSV includes that token, dim charcoal when it doesn't. Component: [`app/web-vite/src/components/DemsIcons.tsx`](app/web-vite/src/components/DemsIcons.tsx); letter↔token map in [`CATEGORY_DEMS`](app/web-vite/src/lib/creatorOptions.ts). Inline SVG placeholders for now — final artwork to drop in later (2026-05-19).
 
 **Creator / public profile**
 - New field: **WeChat ID** (added via creator registration → profile → public view; stored in `providers.wechat_id`).
