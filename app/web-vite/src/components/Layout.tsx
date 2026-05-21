@@ -5,17 +5,18 @@ import { AnalyticsBeacon } from './AnalyticsBeacon'
 import { AuthNavButton } from './AuthNavButton'
 import { FooterStatus } from './FooterStatus'
 import { useSiteSettings } from './AdvertisingSpaces'
-import { DemsIcon } from './DemsIcons'
 import { CATEGORY_DEMS } from '../lib/creatorOptions'
 
-// Header nav = the 4 DEMS category filters. Clicking an icon navigates to
+// Header nav = the 4 DEMS category filters. Clicking a word navigates to
 // the homepage with ?category=<token>; the homepage filter reads that and
 // narrows the grid. The currently-active filter (if any) gets a gold ring.
+// Single-word labels (SUGARBABIES, not "Sugar Babies") so the header stays
+// on one row and the four items read as a compact category strip.
 const DEMS_LABELS: Record<'D' | 'E' | 'M' | 'S', string> = {
-  D: 'Dating',
-  E: 'Escort',
-  M: 'Massage',
-  S: 'Sugar Babies',
+  D: 'DATING',
+  E: 'ESCORT',
+  M: 'MASSAGE',
+  S: 'SUGARBABIES',
 }
 
 // Layout has exactly 4 steps. Cmd+ advances one step, Cmd− retreats one step.
@@ -152,7 +153,18 @@ export default function Layout() {
             />
             <div className="min-w-0 leading-none">
               <div className="truncate font-display text-lg tracking-[0.22em] text-brand-gold">BALI GIRLS</div>
-              {subtitle ? <div className="mt-1 truncate text-xs tracking-[0.22em] text-brand-muted">{subtitle}</div> : null}
+              {subtitle ? (
+                // Two-line, left-aligned subtitle. Admin can force the break
+                // with a literal "|" (split → 2 lines); otherwise long text
+                // wraps naturally and is clamped to 2 lines.
+                <div className="mt-1 max-w-[220px] text-left text-[11px] leading-tight tracking-[0.22em] text-brand-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                  {subtitle.includes('|')
+                    ? subtitle.split('|').slice(0, 2).map((line, i) => (
+                        <div key={i}>{line.trim()}</div>
+                      ))
+                    : subtitle}
+                </div>
+              ) : null}
             </div>
             {/* Vertical gold divider — sits at the right edge of the brand
                 block. 40px tall, 1px wide; opacity lifts on hover so the
@@ -161,10 +173,29 @@ export default function Layout() {
           </Link>
 
           {/* Desktop nav — visible at lg+ (>=1024px). Below that we switch to
-              a burger so the header never wraps onto a second row. The 4 DEMS
-              icons each filter the homepage by category; active filter shows
-              a gold ring. */}
-          <nav className="hidden items-center gap-1.5 whitespace-nowrap lg:flex">
+              a burger so the header never wraps onto a second row. ALL +
+              4 DEMS words filter the homepage by category; ALL clears the
+              filter. Hover: bold + gold + underlined, no ring. Active: gold
+              text + bold + underlined (kept consistent with hover). */}
+          <nav className="hidden items-center gap-0.5 whitespace-nowrap lg:flex">
+            {(() => {
+              const allActive = !currentCategory
+              return (
+                <Link
+                  to="/"
+                  aria-label="Filter: All"
+                  title="All"
+                  aria-current={allActive ? 'true' : undefined}
+                  className={`inline-flex min-h-[44px] items-center justify-center rounded-lg px-2 py-2 text-[11px] tracking-[0.18em] transition ${
+                    allActive
+                      ? 'font-bold text-brand-gold underline underline-offset-4'
+                      : 'font-semibold text-brand-text hover:font-bold hover:text-brand-gold hover:underline hover:underline-offset-4'
+                  }`}
+                >
+                  ALL
+                </Link>
+              )
+            })()}
             {CATEGORY_DEMS.map(({ letter, token }) => {
               const isActive = currentCategory === token
               return (
@@ -174,13 +205,13 @@ export default function Layout() {
                   aria-label={`Filter: ${DEMS_LABELS[letter]}`}
                   title={DEMS_LABELS[letter]}
                   aria-current={isActive ? 'true' : undefined}
-                  className={`inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg transition ${
+                  className={`inline-flex min-h-[44px] items-center justify-center rounded-lg px-2 py-2 text-[11px] tracking-[0.18em] transition ${
                     isActive
-                      ? 'ring-2 ring-brand-gold ring-offset-2 ring-offset-brand-bg'
-                      : 'hover:ring-1 hover:ring-brand-gold/60'
+                      ? 'font-bold text-brand-gold underline underline-offset-4'
+                      : 'font-semibold text-brand-text hover:font-bold hover:text-brand-gold hover:underline hover:underline-offset-4'
                   }`}
                 >
-                  <DemsIcon letter={letter} active={true} />
+                  {DEMS_LABELS[letter]}
                 </Link>
               )
             })}
@@ -246,6 +277,23 @@ export default function Layout() {
             className="border-t border-brand-line bg-brand-bg/95 backdrop-blur lg:hidden"
           >
             <nav className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3">
+              {(() => {
+                const allActive = !currentCategory
+                return (
+                  <Link
+                    to="/"
+                    aria-current={allActive ? 'true' : undefined}
+                    className={`btn btn-outline flex min-h-[44px] items-center justify-center py-2.5 text-center text-xs tracking-[0.18em] ${
+                      allActive
+                        ? 'font-bold text-brand-gold underline underline-offset-4'
+                        : 'font-semibold'
+                    }`}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    ALL
+                  </Link>
+                )
+              })()}
               {CATEGORY_DEMS.map(({ letter, token }) => {
                 const isActive = currentCategory === token
                 return (
@@ -253,13 +301,14 @@ export default function Layout() {
                     key={letter}
                     to={`/?category=${encodeURIComponent(token)}`}
                     aria-current={isActive ? 'true' : undefined}
-                    className={`btn btn-outline flex min-h-[44px] items-center justify-center gap-3 py-2.5 text-center text-xs tracking-[0.14em] ${
-                      isActive ? 'ring-2 ring-brand-gold' : ''
+                    className={`btn btn-outline flex min-h-[44px] items-center justify-center py-2.5 text-center text-xs tracking-[0.18em] ${
+                      isActive
+                        ? 'font-bold text-brand-gold underline underline-offset-4'
+                        : 'font-semibold'
                     }`}
                     onClick={() => setMenuOpen(false)}
                   >
-                    <DemsIcon letter={letter} active={true} />
-                    <span>{DEMS_LABELS[letter]}</span>
+                    {DEMS_LABELS[letter]}
                   </Link>
                 )
               })}

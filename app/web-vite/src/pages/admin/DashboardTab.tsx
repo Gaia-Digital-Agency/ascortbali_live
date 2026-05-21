@@ -73,13 +73,13 @@ export function DashboardTab({
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <div className="text-xs tracking-[0.22em] text-brand-muted">HEADER SUBTITLE</div>
-        <p className="mt-1 text-[11px] text-brand-muted/70">Shown under the "BALI GIRLS" title in the site header.</p>
+        <p className="mt-1 text-[11px] text-brand-muted/70">Shown under the "BALI GIRLS" title in the site header. Renders on two lines, left-aligned. Use "|" to force a break between line 1 and line 2 (e.g. <code>Free, Real | Simple</code>).</p>
         <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto]">
           <input
             className="rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
-            placeholder="Free, Real, Simple"
+            placeholder="Free, Real | Simple"
           />
           <button
             type="button"
