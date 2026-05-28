@@ -247,7 +247,9 @@ model AdvertisingSpace {
   slot      String   @unique
   title     String
   subtitle  String
-  image     String
+  image     String?
+  text      String?
+  linkUrl   String?  @map("link_url")
   ctaLabel  String?
   ctaHref   String?
   createdAt DateTime @default(now())
@@ -262,13 +264,11 @@ model AdvertisingSpaceHistory {
   id        String   @id @default(uuid())
   slot      String
   space     AdvertisingSpace @relation(fields: [slot], references: [slot], onDelete: Cascade)
-  title     String
-  subtitle  String
-  image     String
-  ctaLabel  String?
-  ctaHref   String?
+  image     String?
+  text      String?
+  linkUrl   String?  @map("link_url")
   action    String   @default("update")
-  changedAt DateTime @default(now())
+  changedAt DateTime @default(now()) @map("changed_at")
 
   @@map("advertising_space_history")
 }

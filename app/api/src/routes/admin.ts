@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getPool } from "../lib/pg.js";
+import { prisma } from "../prisma.js";
 import { countryToRegion, ALL_REGIONS } from "../lib/regions.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
@@ -306,59 +307,8 @@ adminRouter.get("/stats", async (_req, res) => {
   }
 });
 
-// Route to fetch advertising spaces.
-// This retrieves all the ad spaces to be displayed in the admin panel.
-adminRouter.get("/ads", async (_req, res) => {
-  const pool = getPool();
-  try {
-    // Fetch ad spaces from the database, ordered by their slot position.
-    const { rows } = await pool.query(
-      `
-      SELECT slot, image, text, link_url
-        FROM advertising_spaces
-       WHERE slot IN (
-              'home-1','home-2','home-3','home-4',
-              'home-5','home-6','home-7','home-8',
-              'home-9','home-10','home-11','home-12',
-              'home-13','home-14','home-15','home-16',
-              'home-17','home-18','home-19','home-20',
-              'bottom'
-            )
-       ORDER BY CASE slot
-          WHEN 'home-1'  THEN 1
-          WHEN 'home-2'  THEN 2
-          WHEN 'home-3'  THEN 3
-          WHEN 'home-4'  THEN 4
-          WHEN 'home-5'  THEN 5
-          WHEN 'home-6'  THEN 6
-          WHEN 'home-7'  THEN 7
-          WHEN 'home-8'  THEN 8
-          WHEN 'home-9'  THEN 9
-          WHEN 'home-10' THEN 10
-          WHEN 'home-11' THEN 11
-          WHEN 'home-12' THEN 12
-          WHEN 'home-13' THEN 13
-          WHEN 'home-14' THEN 14
-          WHEN 'home-15' THEN 15
-          WHEN 'home-16' THEN 16
-          WHEN 'home-17' THEN 17
-          WHEN 'home-18' THEN 18
-          WHEN 'home-19' THEN 19
-          WHEN 'home-20' THEN 20
-          WHEN 'bottom'  THEN 21
-          ELSE 22
-       END
-      `
-    );
-    // Return the ad spaces as a JSON array.
-    res.json(rows);
-  } catch {
-    res.status(500).json({ error: "ads_load_failed" });
-  }
-});
+// ── Advertising Spaces ───────────────────────────────────────────────────
 
-// Zod schema for validating advertising space upsert data.
-// This ensures that the request body has the correct shape and data types.
 const VALID_AD_SLOTS = [
   "home-1", "home-2", "home-3", "home-4",
   "home-5", "home-6", "home-7", "home-8",
@@ -382,7 +332,6 @@ const cleanAdText = (slot: AdSlotName, value?: string | null) => {
   return trimmed ? trimmed.slice(0, 50) : null;
 };
 
-// Normalizes a URL for an ad link.
 const normalizeLinkUrl = (slot: AdSlotName, value?: string | null) => {
   if (slot === "bottom") return null;
   const raw = value?.trim();
@@ -396,133 +345,94 @@ const normalizeLinkUrl = (slot: AdSlotName, value?: string | null) => {
   }
 };
 
-// Route to create or update an advertising space.
-// This is an "upsert" operation: it creates a new ad space if it doesn't exist,
-// or updates it if it does.
+const AD_SLOT_ORDER = new Map<string, number>(VALID_AD_SLOTS.map((s, i) => [s, i]));
+
+adminRouter.get("/ads", async (_req, res) => {
+  try {
+    const spaces = await prisma.advertisingSpace.findMany({
+      where: { slot: { in: [...VALID_AD_SLOTS] } },
+      select: { slot: true, image: true, text: true, linkUrl: true },
+    });
+    spaces.sort((a, b) => (AD_SLOT_ORDER.get(a.slot) ?? 99) - (AD_SLOT_ORDER.get(b.slot) ?? 99));
+    res.json(spaces.map(({ slot, image, text, linkUrl }) => ({ slot, image, text, link_url: linkUrl })));
+  } catch {
+    res.status(500).json({ error: "ads_load_failed" });
+  }
+});
+
 adminRouter.post("/ads", async (req, res) => {
-  // Validate the request body against the Zod schema.
   const parsed = UpsertAdSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  const pool = getPool();
   const item = parsed.data;
-  // Sanitize and normalize the input data.
   const cleanText = cleanAdText(item.slot, item.text);
   const cleanImage = item.slot === "bottom" ? null : (item.image?.trim() || null);
   const cleanLinkUrl = normalizeLinkUrl(item.slot, item.link_url);
-  // Validate the link URL.
   if (item.slot !== "bottom" && item.link_url?.trim() && !cleanLinkUrl) {
     return res.status(400).json({ error: "invalid_link_url" });
   }
 
   try {
-    // Perform the upsert operation in the database.
-    const { rows } = await pool.query(
-      `
-      INSERT INTO advertising_spaces (slot, image, text, link_url)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (slot) DO UPDATE SET
-        image = EXCLUDED.image,
-        text = EXCLUDED.text,
-        link_url = EXCLUDED.link_url,
-        updated_at = NOW()
-      RETURNING slot, image, text, link_url
-      `,
-      [item.slot, cleanImage, cleanText, cleanLinkUrl]
-    );
-    // Record the change in the history table.
-    await pool.query(
-      "INSERT INTO advertising_space_history (slot, image, text, link_url, action) VALUES ($1, $2, $3, $4, 'update')",
-      [item.slot, cleanImage, cleanText, cleanLinkUrl]
-    );
-    // Return the newly created or updated ad space.
-    res.status(201).json(rows[0]);
+    const space = await prisma.advertisingSpace.upsert({
+      where: { slot: item.slot },
+      update: { image: cleanImage, text: cleanText, linkUrl: cleanLinkUrl },
+      create: { slot: item.slot, title: "", subtitle: "", image: cleanImage ?? "", text: cleanText, linkUrl: cleanLinkUrl },
+      select: { slot: true, image: true, text: true, linkUrl: true },
+    });
+    await prisma.advertisingSpaceHistory.create({
+      data: { slot: item.slot, image: cleanImage, text: cleanText, linkUrl: cleanLinkUrl, action: "update" },
+    });
+    res.status(201).json({ slot: space.slot, image: space.image, text: space.text, link_url: space.linkUrl });
   } catch {
     res.status(500).json({ error: "ads_upsert_failed" });
   }
 });
 
-// Route to update an advertising space by slot.
 adminRouter.put("/ads/:slot", async (req, res) => {
-  // Merge the request body and the slot from the URL parameters.
   const mergedBody = { ...req.body, slot: req.params.slot };
-  // Validate the merged data.
   const parsed = UpsertAdSchema.safeParse(mergedBody);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  const pool = getPool();
   const item = parsed.data;
-  // Sanitize and normalize the input data.
   const cleanText = cleanAdText(item.slot, item.text);
   const cleanImage = item.slot === "bottom" ? null : (item.image?.trim() || null);
   const cleanLinkUrl = normalizeLinkUrl(item.slot, item.link_url);
-  // Validate the link URL.
   if (item.slot !== "bottom" && item.link_url?.trim() && !cleanLinkUrl) {
     return res.status(400).json({ error: "invalid_link_url" });
   }
 
   try {
-    // Update the ad space in the database.
-    const { rows } = await pool.query(
-      `
-      UPDATE advertising_spaces
-         SET image = $2,
-             text = $3,
-             link_url = $4,
-             updated_at = NOW()
-       WHERE slot = $1
-       RETURNING slot, image, text, link_url
-      `,
-      [item.slot, cleanImage, cleanText, cleanLinkUrl]
-    );
-    // If no row was updated, the ad space was not found.
-    if (!rows[0]) return res.status(404).json({ error: "not_found" });
-    // Record the change in the history table.
-    await pool.query(
-      "INSERT INTO advertising_space_history (slot, image, text, link_url, action) VALUES ($1, $2, $3, $4, 'update')",
-      [item.slot, cleanImage, cleanText, cleanLinkUrl]
-    );
-    // Return the updated ad space.
-    res.json(rows[0]);
+    const existing = await prisma.advertisingSpace.findUnique({ where: { slot: item.slot } });
+    if (!existing) return res.status(404).json({ error: "not_found" });
+    const space = await prisma.advertisingSpace.update({
+      where: { slot: item.slot },
+      data: { image: cleanImage, text: cleanText, linkUrl: cleanLinkUrl },
+      select: { slot: true, image: true, text: true, linkUrl: true },
+    });
+    await prisma.advertisingSpaceHistory.create({
+      data: { slot: item.slot, image: cleanImage, text: cleanText, linkUrl: cleanLinkUrl, action: "update" },
+    });
+    res.json({ slot: space.slot, image: space.image, text: space.text, link_url: space.linkUrl });
   } catch {
     res.status(500).json({ error: "ads_update_failed" });
   }
 });
 
-// Route to delete (clear) an advertising space by slot.
 adminRouter.delete("/ads/:slot", async (req, res) => {
   const slot = req.params.slot;
-  // Validate the slot parameter.
   if (!(VALID_AD_SLOTS as readonly string[]).includes(slot)) return res.status(400).json({ error: "invalid_slot" });
 
-  const pool = getPool();
   try {
-    // For the 'bottom' slot, reset it to its default state.
-    if (slot === "bottom") {
-      await pool.query(
-        "UPDATE advertising_spaces SET image = NULL, text = 'Your Ads Here', link_url = NULL, updated_at = NOW() WHERE slot = 'bottom'"
-      );
-      // Record the change in the history table.
-      await pool.query(
-        "INSERT INTO advertising_space_history (slot, image, text, link_url, action) VALUES ('bottom', NULL, 'Your Ads Here', NULL, 'delete')"
-      );
-      return res.json({ ok: true });
-    }
-
-    // For other slots, clear their content.
-    await pool.query(
-      `
-      UPDATE advertising_spaces
-         SET image = NULL, text = NULL, link_url = NULL, updated_at = NOW()
-       WHERE slot = $1
-      `,
-      [slot]
-    );
-    // Record the change in the history table.
-    await pool.query(
-      "INSERT INTO advertising_space_history (slot, image, text, link_url, action) VALUES ($1, NULL, NULL, NULL, 'delete')",
-      [slot]
-    );
+    const existing = await prisma.advertisingSpace.findUnique({ where: { slot } });
+    if (!existing) return res.status(404).json({ error: "not_found" });
+    const clearText = slot === "bottom" ? "Your Ads Here" : null;
+    await prisma.advertisingSpace.update({
+      where: { slot },
+      data: { image: null, text: clearText, linkUrl: null },
+    });
+    await prisma.advertisingSpaceHistory.create({
+      data: { slot, image: null, text: clearText, linkUrl: null, action: "delete" },
+    });
     return res.json({ ok: true });
   } catch {
     return res.status(500).json({ error: "ads_delete_failed" });
