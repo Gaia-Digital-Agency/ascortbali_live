@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_BASE } from "../lib/api";
@@ -387,13 +387,17 @@ export default function HomePage() {
               <div className="col-span-full py-10 text-center text-sm text-brand-muted">
                 No creators match these filters.
               </div>
-            ) : buildPageCells(pageItems, page).map((cell, i) => {
+            ) : (() => {
+              const _cells = buildPageCells(pageItems, page);
+              const _firstCreatorIdx = _cells.findIndex(c => c.kind === "creator");
+              return _cells.map((cell, i) => {
               if (cell.kind === "ad") {
                 // In-grid ad cards. aspect="3/4" so they visually match the creator cards.
                 // renders at its natural ratio (matching the home-9..12
                 // first-row treatment we replaced).
                 return <AdSlot key={`ad-${cell.slot}-${i}`} slot={cell.slot} aspect="3/4" />;
               }
+              const isFirst = i === _firstCreatorIdx;
               const creator = cell.data;
               const displayName = normalizeName(creator.model_name || creator.username || "Girl");
               const imageUrl = toImageUrl(creator.image_file);
@@ -419,8 +423,9 @@ export default function HomePage() {
                       alt={`${displayName} profile photo`}
                       width={480}
                       height={853}
-                      loading="lazy"
-                      decoding="async"
+                      loading={isFirst ? "eager" : "lazy"}
+                      decoding={isFirst ? "sync" : "async"}
+                      {...(isFirst ? ({ fetchPriority: "high" } as ImgHTMLAttributes<HTMLImageElement>) : {})}
                       className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                     />
                     {/* DEMS category badge — overlaid on the image bottom-right
@@ -438,7 +443,8 @@ export default function HomePage() {
                   </div>
                 </Link>
               );
-            })}
+            });
+              })()}
           </div>
         )}
       </section>
