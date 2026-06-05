@@ -1,55 +1,50 @@
-"use client";
 import { useEffect, useRef } from "react";
 import { AdSlot } from "./AdvertisingSpaces";
 
-// Scroll-progress-driven parallax. The ad column starts pinned to the top
-// of its relative wrapper and ends pinned to the bottom of the wrapper
-// (so the ad's bottom aligns with the bottom of the bottom leaderboard).
-// Effective drift speed = (wrapper_height - inner_height) / scroll_range,
-// which naturally lands near "slightly slower than page scroll" on a
-// typical homepage and self-tunes if the wrapper height changes.
+// Smooth scroll-driven parallax. Layout measurements are cached and only
+// refreshed on resize — the rAF loop reads only window.scrollY (no layout
+// reads per frame), eliminating the jank from the previous implementation.
 function useParallaxRef() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const inner = ref.current;
     if (!inner) return;
 
-    // Walk up to the nearest `position: relative` ancestor — that's our
-    // positioning context (the wrapper that the absolute ad outer hangs off).
     let wrapper: HTMLElement | null = inner.parentElement;
     while (wrapper && getComputedStyle(wrapper).position !== "relative") {
       wrapper = wrapper.parentElement;
     }
     if (!wrapper) return;
 
-    let raf: number | null = null;
-    const apply = () => {
-      raf = null;
+    // Cached layout values — only recomputed on resize, never inside the rAF.
+    let wTopInDoc = 0, maxDrift = 0, scrollMax = 1;
+    const measure = () => {
       const wRect = wrapper!.getBoundingClientRect();
-      const wTopInDoc = wRect.top + window.scrollY;
+      wTopInDoc = wRect.top + window.scrollY;
       const wrapperH = wrapper!.offsetHeight;
-      const innerH = inner.offsetHeight;
-      const maxDrift = Math.max(0, wrapperH - innerH);
-      // Scroll progress: 0 when wrapper top first reaches viewport top,
-      // 1 when wrapper bottom reaches viewport bottom.
-      const scrollMax = Math.max(1, wrapperH - window.innerHeight);
+      maxDrift = Math.max(0, wrapperH - inner.offsetHeight);
+      scrollMax = Math.max(1, wrapperH - window.innerHeight);
+    };
+
+    // Continuous rAF loop — window.scrollY is always current at frame time,
+    // so no scroll listener needed. This gives a true 60 fps update.
+    let raf: number;
+    const tick = () => {
       const rel = Math.max(0, Math.min(scrollMax, window.scrollY - wTopInDoc));
-      const progress = rel / scrollMax;
-      inner.style.transform = `translateY(${progress * maxDrift}px)`;
+      inner.style.transform = `translateY(${(rel / scrollMax) * maxDrift}px)`;
+      raf = requestAnimationFrame(tick);
     };
-    const onScroll = () => {
-      if (raf == null) raf = requestAnimationFrame(apply);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-    apply();
-    // Re-apply once after fonts/images load so the wrapper height is final.
-    const t = setTimeout(apply, 1500);
+
+    measure();
+    raf = requestAnimationFrame(tick);
+    // Re-measure once after fonts/images settle.
+    const t = setTimeout(measure, 1500);
+
+    window.addEventListener("resize", measure, { passive: true });
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf != null) cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf);
       clearTimeout(t);
+      window.removeEventListener("resize", measure);
     };
   }, []);
   return ref;
@@ -120,10 +115,8 @@ const STACK_GAP      = "16px";
 const ABSOLUTE_AD_CLASS =
   "hidden min-[1392px]:block absolute pointer-events-none !mt-0";
 
-// Inner column: NOT sticky anymore — sits at the top of the outer
-// container and is shifted by a parallax transform on scroll (see
-// useParallaxRef above). will-change hints the browser to keep its
-// composited layer ready.
+// Inner column: parallax-shifted via translateY. will-change keeps the
+// composited layer warm so the transform swap is zero-cost.
 const INNER_CLASS = "pointer-events-auto flex flex-col will-change-transform";
 
 // Hardcoded slot assignment — the same pair of ads renders on every page
