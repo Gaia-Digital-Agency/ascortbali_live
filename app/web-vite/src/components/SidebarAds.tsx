@@ -1,9 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AdSlot } from "./AdvertisingSpaces";
 
-// Smooth scroll-driven parallax. Layout measurements are cached and only
-// refreshed on resize — the rAF loop reads only window.scrollY (no layout
-// reads per frame), eliminating the jank from the previous implementation.
 function useParallaxRef() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -16,7 +13,6 @@ function useParallaxRef() {
     }
     if (!wrapper) return;
 
-    // Cached layout values — only recomputed on resize, never inside the rAF.
     let wTopInDoc = 0, maxDrift = 0, scrollMax = 1;
     const measure = () => {
       const wRect = wrapper!.getBoundingClientRect();
@@ -26,8 +22,6 @@ function useParallaxRef() {
       scrollMax = Math.max(1, wrapperH - window.innerHeight);
     };
 
-    // Continuous rAF loop — window.scrollY is always current at frame time,
-    // so no scroll listener needed. This gives a true 60 fps update.
     let raf: number;
     const tick = () => {
       const rel = Math.max(0, Math.min(scrollMax, window.scrollY - wTopInDoc));
@@ -37,9 +31,7 @@ function useParallaxRef() {
 
     measure();
     raf = requestAnimationFrame(tick);
-    // Re-measure once after fonts/images settle.
     const t = setTimeout(measure, 1500);
-
     window.addEventListener("resize", measure, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
@@ -115,8 +107,6 @@ const STACK_GAP      = "16px";
 const ABSOLUTE_AD_CLASS =
   "hidden min-[1392px]:block absolute pointer-events-none !mt-0";
 
-// Inner column: parallax-shifted via translateY. will-change keeps the
-// composited layer warm so the transform swap is zero-cost.
 const INNER_CLASS = "pointer-events-auto flex flex-col will-change-transform";
 
 // Hardcoded slot assignment — the same pair of ads renders on every page
