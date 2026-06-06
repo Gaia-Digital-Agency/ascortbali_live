@@ -62,11 +62,26 @@ export async function sendOnboardingInvite(phone: string, tempPassword: string):
   });
 }
 
-/** Send a WhatsApp OTP message. Phone must include country code (e.g. "+628123456789"). */
+/**
+ * Send a WhatsApp OTP message. Phone must include country code (e.g. "+628123456789").
+ * If TWILIO_OTP_CONTENT_SID is set, sends the approved authentication template
+ * (required for production business-initiated messages); otherwise sends a
+ * freeform body (sandbox / 24h window only). Template variable: {{1}} = code.
+ */
 export async function sendWhatsAppOtp(phone: string, code: string): Promise<void> {
   const tw = getClient();
   const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
   const from = env.TWILIO_WHATSAPP_FROM!;
+
+  if (env.TWILIO_OTP_CONTENT_SID) {
+    await tw.messages.create({
+      to,
+      from,
+      contentSid: env.TWILIO_OTP_CONTENT_SID,
+      contentVariables: JSON.stringify({ "1": code }),
+    });
+    return;
+  }
 
   await tw.messages.create({
     to,

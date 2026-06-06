@@ -39,6 +39,10 @@ const EnvSchema = z.object({
   // invite. Required for production business-initiated sends; when unset the
   // onboarding invite falls back to a freeform body (sandbox / 24h window only).
   TWILIO_ONBOARDING_CONTENT_SID: z.string().optional(),
+  // Approved WhatsApp *authentication* template (Content SID, "HX…") for the
+  // 2FA OTP. Required for production business-initiated sends; when unset the
+  // OTP falls back to a freeform body (sandbox / 24h window only).
+  TWILIO_OTP_CONTENT_SID: z.string().optional(),
 
   // Public site origin used to build links in outbound messages (no trailing slash).
   PUBLIC_SITE_URL: z.string().default("https://baligirls.gaiada2.online"),
