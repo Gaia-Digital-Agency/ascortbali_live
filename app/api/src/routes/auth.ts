@@ -100,7 +100,8 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
                password,
                temp_password,
                COALESCE(phone_number, '') AS phone_number,
-               COALESCE(cell_phone, '') AS cell_phone
+               COALESCE(cell_phone, '') AS cell_phone,
+               COALESCE(verified, false) AS verified
           FROM providers
          WHERE LOWER(username) = $1
         `,
@@ -123,9 +124,10 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
 
       const creatorPayload = { sub: creator.id, role: "creator", username: String(creator.username) };
 
-      // 2FA check: if enabled and creator has a phone number, require OTP
+      // 2FA check: one-time phone verification. Require OTP only if enabled,
+      // a phone is on file, and the account is not already verified.
       const creatorPhone = String(creator.phone_number || creator.cell_phone || "").trim();
-      if (is2FAEnabled() && creatorPhone) {
+      if (is2FAEnabled() && creatorPhone && !creator.verified) {
         const { sessionId, code } = createOtp(creatorPayload, creatorPhone);
         try {
           await sendWhatsAppOtp(creatorPhone, code);
@@ -146,7 +148,8 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       `
       SELECT a.id::text AS id, a.role, a.username, a.password,
              COALESCE(a.phone, '') AS phone,
-             COALESCE(a.whatsapp, '') AS whatsapp
+             COALESCE(a.whatsapp, '') AS whatsapp,
+             COALESCE(a.verified, false) AS verified
         FROM app_accounts a
        WHERE a.role = $2
          AND (LOWER(a.username) = $1 OR LOWER(COALESCE(to_jsonb(a)->>'email', '')) = $1)
@@ -183,9 +186,10 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       username: String(account.username),
     };
 
-    // 2FA check: if enabled and account has a WhatsApp/phone number, require OTP
+    // 2FA check: one-time phone verification. Require OTP only if enabled,
+    // a phone is on file, and the account is not already verified.
     const accountPhone = String(account.whatsapp || account.phone || "").trim();
-    if (is2FAEnabled() && accountPhone) {
+    if (is2FAEnabled() && accountPhone && !account.verified) {
       const { sessionId, code } = createOtp(accountPayload, accountPhone);
       try {
         await sendWhatsAppOtp(accountPhone, code);
@@ -304,9 +308,25 @@ authRouter.post("/2fa/verify", authRateLimit, async (req, res) => {
     return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   }
 
-  const payload = verifyOtp(parsed.data.sessionId, parsed.data.code);
-  if (!payload) {
+  const result = verifyOtp(parsed.data.sessionId, parsed.data.code);
+  if (!result) {
     return res.status(401).json({ error: "invalid_otp" });
+  }
+
+  const { payload } = result;
+
+  // One-time verification: mark the account verified so 2FA is not prompted
+  // again (until the phone number changes, which resets verified to false).
+  const pool = getPool();
+  try {
+    if (payload.role === "creator") {
+      await pool.query(`UPDATE providers SET verified = true, updated_at = NOW() WHERE uuid = $1::uuid`, [payload.sub]);
+    } else {
+      await pool.query(`UPDATE app_accounts SET verified = true, updated_at = NOW() WHERE id = $1::uuid AND role = $2`, [payload.sub, payload.role]);
+    }
+  } catch {
+    // Non-fatal: if the flag update fails, the user can still log in; they'll
+    // just be prompted again next time.
   }
 
   const accessToken = await signAccessToken(payload);
@@ -699,6 +719,21 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     );
 
     const payload = { sub: accountId, role: "user", username: email };
+
+    // 2FA at registration: if enabled and a number was provided, verify it now
+    // via WhatsApp OTP. On success the verify endpoint flips `verified`. If the
+    // send fails, fall through and log the user in normally (no 2FA).
+    const regPhone = String(whatsapp || phoneNumber || "").trim();
+    if (is2FAEnabled() && regPhone) {
+      const { sessionId, code } = createOtp(payload, regPhone);
+      try {
+        await sendWhatsAppOtp(regPhone, code);
+        return res.status(201).json({ twoFactorRequired: true, sessionId });
+      } catch {
+        // fall through to normal login below
+      }
+    }
+
     const accessToken = await signAccessToken(payload);
     return res.status(201).json({ accessToken });
   } catch {

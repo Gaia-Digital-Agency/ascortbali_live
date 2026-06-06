@@ -23,8 +23,56 @@ export default function UserRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // WhatsApp 2FA at registration: when the API requires verification it returns
+  // { twoFactorRequired, sessionId } instead of an access token.
+  const [twoFactorSessionId, setTwoFactorSessionId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
 
   const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
+
+  const verifyOtp = async () => {
+    if (!twoFactorSessionId || otpCode.length !== 6) return;
+    setOtpLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/verify`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionId: twoFactorSessionId, code: otpCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error === "invalid_otp" ? "Invalid or expired code. Please try again." : "Verification failed.");
+      setTokens({ accessToken: json.accessToken });
+      window.location.href = withBasePath("/");
+    } catch (err: any) {
+      setError(err.message ?? "Unable to verify code.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const resendOtp = async () => {
+    if (!twoFactorSessionId) return;
+    setOtpResending(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/resend`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionId: twoFactorSessionId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error("Could not resend code.");
+      setTwoFactorSessionId(json.sessionId);
+      setOtpCode("");
+    } catch (err: any) {
+      setError(err.message ?? "Unable to resend code.");
+    } finally {
+      setOtpResending(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +112,11 @@ export default function UserRegisterPage() {
         if (json?.error === "username_taken") throw new Error("Email is already taken.");
         throw new Error(json?.error ?? "Registration failed.");
       }
+      // 2FA required: show the OTP verification screen instead of logging in.
+      if (json?.twoFactorRequired) {
+        setTwoFactorSessionId(json.sessionId);
+        return;
+      }
       setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/");
     } catch (err: any) {
@@ -74,6 +127,58 @@ export default function UserRegisterPage() {
   };
 
   const fieldClass = "mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60";
+
+  // WhatsApp 2FA verification screen, shown after registration when the API
+  // requires the user to verify their number.
+  if (twoFactorSessionId) {
+    return (
+      <div className="mx-auto max-w-md space-y-6">
+        <div className="text-center">
+          <div className="text-xs tracking-luxe text-brand-muted">USER ACCESS</div>
+          <h1 className="mt-2 font-display text-3xl">Verify Your Number</h1>
+        </div>
+        <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
+          <div className="space-y-4">
+            <p className="text-sm text-brand-muted">
+              We sent a 6-digit code to your WhatsApp. Enter it below to verify your number and finish creating your account.
+            </p>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
+              <input
+                className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                aria-label="Verification code"
+              />
+            </div>
+            {error ? <div className="text-xs text-red-400">{error}</div> : null}
+            <button
+              disabled={otpLoading || otpCode.length !== 6}
+              onClick={verifyOtp}
+              className="btn btn-primary btn-block min-h-[44px] py-3"
+            >
+              {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
+            </button>
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                disabled={otpResending}
+                onClick={resendOtp}
+                className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
+              >
+                {otpResending ? "Sending..." : "Resend code"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-lg space-y-6">

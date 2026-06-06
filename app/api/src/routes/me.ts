@@ -135,9 +135,13 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       }
     }
 
-    // Update email, phone, whatsapp on the account row.
+    // Update email, phone, whatsapp on the account row. If the phone or
+    // whatsapp number changes, reset verified so 2FA re-verifies the new number.
     await pool.query(
-      `UPDATE app_accounts SET username = COALESCE($2, username), phone = $3, whatsapp = $4, updated_at = NOW() WHERE id = $1::uuid`,
+      `UPDATE app_accounts SET username = COALESCE($2, username), phone = $3, whatsapp = $4,
+              verified = CASE WHEN phone IS DISTINCT FROM $3 OR whatsapp IS DISTINCT FROM $4 THEN false ELSE verified END,
+              updated_at = NOW()
+        WHERE id = $1::uuid`,
       [req.user!.id, p.email || null, p.phoneNumber || null, p.whatsapp || null]
     );
 
@@ -428,6 +432,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                slug = $36,
                bust_type = $37,
                pubic_hair = $38,
+               verified = CASE WHEN phone_number IS DISTINCT FROM $22 OR cell_phone IS DISTINCT FROM $23 THEN false ELSE verified END,
                updated_at = NOW()
        WHERE uuid = $1::uuid
        RETURNING uuid::text AS uuid,

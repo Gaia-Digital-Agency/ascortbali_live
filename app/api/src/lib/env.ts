@@ -35,6 +35,13 @@ const EnvSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_WHATSAPP_FROM: z.string().optional(), // e.g. "whatsapp:+14155238886"
+  // Approved WhatsApp template (Content SID, "HX…") for the creator onboarding
+  // invite. Required for production business-initiated sends; when unset the
+  // onboarding invite falls back to a freeform body (sandbox / 24h window only).
+  TWILIO_ONBOARDING_CONTENT_SID: z.string().optional(),
+
+  // Public site origin used to build links in outbound messages (no trailing slash).
+  PUBLIC_SITE_URL: z.string().default("https://baligirls.gaiada2.online"),
 });
 
 // Parse and export the environment variables.

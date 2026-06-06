@@ -6,6 +6,7 @@ import { getPool } from "../lib/pg.js";
 import { prisma } from "../prisma.js";
 import { countryToRegion, ALL_REGIONS } from "../lib/regions.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { isWhatsAppConfigured, sendOnboardingInvite } from "../lib/twilio.js";
 
 // Create a new router for admin routes.
 export const adminRouter = Router();
@@ -281,6 +282,98 @@ adminRouter.delete("/accounts/creators/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "creator_delete_failed" });
+  }
+});
+
+// ── Creator onboarding WhatsApp invite ────────────────────────────────
+// Sends the creator their initial-login link + temp password (their mobile
+// number). The creator then logs in at /creator/initial-login and verifies via
+// the WhatsApp OTP (which flips `verified`). Per-creator and bulk endpoints.
+
+type CreatorRow = {
+  id: string;
+  username: string;
+  phone_number: string;
+  cell_phone: string;
+  temp_password: string;
+};
+
+// Resolve a creator's phone + temp password and send the invite. Returns a
+// tagged result so callers can report sent / skipped / failed per creator.
+async function sendOnboardingToCreator(
+  c: CreatorRow
+): Promise<{ ok: true } | { ok: false; skip: boolean; reason: string }> {
+  const phone = String(c.phone_number || c.cell_phone || "").trim();
+  const temp = String(c.temp_password || "").trim();
+  if (!phone) return { ok: false, skip: true, reason: "no_phone" };
+  if (!temp) return { ok: false, skip: true, reason: "no_temp_password" };
+  // temp_password is plaintext for imported creators; bcrypt rows can't be sent
+  // (we don't hold the plaintext), so skip them.
+  if (/^\$2[aby]?\$/.test(temp)) return { ok: false, skip: true, reason: "temp_password_hashed" };
+  try {
+    await sendOnboardingInvite(phone, temp);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, skip: false, reason: e instanceof Error ? e.message : "send_failed" };
+  }
+}
+
+const CREATOR_SELECT = `
+  SELECT uuid::text AS id,
+         COALESCE(username, '') AS username,
+         COALESCE(phone_number, '') AS phone_number,
+         COALESCE(cell_phone, '') AS cell_phone,
+         COALESCE(temp_password, '') AS temp_password
+    FROM providers`;
+
+// POST /admin/creators/:id/send-onboarding — send one creator their invite.
+adminRouter.post("/creators/:id/send-onboarding", async (req, res) => {
+  if (!isWhatsAppConfigured()) return res.status(400).json({ error: "whatsapp_not_configured" });
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(`${CREATOR_SELECT} WHERE uuid = $1::uuid`, [req.params.id]);
+    const c = rows[0] as CreatorRow | undefined;
+    if (!c) return res.status(404).json({ error: "not_found" });
+    const result = await sendOnboardingToCreator(c);
+    if (!result.ok) return res.status(422).json({ error: result.reason });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "send_failed" });
+  }
+});
+
+// POST /admin/creators/send-onboarding-bulk — send to all unverified creators
+// that have a phone number and a (plaintext) temp password.
+adminRouter.post("/creators/send-onboarding-bulk", async (_req, res) => {
+  if (!isWhatsAppConfigured()) return res.status(400).json({ error: "whatsapp_not_configured" });
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `${CREATOR_SELECT}
+        WHERE COALESCE(verified, false) = false
+          AND BTRIM(COALESCE(phone_number, '') || COALESCE(cell_phone, '')) <> ''`
+    );
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    const results: Array<{ id: string; username: string; status: string; reason?: string }> = [];
+    // Sequential to avoid bursting Twilio rate limits on large lists.
+    for (const c of rows as CreatorRow[]) {
+      const r = await sendOnboardingToCreator(c);
+      if (r.ok) {
+        sent++;
+        results.push({ id: c.id, username: c.username, status: "sent" });
+      } else if (r.skip) {
+        skipped++;
+        results.push({ id: c.id, username: c.username, status: "skipped", reason: r.reason });
+      } else {
+        failed++;
+        results.push({ id: c.id, username: c.username, status: "failed", reason: r.reason });
+      }
+    }
+    return res.json({ total: rows.length, sent, failed, skipped, results });
+  } catch {
+    return res.status(500).json({ error: "bulk_send_failed" });
   }
 });
 

@@ -29,8 +29,11 @@ export function createOtp(payload: PendingLogin["payload"], phone: string): { se
   return { sessionId, code };
 }
 
-/** Verify an OTP code. Returns the user payload on success, or null on failure. */
-export function verifyOtp(sessionId: string, code: string): PendingLogin["payload"] | null {
+/** Verify an OTP code. Returns the user payload and verified phone on success, or null on failure. */
+export function verifyOtp(
+  sessionId: string,
+  code: string
+): { payload: PendingLogin["payload"]; phone: string } | null {
   const entry = store.get(sessionId);
   if (!entry) return null;
 
@@ -51,7 +54,7 @@ export function verifyOtp(sessionId: string, code: string): PendingLogin["payloa
 
   // Success — clean up
   store.delete(sessionId);
-  return entry.payload;
+  return { payload: entry.payload, phone: entry.phone };
 }
 
 /** Get a pending login by session ID (e.g. to resend the OTP). */

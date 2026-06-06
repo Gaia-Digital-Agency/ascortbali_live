@@ -159,3 +159,6 @@ audit_engine/
 
 # Next.js build cache
 **/tsconfig.tsbuildinfo
+
+# local .env backups (contain secrets)
+.env.bak*

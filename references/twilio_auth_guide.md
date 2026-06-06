@@ -51,13 +51,28 @@ Or if recreating the process (see PM2 start command in deployment notes).
 
 ## How It Works
 
+This is **one-time phone verification**, not per-login 2FA. A user/creator is
+prompted for a WhatsApp OTP only until their phone number is verified once;
+after that they log in with password only.
+
 1. User enters email + password on the login page
 2. API validates credentials
-3. If 2FA is enabled AND user has a WhatsApp number:
+3. If 2FA is enabled AND user has a phone number AND the account is **not yet verified**:
    - A 6-digit OTP is sent to their WhatsApp via Twilio
    - Login page shows a "Verify Identity" screen with a code input
 4. User enters the 6-digit code to complete login
-5. If WhatsApp send fails (e.g. Twilio error), login falls through to normal (no 2FA)
+5. On success, the account's `verified` flag is set to `true` — they are not prompted again
+6. If WhatsApp send fails (e.g. Twilio error), login falls through to normal (no 2FA)
+
+### The `verified` flag
+
+- Verification state is stored in the existing `verified` boolean column on
+  both `providers` (creators) and `app_accounts` (users/admins).
+- The **admin CMS** can toggle `verified` directly: check it to manually trust
+  an account (skip 2FA), or uncheck it to force re-verification on next login.
+- If a user/creator **changes their phone number via their own profile**,
+  `verified` is automatically reset to `false` so the new number is re-verified.
+  (Admin edits in the CMS respect the admin's explicit `verified` choice.)
 
 ### OTP Details
 

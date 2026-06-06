@@ -5,6 +5,7 @@ const RATING_OPTIONS: Rating[] = ["A", "B", "C", "D", "E", "F"];
 
 export function CreatorsTab({
   creators, search, setSearch, onToggleVerified, onSetRating, onView,
+  onSendOnboarding, onSendOnboardingBulk, onboardingBusy,
 }: {
   creators: CreatorAccount[];
   search: string;
@@ -12,6 +13,9 @@ export function CreatorsTab({
   onToggleVerified: (id: string, current: boolean) => void;
   onSetRating: (id: string, field: "body_rating" | "face_rating", value: Rating | null) => void;
   onView: (id: string) => void;
+  onSendOnboarding: (id: string) => void;
+  onSendOnboardingBulk: () => void;
+  onboardingBusy: boolean;
 }) {
   const q = search.trim().toLowerCase();
   const matches = (c: CreatorAccount) =>
@@ -67,7 +71,17 @@ export function CreatorsTab({
               <td className="py-3 pr-4 text-xs text-brand-muted">{c.last_seen || "—"}</td>
               <td className="py-3 pr-4 text-xs text-brand-muted">{fmtDate(c.created_at)}</td>
               <td className="py-3">
-                <button onClick={() => onView(c.id)} className="btn btn-outline px-3 py-1.5 text-xs">VIEW</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onView(c.id)} className="btn btn-outline px-3 py-1.5 text-xs">VIEW</button>
+                  <button
+                    onClick={() => onSendOnboarding(c.id)}
+                    disabled={onboardingBusy}
+                    title="Send the onboarding WhatsApp (initial-login link + temp password)"
+                    className="btn btn-outline px-3 py-1.5 text-xs disabled:opacity-40"
+                  >
+                    INVITE
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -105,9 +119,19 @@ export function CreatorsTab({
         )}
       </div>
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
-        <div className="flex items-center gap-2 text-xs tracking-[0.22em] text-brand-muted">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-          ACTIVE CREATORS ({active.length}{search ? ` of ${activeTotal}` : ""})
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs tracking-[0.22em] text-brand-muted">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            ACTIVE CREATORS ({active.length}{search ? ` of ${activeTotal}` : ""})
+          </div>
+          <button
+            onClick={onSendOnboardingBulk}
+            disabled={onboardingBusy}
+            title="Send the onboarding WhatsApp to all unverified creators with a phone number"
+            className="btn btn-outline px-3 py-1.5 text-xs disabled:opacity-40"
+          >
+            {onboardingBusy ? "SENDING…" : "INVITE ALL UNVERIFIED"}
+          </button>
         </div>
         {renderTable(active, search ? "No matches." : "No active creators.")}
       </div>

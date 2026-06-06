@@ -78,6 +78,7 @@ export default function AdminDashboard() {
   const [viewLoading, setViewLoading] = useState(false);
   const [viewSaving, setViewSaving] = useState(false);
   const [accountMsg, setAccountMsg] = useState<string | null>(null);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -240,6 +241,35 @@ export default function AdminDashboard() {
     }
   };
 
+  // Send one creator their onboarding WhatsApp (initial-login link + temp password).
+  const sendOnboarding = async (id: string) => {
+    setAccountMsg(null);
+    try {
+      await apiFetch(`/admin/creators/${id}/send-onboarding`, { method: "POST" });
+      setAccountMsg("Onboarding WhatsApp sent.");
+    } catch (e) {
+      setAccountMsg(`Onboarding send failed: ${e instanceof Error ? e.message : "error"}`);
+    }
+  };
+
+  // Bulk-send the onboarding WhatsApp to all unverified creators with a phone.
+  const sendOnboardingBulk = async () => {
+    if (!window.confirm("Send the onboarding WhatsApp to ALL unverified creators with a phone number?")) return;
+    setOnboardingBusy(true);
+    setAccountMsg(null);
+    try {
+      const r = await apiFetch<{ total: number; sent: number; failed: number; skipped: number }>(
+        `/admin/creators/send-onboarding-bulk`,
+        { method: "POST" },
+      );
+      setAccountMsg(`Onboarding bulk: ${r.sent} sent, ${r.failed} failed, ${r.skipped} skipped (of ${r.total}).`);
+    } catch (e) {
+      setAccountMsg(`Bulk send failed: ${e instanceof Error ? e.message : "error"}`);
+    } finally {
+      setOnboardingBusy(false);
+    }
+  };
+
   // Admin-set Body / Face rating change. Optimistically updates local state
   // before the PUT lands; reverts on failure so the dropdown matches truth.
   const setCreatorRating = async (
@@ -396,6 +426,9 @@ export default function AdminDashboard() {
           onToggleVerified={(id, current) => toggleVerified("creator", id, current)}
           onSetRating={setCreatorRating}
           onView={(id) => openView("creator", id)}
+          onSendOnboarding={sendOnboarding}
+          onSendOnboardingBulk={sendOnboardingBulk}
+          onboardingBusy={onboardingBusy}
         />
       )}
 
