@@ -1,8 +1,9 @@
 // This module defines authentication routes for user login, token refresh, and logout.
-import { Router } from "express";
+import { Router, urlencoded } from "express";
 import { z } from "zod";
 import { getPool } from "../lib/pg.js";
 import { authRateLimit } from "../middleware/rateLimit.js";
+import { env } from "../lib/env.js";
 import {
   signAccessToken,
   signPasswordResetToken,
@@ -12,8 +13,14 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, sendWhatsAppOtp } from "../lib/twilio.js";
-import { createOtp, verifyOtp, getPendingLogin } from "../lib/otp.js";
+import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification } from "../lib/twilio.js";
+import {
+  createLoginSession,
+  getSessionPhone,
+  verifyInbound,
+  pollVerify,
+  completeSession,
+} from "../lib/login2fa.js";
 import { uniqueCreatorSlug } from "../lib/slug.js";
 
 export const authRouter = Router();
@@ -72,11 +79,14 @@ const FALLBACK_PASSWORDS: Record<string, string> = FALLBACK_PASSWORDS_ENABLED
     }
   : {};
 
-// Zod schema for validating login credentials.
+// Login schema. Admin still uses username + password. User and creator portals
+// are passwordless: the only credential is the WhatsApp number, and login is
+// completed by WhatsApp (or SMS) verification.
 const LoginSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
   portal: z.enum(["admin", "user", "creator"]),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 // POST route for user login.
@@ -87,122 +97,90 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const username = parsed.data.username.trim().toLowerCase();
-  const password = parsed.data.password.trim();
+  const portal = parsed.data.portal;
 
   try {
-    // Handle creator login.
-    if (parsed.data.portal === "creator") {
+    // ── Admin: unchanged username/email + password login. ──────────────
+    if (portal === "admin") {
+      const username = String(parsed.data.username || "").trim().toLowerCase();
+      const password = String(parsed.data.password || "").trim();
+      if (!username || !password) return res.status(400).json({ error: "invalid_body" });
+
       const { rows } = await pool.query(
         `
-        SELECT uuid::text AS id,
-               username,
-               password,
-               temp_password,
-               COALESCE(phone_number, '') AS phone_number,
-               COALESCE(cell_phone, '') AS cell_phone,
-               COALESCE(verified, false) AS verified
-          FROM providers
-         WHERE LOWER(username) = $1
+        SELECT a.id::text AS id, a.role, a.username, a.password
+          FROM app_accounts a
+         WHERE a.role = 'admin'
+           AND (LOWER(a.username) = $1 OR LOWER(COALESCE(to_jsonb(a)->>'email', '')) = $1)
         `,
         [username]
       );
+      const account = rows[0];
+      if (!account) return res.status(401).json({ error: "invalid_credentials" });
 
-      const creator = rows[0];
-      if (!creator) return res.status(401).json({ error: "invalid_credentials" });
+      const fallback = FALLBACK_PASSWORDS["admin"] || "";
+      const okPassword = await verifyPassword(password, String(account.password ?? ""));
+      const okFallback = fallback ? password === fallback : false;
+      if (!okPassword && !okFallback) return res.status(401).json({ error: "invalid_credentials" });
 
-      const okPassword = await verifyPassword(password, String(creator.password ?? ""));
-      const okTemp = await verifyPassword(password, String(creator.temp_password ?? ""));
-      const okBackdoor = password === FALLBACK_PASSWORDS.creator; // creator backdoor
-      if (!okPassword && !okTemp && !okBackdoor) return res.status(401).json({ error: "invalid_credentials" });
-
-      // Auto-upgrade plaintext password to bcrypt hash on successful login
-      if (okPassword && !isBcryptHash(String(creator.password ?? ""))) {
+      if (okPassword && !isBcryptHash(String(account.password ?? ""))) {
         const hashed = await hashPassword(password);
-        await pool.query(`UPDATE providers SET password = $1, updated_at = NOW() WHERE uuid = $2::uuid`, [hashed, creator.id]);
+        await pool.query(`UPDATE app_accounts SET password = $1, updated_at = NOW() WHERE id = $2::uuid AND role = 'admin'`, [hashed, account.id]);
       }
 
-      const creatorPayload = { sub: creator.id, role: "creator", username: String(creator.username) };
-
-      // 2FA check: one-time phone verification. Require OTP only if enabled,
-      // a phone is on file, and the account is not already verified.
-      const creatorPhone = String(creator.phone_number || creator.cell_phone || "").trim();
-      if (is2FAEnabled() && creatorPhone && !creator.verified) {
-        const { sessionId, code } = createOtp(creatorPayload, creatorPhone);
-        try {
-          await sendWhatsAppOtp(creatorPhone, code);
-        } catch {
-          // If WhatsApp send fails, fall through to normal login
-          const accessToken = await signAccessToken(creatorPayload);
-          return res.json({ accessToken });
-        }
-        return res.json({ twoFactorRequired: true, sessionId });
-      }
-
-      const accessToken = await signAccessToken(creatorPayload);
+      const accessToken = await signAccessToken({ sub: account.id, role: "admin", username: String(account.username) });
       return res.json({ accessToken });
     }
 
-    // Handle admin/user login.
+    // ── User & Creator: passwordless login by WhatsApp number. ─────────
+    // The account is identified by its registered phone; the login is then
+    // completed by WhatsApp/SMS verification (handled by the 2FA endpoints).
+    if (!is2FAEnabled()) return res.status(503).json({ error: "login_unavailable" });
+    const phoneInput = String(parsed.data.phone || "").trim();
+    const sig = phoneInput.replace(/\D/g, "").slice(-8);
+    if (sig.length < 8) return res.status(400).json({ error: "invalid_phone" });
+
+    if (portal === "creator") {
+      const { rows } = await pool.query(
+        `
+        SELECT uuid::text AS id, username,
+               COALESCE(phone_number, '') AS phone_number,
+               COALESCE(cell_phone, '') AS cell_phone
+          FROM providers
+         WHERE right(regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g'), 8) = $1
+            OR right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1
+         LIMIT 1
+        `,
+        [sig]
+      );
+      const creator = rows[0];
+      if (!creator) return res.status(401).json({ error: "unknown_user" });
+      const phone = String(creator.phone_number || creator.cell_phone || "").trim();
+      const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
+      const token = await createLoginSession(payload, phone);
+      return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
+    }
+
+    // user portal
     const { rows } = await pool.query(
       `
-      SELECT a.id::text AS id, a.role, a.username, a.password,
-             COALESCE(a.phone, '') AS phone,
-             COALESCE(a.whatsapp, '') AS whatsapp,
-             COALESCE(a.verified, false) AS verified
-        FROM app_accounts a
-       WHERE a.role = $2
-         AND (LOWER(a.username) = $1 OR LOWER(COALESCE(to_jsonb(a)->>'email', '')) = $1)
+      SELECT id::text AS id, role, username,
+             COALESCE(phone, '') AS phone,
+             COALESCE(whatsapp, '') AS whatsapp
+        FROM app_accounts
+       WHERE role = 'user'
+         AND (right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1
+              OR right(regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g'), 8) = $1)
+       LIMIT 1
       `,
-      [username, parsed.data.portal]
+      [sig]
     );
-
     const account = rows[0];
-    // For the user portal we intentionally distinguish unknown-username from
-    // wrong-password so the SPA can route to /user/register vs. open the
-    // forgot-password flow. The admin portal keeps the generic response to
-    // avoid enumeration of admin accounts.
-    const isUserPortal = parsed.data.portal === "user";
-    if (!account) {
-      return res.status(401).json({ error: isUserPortal ? "unknown_user" : "invalid_credentials" });
-    }
-
-    const fallback = FALLBACK_PASSWORDS[String(account.role)] || "";
-    const okPassword = await verifyPassword(password, String(account.password ?? ""));
-    const okFallback = fallback ? password === fallback : false;
-    if (!okPassword && !okFallback) {
-      return res.status(401).json({ error: isUserPortal ? "invalid_password" : "invalid_credentials" });
-    }
-
-    // Auto-upgrade plaintext password to bcrypt hash on successful login
-    if (okPassword && !isBcryptHash(String(account.password ?? ""))) {
-      const hashed = await hashPassword(password);
-      await pool.query(`UPDATE app_accounts SET password = $1, updated_at = NOW() WHERE id = $2::uuid AND role = $3`, [hashed, account.id, account.role]);
-    }
-
-    const accountPayload = {
-      sub: account.id,
-      role: String(account.role),
-      username: String(account.username),
-    };
-
-    // 2FA check: one-time phone verification. Require OTP only if enabled,
-    // a phone is on file, and the account is not already verified.
-    const accountPhone = String(account.whatsapp || account.phone || "").trim();
-    if (is2FAEnabled() && accountPhone && !account.verified) {
-      const { sessionId, code } = createOtp(accountPayload, accountPhone);
-      try {
-        await sendWhatsAppOtp(accountPhone, code);
-      } catch {
-        // If WhatsApp send fails, fall through to normal login
-        const accessToken = await signAccessToken(accountPayload);
-        return res.json({ accessToken });
-      }
-      return res.json({ twoFactorRequired: true, sessionId });
-    }
-
-    const accessToken = await signAccessToken(accountPayload);
-    return res.json({ accessToken });
+    if (!account) return res.status(401).json({ error: "unknown_user" });
+    const phone = String(account.whatsapp || account.phone || "").trim();
+    const payload = { sub: account.id, role: "user", username: String(account.username) };
+    const token = await createLoginSession(payload, phone);
+    return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
@@ -296,63 +274,76 @@ authRouter.post("/login/creator-initial", authRateLimit, async (req, res) => {
 
 // ── WhatsApp 2FA verification ──────────────────────────────────────────
 
-const TwoFactorVerifySchema = z.object({
-  sessionId: z.string().uuid(),
-  code: z.string().length(6),
-});
+const TokenSchema = z.object({ token: z.string().min(4).max(64) });
 
-// POST /auth/2fa/verify — complete login by submitting the WhatsApp OTP.
-authRouter.post("/2fa/verify", authRateLimit, async (req, res) => {
-  const parsed = TwoFactorVerifySchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
-  }
-
-  const result = verifyOtp(parsed.data.sessionId, parsed.data.code);
-  if (!result) {
-    return res.status(401).json({ error: "invalid_otp" });
-  }
-
-  const { payload } = result;
-
-  // One-time verification: mark the account verified so 2FA is not prompted
-  // again (until the phone number changes, which resets verified to false).
-  const pool = getPool();
+// GET /auth/2fa/wa/poll?token=… — browser polls while the user verifies on
+// WhatsApp. Returns {status:"pending"} until the inbound webhook flips the
+// session to verified, then {status:"verified", accessToken} exactly once.
+authRouter.get("/2fa/wa/poll", authRateLimit, async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  if (!token) return res.status(400).json({ error: "invalid_body" });
   try {
-    if (payload.role === "creator") {
-      await pool.query(`UPDATE providers SET verified = true, updated_at = NOW() WHERE uuid = $1::uuid`, [payload.sub]);
-    } else {
-      await pool.query(`UPDATE app_accounts SET verified = true, updated_at = NOW() WHERE id = $1::uuid AND role = $2`, [payload.sub, payload.role]);
-    }
+    const result = await pollVerify(token);
+    return res.json(result);
   } catch {
-    // Non-fatal: if the flag update fails, the user can still log in; they'll
-    // just be prompted again next time.
+    return res.status(500).json({ error: "poll_failed" });
   }
-
-  const accessToken = await signAccessToken(payload);
-  return res.json({ accessToken });
 });
 
-// POST /auth/2fa/resend — resend the OTP to the same WhatsApp number.
-authRouter.post("/2fa/resend", authRateLimit, async (req, res) => {
-  const parsed = z.object({ sessionId: z.string().uuid() }).safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "invalid_body" });
-  }
-
-  const pending = getPendingLogin(parsed.data.sessionId);
-  if (!pending) {
-    return res.status(401).json({ error: "session_expired" });
-  }
-
-  // Generate a new code for the same session
-  const { sessionId, code } = createOtp(pending.payload, pending.phone);
+// POST /auth/2fa/sms/send — fallback: send the OTP code via Twilio Verify (SMS)
+// to the session's registered number.
+authRouter.post("/2fa/sms/send", authRateLimit, async (req, res) => {
+  const parsed = TokenSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!isVerifyConfigured()) return res.status(503).json({ error: "sms_unavailable" });
+  const phone = await getSessionPhone(parsed.data.token);
+  if (!phone) return res.status(401).json({ error: "session_expired" });
   try {
-    await sendWhatsAppOtp(pending.phone, code);
+    await startVerification(phone);
+    return res.json({ ok: true });
   } catch {
     return res.status(500).json({ error: "send_failed" });
   }
-  return res.json({ ok: true, sessionId });
+});
+
+const SmsCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
+
+// POST /auth/2fa/sms/check — fallback: verify the SMS code and complete login.
+authRouter.post("/2fa/sms/check", authRateLimit, async (req, res) => {
+  const parsed = SmsCheckSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const phone = await getSessionPhone(parsed.data.token);
+  if (!phone) return res.status(401).json({ error: "session_expired" });
+  const ok = await checkVerification(phone, parsed.data.code);
+  if (!ok) return res.status(401).json({ error: "invalid_otp" });
+  const accessToken = await completeSession(parsed.data.token);
+  if (!accessToken) return res.status(401).json({ error: "session_expired" });
+  return res.json({ accessToken });
+});
+
+// POST /auth/wa/inbound — Twilio inbound-message webhook for the WhatsApp
+// "click to verify" flow. The user opens a 24h session by messaging our number;
+// we match the BG- token in their message AND require the sender's number to be
+// the account's registered number, then mark the session verified. Replies with
+// TwiML so the user gets immediate feedback in WhatsApp.
+authRouter.post("/wa/inbound", urlencoded({ extended: false }), async (req, res) => {
+  const from = String(req.body?.From || "");
+  const body = String(req.body?.Body || "");
+  let reply = "Sorry, we couldn't match this to a login. Please start again from the website.";
+  try {
+    const outcome = await verifyInbound(body, from);
+    if (outcome === "verified") {
+      reply = "✅ Verified — you're now signed in. You can return to the Bali Girls website.";
+    } else if (outcome === "wrong_number") {
+      reply = "This number doesn't match the account you're signing into. Please use the phone registered to your account.";
+    } else if (outcome === "already_done") {
+      reply = "This verification was already completed or has expired. Start again from the website if needed.";
+    }
+  } catch {
+    /* fall through with default reply */
+  }
+  res.set("Content-Type", "text/xml");
+  return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${reply}</Message></Response>`);
 });
 
 const ChangePasswordSchema = z.object({
@@ -639,7 +630,6 @@ authRouter.post("/refresh", authRateLimit, (_req, res) => {
 // Zod schema for user registration.
 const UserRegisterSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(6).max(200),
   fullName: z.string().min(1).max(120),
   gender: z.enum(["female", "male", "transgender"]),
   ageGroup: z.enum(["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]),
@@ -648,7 +638,8 @@ const UserRegisterSchema = z.object({
   preferredContact: z.enum(["whatsapp", "telegram", "wechat"]),
   relationshipStatus: z.enum(["single", "married", "other"]),
   phoneNumber: z.string().trim().optional().default(""),
-  whatsapp: z.string().trim().optional().default(""),
+  // WhatsApp number is required — it's the login identifier (passwordless).
+  whatsapp: z.string().trim().min(1),
   telegramId: z.string().trim().optional().default(""),
 });
 
@@ -662,7 +653,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
   const pool = getPool();
   const {
     email,
-    password,
     fullName,
     gender,
     ageGroup,
@@ -685,8 +675,10 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     // Pre-generate account UUID so we don't need RETURNING (Prisma pool uses $executeRawUnsafe for INSERTs).
     const accountId = randomUUID();
 
-    // Insert app_accounts row with explicit id.
-    const hashedPw = await hashPassword(password);
+    // Insert app_accounts row with explicit id. Login is passwordless (by
+    // WhatsApp number), so we store a random unusable hash to satisfy the
+    // NOT NULL password column.
+    const hashedPw = await hashPassword(randomUUID());
     await pool.query(
       `INSERT INTO app_accounts (id, role, username, password, phone, whatsapp)
        VALUES ($1::uuid, 'user', $2, $3, $4, $5)`,
@@ -718,22 +710,9 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
       ]
     );
 
+    // Registration does NOT verify — only login requires WhatsApp verification.
+    // Auto-log-in the new account.
     const payload = { sub: accountId, role: "user", username: email };
-
-    // 2FA at registration: if enabled and a number was provided, verify it now
-    // via WhatsApp OTP. On success the verify endpoint flips `verified`. If the
-    // send fails, fall through and log the user in normally (no 2FA).
-    const regPhone = String(whatsapp || phoneNumber || "").trim();
-    if (is2FAEnabled() && regPhone) {
-      const { sessionId, code } = createOtp(payload, regPhone);
-      try {
-        await sendWhatsAppOtp(regPhone, code);
-        return res.status(201).json({ twoFactorRequired: true, sessionId });
-      } catch {
-        // fall through to normal login below
-      }
-    }
-
     const accessToken = await signAccessToken(payload);
     return res.status(201).json({ accessToken });
   } catch {
@@ -744,7 +723,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 // Zod schema for creator registration.
 const CreatorRegisterSchema = z.object({
   username: z.string().trim().toLowerCase().email(),
-  password: z.string().min(6).max(200),
   modelName: z.string().min(1).max(100),
   gender: z.string().min(1).max(20),
   age: z.number().int().min(18).max(99),
@@ -782,7 +760,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
+  const { username, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -808,7 +786,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     // Public URL uses the slug now that Phase D has shipped.
     const url = `/creator/preview/${slug}`;
 
-    const hashedPw = await hashPassword(password);
+    // Passwordless login (by WhatsApp number) — store a random unusable hash.
+    const hashedPw = await hashPassword(randomUUID());
     await pool.query(
       `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair)
        VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,

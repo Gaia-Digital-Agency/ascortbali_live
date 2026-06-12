@@ -1,6 +1,8 @@
-// In-memory OTP store for WhatsApp 2FA.
-// Each pending login gets a random ID, a 6-digit code, and the user payload needed to issue tokens.
+// In-memory OTP store for 2FA.
+// Each pending login gets a random ID, a 6-digit code (used only on the
+// self-managed WhatsApp path), and the user payload needed to issue tokens.
 import { randomUUID, randomInt } from "crypto";
+import { isVerifyConfigured, checkVerification } from "./twilio.js";
 
 export type PendingLogin = {
   code: string;
@@ -51,6 +53,43 @@ export function verifyOtp(
   }
 
   if (entry.code !== code) return null;
+
+  // Success — clean up
+  store.delete(sessionId);
+  return { payload: entry.payload, phone: entry.phone };
+}
+
+/**
+ * Verify a code for a session. When Twilio Verify is configured, the code is
+ * checked by Twilio (we only keep the session→payload mapping here, and still
+ * enforce local expiry + attempt limits); otherwise it falls back to the
+ * self-managed code comparison in verifyOtp. Returns the payload + phone on
+ * success, or null on failure.
+ */
+export async function checkOtp(
+  sessionId: string,
+  code: string
+): Promise<{ payload: PendingLogin["payload"]; phone: string } | null> {
+  if (!isVerifyConfigured()) return verifyOtp(sessionId, code);
+
+  const entry = store.get(sessionId);
+  if (!entry) return null;
+
+  // Expired
+  if (Date.now() > entry.expiresAt) {
+    store.delete(sessionId);
+    return null;
+  }
+
+  // Too many attempts
+  entry.attempts += 1;
+  if (entry.attempts > MAX_ATTEMPTS) {
+    store.delete(sessionId);
+    return null;
+  }
+
+  const ok = await checkVerification(entry.phone, code);
+  if (!ok) return null;
 
   // Success — clean up
   store.delete(sessionId);

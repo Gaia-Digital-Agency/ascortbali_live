@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, apiFetch, clearTokens, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
@@ -69,8 +69,12 @@ export default function LoginForm({
   footer,
   beforeLogin,
 }: LoginFormProps) {
+  // Admin still logs in with username/password. User & creator are passwordless:
+  // they log in with their WhatsApp number, then verify on WhatsApp.
+  const passwordless = portal !== "admin";
   const [username, setUsername] = useState(defaultEmail);
   const [password, setPassword] = useState(defaultPassword);
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgot, setShowForgot] = useState(false);
@@ -86,28 +90,79 @@ export default function LoginForm({
   const [showRecoverOldPassword, setShowRecoverOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 2FA state
-  const [twoFactorSessionId, setTwoFactorSessionId] = useState<string | null>(null);
+  // 2FA state (WhatsApp-primary, SMS fallback)
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [waNumber, setWaNumber] = useState("");
+  const [smsMode, setSmsMode] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpResending, setOtpResending] = useState(false);
 
   const navigate = useNavigate();
+
+  // While awaiting WhatsApp verification, poll the session. The inbound webhook
+  // flips it to "verified" once the user messages us from their registered
+  // number; we then receive a one-time access token and finish sign-in.
+  useEffect(() => {
+    if (!twoFactorToken || smsMode) return;
+    let active = true;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/2fa/wa/poll?token=${encodeURIComponent(twoFactorToken)}`);
+        const json = await res.json();
+        if (!active) return;
+        if (json.status === "verified" && json.accessToken) {
+          clearInterval(id);
+          setTokens({ accessToken: json.accessToken });
+          try {
+            const profile = await apiFetch("/me");
+            if (roleCheck && !roleCheck(profile.role)) {
+              clearTokens();
+              setError(roleErrorMessage);
+              setTwoFactorToken(null);
+              return;
+            }
+          } catch {
+            /* ignore profile fetch hiccup; redirect will re-auth if needed */
+          }
+          window.location.href = withBasePath(redirectPath);
+        } else if (json.status === "expired") {
+          clearInterval(id);
+          setError("Verification timed out. Please sign in again.");
+          setTwoFactorToken(null);
+        }
+      } catch {
+        /* transient network error — keep polling */
+      }
+    }, 3000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [twoFactorToken, smsMode]);
 
   const doLogin = async () => {
     setLoading(true);
     setError(null);
     try {
+      const body = passwordless ? { phone, portal } : { username, password, portal };
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password, portal }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok) {
-        // User portal: branch the UX off the specific error code returned by
-        // /auth/login (see auth.ts — `unknown_user` vs `invalid_password`).
-        // Other portals keep the generic flow.
+        // Passwordless: an unknown number on the user portal routes to register.
+        if (passwordless && json?.error === "unknown_user") {
+          if (portal === "user") {
+            navigate("/user/register");
+            return;
+          }
+          throw new Error("No account found for that WhatsApp number.");
+        }
+        // Admin (password) portal: distinguish unknown vs wrong password.
         if (portal === "user" && json?.error === "unknown_user") {
           navigate(`/user/register?email=${encodeURIComponent(username.trim())}`);
           return;
@@ -121,9 +176,11 @@ export default function LoginForm({
         throw new Error(json?.error ?? "Login failed");
       }
 
-      // Handle 2FA challenge
+      // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
       if (json.twoFactorRequired) {
-        setTwoFactorSessionId(json.sessionId);
+        setTwoFactorToken(json.token);
+        setWaNumber(json.waNumber || "");
+        setSmsMode(false);
         setOtpCode("");
         return;
       }
@@ -143,15 +200,40 @@ export default function LoginForm({
     }
   };
 
+  // Fallback path: send the OTP code over SMS (Twilio Verify) and switch to the
+  // code-entry view.
+  const sendSms = async () => {
+    if (!twoFactorToken) return;
+    setSmsSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/sms/send`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: twoFactorToken }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error === "sms_unavailable" ? "SMS isn't available right now." : "Could not send the SMS code.");
+      }
+      setSmsMode(true);
+      setOtpCode("");
+    } catch (err: any) {
+      setError(err.message ?? "Unable to send SMS.");
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
   const verifyOtp = async () => {
-    if (!twoFactorSessionId || otpCode.length !== 6) return;
+    if (!twoFactorToken || otpCode.length !== 6) return;
     setOtpLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/2fa/verify`, {
+      const res = await fetch(`${API_BASE}/auth/2fa/sms/check`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: twoFactorSessionId, code: otpCode }),
+        body: JSON.stringify({ token: twoFactorToken, code: otpCode }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error === "invalid_otp" ? "Invalid or expired code. Please try again." : "Verification failed.");
@@ -168,27 +250,6 @@ export default function LoginForm({
       setError(err.message ?? "Unable to verify code.");
     } finally {
       setOtpLoading(false);
-    }
-  };
-
-  const resendOtp = async () => {
-    if (!twoFactorSessionId) return;
-    setOtpResending(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/auth/2fa/resend`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: twoFactorSessionId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error("Could not resend code.");
-      setTwoFactorSessionId(json.sessionId);
-      setOtpCode("");
-    } catch (err: any) {
-      setError(err.message ?? "Unable to resend code.");
-    } finally {
-      setOtpResending(false);
     }
   };
 
@@ -279,7 +340,16 @@ export default function LoginForm({
   };
 
   // 2FA OTP screen
-  if (twoFactorSessionId) {
+  if (twoFactorToken) {
+    const waDigits = waNumber.replace(/\D/g, "");
+    const waText = `Verify my Bali Girls login — ${twoFactorToken} (please don't edit this message)`;
+    const waHref = `https://wa.me/${waDigits}?text=${encodeURIComponent(waText)}`;
+    const resetTwoFactor = () => {
+      setTwoFactorToken(null);
+      setSmsMode(false);
+      setOtpCode("");
+      setError(null);
+    };
     return (
       <div className="mx-auto max-w-md space-y-6">
         <div className="text-center">
@@ -288,58 +358,101 @@ export default function LoginForm({
         </div>
 
         <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
-          <div className="space-y-4">
-            <p className="text-sm text-brand-muted">
-              We sent a 6-digit code to your WhatsApp. Enter it below to complete sign in.
-            </p>
+          {!smsMode ? (
+            <div className="space-y-4">
+              <p className="text-sm text-brand-muted">
+                Tap below to verify on WhatsApp. We&apos;ll confirm it&apos;s you from your registered number —
+                no code to type. Just send the pre-filled message and return here.
+              </p>
 
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                aria-label="Verification code"
-              />
-            </div>
-
-            {error ? <div className="text-xs text-red-400">{error}</div> : null}
-
-            <button
-              disabled={otpLoading || otpCode.length !== 6}
-              onClick={verifyOtp}
-              className="btn btn-primary btn-block min-h-[44px] py-3"
-            >
-              {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
-            </button>
-
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                disabled={otpResending}
-                onClick={resendOtp}
-                className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
+              <a
+                href={waHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-block min-h-[44px] py-3 inline-flex items-center justify-center"
               >
-                {otpResending ? "Sending..." : "Resend code"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTwoFactorSessionId(null);
-                  setOtpCode("");
-                  setError(null);
-                }}
-                className="min-h-[44px] text-brand-muted hover:text-brand-text"
-              >
-                Back to login
-              </button>
+                VERIFY ON WHATSAPP
+              </a>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-brand-muted">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand-gold" />
+                Waiting for WhatsApp confirmation…
+              </div>
+
+              {error ? <div className="text-xs text-red-400">{error}</div> : null}
+
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  disabled={smsSending}
+                  onClick={sendSms}
+                  className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
+                >
+                  {smsSending ? "Sending…" : "Use SMS instead"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetTwoFactor}
+                  className="min-h-[44px] text-brand-muted hover:text-brand-text"
+                >
+                  Back to login
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-brand-muted">
+                We sent a 6-digit code by SMS to your registered number. Enter it below to complete sign in.
+              </p>
+
+              <div>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
+                <input
+                  className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  aria-label="Verification code"
+                />
+              </div>
+
+              {error ? <div className="text-xs text-red-400">{error}</div> : null}
+
+              <button
+                disabled={otpLoading || otpCode.length !== 6}
+                onClick={verifyOtp}
+                className="btn btn-primary btn-block min-h-[44px] py-3"
+              >
+                {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
+              </button>
+
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  disabled={smsSending}
+                  onClick={sendSms}
+                  className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
+                >
+                  {smsSending ? "Sending…" : "Resend SMS"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSmsMode(false);
+                    setOtpCode("");
+                    setError(null);
+                  }}
+                  className="min-h-[44px] text-brand-muted hover:text-brand-text"
+                >
+                  Back to WhatsApp
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -354,47 +467,80 @@ export default function LoginForm({
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">{emailLabel}</label>
-            <input
-              className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder={emailPlaceholder}
-              aria-label="Email"
-            />
-          </div>
+          {passwordless ? (
+            <>
+              <div>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP NUMBER</label>
+                <input
+                  className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+62 812 3456 7890"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  aria-label="WhatsApp number"
+                />
+                <p className="mt-2 text-xs text-brand-muted">
+                  Enter the WhatsApp number on your account — we&apos;ll verify it on WhatsApp. No password needed.
+                </p>
+              </div>
 
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">PASSWORD</label>
-            <PasswordInput
-              className="mt-2"
-              value={password}
-              onChange={setPassword}
-              visible={showPassword}
-              onToggleVisibility={() => setShowPassword((prev) => !prev)}
-            />
-          </div>
+              {error ? <div className="text-xs text-red-400">{error}</div> : null}
 
-          {error ? <div className="text-xs text-red-400">{error}</div> : null}
+              <button
+                disabled={loading || phone.replace(/\D/g, "").length < 8}
+                className="btn btn-primary btn-block min-h-[44px] py-3"
+              >
+                {loading ? "CHECKING..." : "CONTINUE"}
+              </button>
 
-          <button disabled={loading} className="btn btn-primary btn-block min-h-[44px] py-3">
-            {loading ? "SIGNING IN..." : `${label} SIGN IN`}
-          </button>
+              {footer}
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">{emailLabel}</label>
+                <input
+                  className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder={emailPlaceholder}
+                  aria-label="Email"
+                />
+              </div>
 
-          <button
-            type="button"
-            className="btn btn-outline btn-block min-h-[44px] py-3"
-            onClick={() => {
-              setShowForgot((prev) => !prev);
-              setError(null);
-              setRecoverMessage(null);
-            }}
-          >
-            FORGET PASSWORD
-          </button>
+              <div>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">PASSWORD</label>
+                <PasswordInput
+                  className="mt-2"
+                  value={password}
+                  onChange={setPassword}
+                  visible={showPassword}
+                  onToggleVisibility={() => setShowPassword((prev) => !prev)}
+                />
+              </div>
 
-          {footer}
+              {error ? <div className="text-xs text-red-400">{error}</div> : null}
+
+              <button disabled={loading} className="btn btn-primary btn-block min-h-[44px] py-3">
+                {loading ? "SIGNING IN..." : `${label} SIGN IN`}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-block min-h-[44px] py-3"
+                onClick={() => {
+                  setShowForgot((prev) => !prev);
+                  setError(null);
+                  setRecoverMessage(null);
+                }}
+              >
+                FORGET PASSWORD
+              </button>
+
+              {footer}
+            </>
+          )}
         </form>
 
         {showForgot ? (

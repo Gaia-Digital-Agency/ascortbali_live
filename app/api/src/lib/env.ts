@@ -43,6 +43,19 @@ const EnvSchema = z.object({
   // 2FA OTP. Required for production business-initiated sends; when unset the
   // OTP falls back to a freeform body (sandbox / 24h window only).
   TWILIO_OTP_CONTENT_SID: z.string().optional(),
+  // Twilio Verify service ("VA…"). Preferred OTP path: Twilio generates, sends,
+  // and checks the code using its own pre-approved templates, so it needs no
+  // WhatsApp Business template/WABA of our own. When set, it takes precedence
+  // over the self-managed code + TWILIO_WHATSAPP_FROM path.
+  TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
+  // Channel Verify uses to deliver the OTP: "sms" (default), "whatsapp", or "call".
+  // SMS works regardless of WhatsApp/WABA status; switch to "whatsapp" once a
+  // healthy WhatsApp sender is connected.
+  TWILIO_VERIFY_CHANNEL: z.string().optional(),
+  // WhatsApp number (E.164, with +) users message to verify via the "click to
+  // WhatsApp" flow. This is the real connected sender (not the sandbox). The
+  // login response hands it to the browser to build the wa.me deep link.
+  WHATSAPP_INBOUND_NUMBER: z.string().default("+17407628065"),
 
   // Public site origin used to build links in outbound messages (no trailing slash).
   PUBLIC_SITE_URL: z.string().default("https://baligirls.gaiada2.online"),

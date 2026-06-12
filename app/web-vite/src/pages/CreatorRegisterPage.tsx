@@ -45,8 +45,6 @@ const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase())
 
 export default function CreatorRegisterPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
   // Category is multi-select since 2026-05; default to a single-element list
@@ -65,7 +63,6 @@ export default function CreatorRegisterPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [wechatId, setWechatId] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,14 +78,6 @@ export default function CreatorRegisterPage() {
 
     if (!hasAllConfirmations) {
       setError("Please confirm all agreements before registering.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
       return;
     }
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
@@ -111,7 +100,6 @@ export default function CreatorRegisterPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           username: email.trim().toLowerCase(),
-          password,
           modelName: modelName.trim(),
           gender,
           age: parseInt(age, 10),
@@ -165,28 +153,9 @@ export default function CreatorRegisterPage() {
             <input required type="email" className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="username@email.com" aria-label="Username email" />
           </div>
 
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">PASSWORD</label>
-            <div className="relative mt-2">
-              <input
-                required
-                type={showPassword ? "text" : "password"}
-                className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 pr-16 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                aria-label="Password"
-              />
-              <button type="button" className="absolute right-0 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs text-brand-muted hover:text-brand-text" onClick={() => setShowPassword((p) => !p)}>
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">CONFIRM PASSWORD</label>
-            <input required type={showPassword ? "text" : "password"} className={inp} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" aria-label="Confirm password" />
-          </div>
+          <p className="text-xs text-brand-muted">
+            No password needed — you&apos;ll sign in with your WhatsApp number and verify on WhatsApp.
+          </p>
 
           <hr className="border-brand-line" />
 

@@ -55,6 +55,10 @@ app.use(cors({ origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost
 // CSRF protection: require X-Requested-With header on state-changing requests.
 app.use((req, res, next) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  // Twilio inbound webhook posts form-encoded with no custom header; it's an
+  // external server-to-server callback, not a browser, so CSRF doesn't apply.
+  // It's protected instead by token-in-body + sender-number matching.
+  if (req.path === "/auth/wa/inbound") return next();
   if (req.headers["x-requested-with"]) return next();
   // Allow requests with content-type application/json (browsers don't send this cross-origin without CORS preflight)
   if (req.headers["content-type"]?.includes("application/json")) return next();
