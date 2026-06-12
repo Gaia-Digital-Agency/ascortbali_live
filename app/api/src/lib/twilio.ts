@@ -43,24 +43,25 @@ export function isWhatsAppConfigured(): boolean {
 }
 
 /**
- * Send the creator onboarding invite: the initial-login link plus the creator's
- * temp password (their mobile number). If TWILIO_ONBOARDING_CONTENT_SID is set,
- * the approved WhatsApp template is used (required for production business-
- * initiated messages); otherwise a freeform body is sent (sandbox / 24h window).
- * Template variables: {{1}} = login URL, {{2}} = temp password.
+ * Send the creator onboarding invite. Login is now passwordless (by WhatsApp
+ * number), so the invite simply points the creator to the normal login page;
+ * the `tempPassword` argument is accepted for call-site compatibility but no
+ * longer used. If TWILIO_ONBOARDING_CONTENT_SID is set, the approved WhatsApp
+ * template is used; otherwise a freeform body is sent (24h window).
+ * Template variable: {{1}} = login URL.
  */
-export async function sendOnboardingInvite(phone: string, tempPassword: string): Promise<void> {
+export async function sendOnboardingInvite(phone: string, _tempPassword?: string): Promise<void> {
   const tw = getClient();
   const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
   const from = env.TWILIO_WHATSAPP_FROM!;
-  const url = `${env.PUBLIC_SITE_URL.replace(/\/+$/, "")}/creator/initial-login`;
+  const url = `${env.PUBLIC_SITE_URL.replace(/\/+$/, "")}/creator`;
 
   if (env.TWILIO_ONBOARDING_CONTENT_SID) {
     await tw.messages.create({
       to,
       from,
       contentSid: env.TWILIO_ONBOARDING_CONTENT_SID,
-      contentVariables: JSON.stringify({ "1": url, "2": tempPassword }),
+      contentVariables: JSON.stringify({ "1": url }),
     });
     return;
   }
@@ -69,9 +70,8 @@ export async function sendOnboardingInvite(phone: string, tempPassword: string):
     to,
     from,
     body:
-      `Welcome to Bali Girls! Please visit ${url} to verify your login and ` +
-      `begin using the site. Log in with your mobile number as your temporary ` +
-      `password: ${tempPassword}`,
+      `Welcome to Bali Girls! Log in at ${url} using your WhatsApp number — ` +
+      `we'll verify it on WhatsApp. No password needed.`,
   });
 }
 
