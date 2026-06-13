@@ -38,6 +38,36 @@ which are excluded (listed in the file's Skipped section).
 2. **One message per number** — never message a number twice; never message a number not on the list.
 3. Numbers are E.164 (`+` + digits); sanity-check obviously malformed ones before sending.
 
+## What the creator experiences (after they tap the link)
+
+The invite is just the front door. Sign-in itself is **passwordless** and verified by WhatsApp —
+no password to remember, no template, no app to install.
+
+1. **Gets the invite** — a personal WhatsApp from Charlie (**+62 817-6917-122**) with the
+   `…/creator` link.
+2. **Taps the link** → the creator sign-in page. Enters their **WhatsApp number** (the same one
+   we messaged). The system finds their pre-seeded profile by that number.
+3. **Verifies by WhatsApp (user-initiated click-to-verify)** — the page shows a one-tap
+   `wa.me` button pre-filled with a short code (`BG-…`) addressed to the site's
+   **verification line +1 740 762 8065**. The creator taps it, WhatsApp opens with the message
+   ready, and they hit **Send**.
+4. **Auto-logged in** — the backend confirms by matching that inbound code from their number
+   (it polls Twilio's Messages API), flips their account to `verified`, and signs them in. No
+   code to type back.
+5. **Lands on their profile** — they can now add photos and details. Their profile is live at
+   their slug URL (e.g. `…/creator/preview/<slug>`).
+
+### Verification recap (the mechanics)
+- **Passwordless** for users & creators: identify by WhatsApp number → verify by WhatsApp.
+- **Primary path = user-initiated click-to-verify**: works **without** message templates or Meta
+  business verification, using the free-form 24h window opened when the person messages first.
+- **Twilio is used only here** (to read the inbound code via the Messages API) — **not** for the
+  invitations. The SMS-OTP fallback exists but is **disabled** in the UI.
+- ⚠️ Two different numbers, by design: creators are **invited** from Charlie's
+  **+62 817-6917-122**, but they **verify by messaging +1 740 762 8065**. The invite copy points
+  them to the website, not to a reply — so this is seamless, but keep it in mind for support.
+- Full detail: `../verification/whatsapp-auth-lessons.md` (authoritative).
+
 ## Status & risks
 - ⏳ **Not live yet** — Charlie's WhatsApp line must be re-linked (QR scan) before any send;
   his on-host brain (`AGENTS.md`) still describes the old verifier role and must be rewritten
