@@ -32,6 +32,23 @@ creator sign-in link.
 +62 Indonesia (192). It was built from 230 creators minus **16 profiles on 6 duplicate numbers**,
 which are excluded (listed in the file's Skipped section).
 
+### By country code (214 total)
+| Country | Invites |
+|---|---|
+| +62 Indonesia | 192 |
+| +7 Russia/KZ | 7 |
+| +44 UK | 2 |
+| +66 Thailand | 2 |
+| +61 Australia | 2 |
+| +373 Moldova | 2 |
+| +86 China | 1 |
+| +65 Singapore | 1 |
+| +971 UAE | 1 |
+| +972 Israel | 1 |
+| +60 Malaysia | 1 |
+| +33 France | 1 |
+| +380 Ukraine | 1 |
+
 ## Send rules
 1. For each row in `creator_contact.md`, send the template in its **Template** column with
    `{{name}}` replaced by **Name**.
@@ -73,5 +90,8 @@ no password to remember, no template, no app to install.
   his on-host brain (`AGENTS.md`) still describes the old verifier role and must be rewritten
   for this invite job.
 - ⚠️ **Ban risk** — bulk, unsolicited, business-initiated marketing over an unofficial WhatsApp
-  Web client can get the number banned. Before a real run, decide throttling (slow drip, not a
-  blast), warm-up, and an opt-out/stop handling rule.
+  Web client can get the number banned.
+  - **Recommended throttle: max ~20 messages per day, sent ~1 hour apart, paced by OpenClaw**
+    (Charlie self-schedules the drip — no manual blasting). At 20/day, the full 214-contact run
+    takes ~11 days.
+  - Also decide warm-up (start with a handful/day, ramp up) and an opt-out/stop handling rule.
