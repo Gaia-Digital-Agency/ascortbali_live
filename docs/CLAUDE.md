@@ -35,14 +35,20 @@ Repurpose the `.openclaw-chs` agent **"Charlie"** from *number verifier* → *in
   follow-up needed.
 - Message body = the `templates/<category>.md` matching the creator's **DEMS category**
   (`dating`, `escorts`, `massage`, `sugar`, `trans`); `{{name}}` is the only merge field.
-- Recipient list (name, WhatsApp number, category) comes from the **app DB** — each creator is
-  already DEMS-tagged. Wire the exact table/column when building the send job.
+- Recipient list = **`templates/creator_contact.md`** (214 invites), generated from the app DB
+  (`providers`): name ← `model_name`, phone ← `cell_phone` (E.164-normalised), category ←
+  `gender='trans'` else `escort_type` (`escort→escorts`, `dating`, `massage`, `sugar babies→sugar`).
+  6 duplicate numbers (16 escort profiles) are excluded. Regenerate when the creator list changes.
+- Strategy + verification recap + country breakdown + throttle live in **`templates/invite_brief.md`**.
 - **No Twilio in this path** — Charlie sends directly over OpenClaw's WhatsApp channel. (Twilio is
   used *only* for login verification; see `verification/whatsapp-auth-lessons.md`.)
+- **Throttle**: ~20 invites/day, ~1h apart, OpenClaw-paced (~11 days for the full run).
 
-Still to do: rewrite Charlie's on-host brain (`/opt/.openclaw-chs/workspace-charlie/AGENTS.md`,
-`SKILLS.md`, etc.) and the `verification/` docs (`architecture.md`, `runbook.md`, `verify-flow.md`,
-`bootstrap-chs.sh`) — they all still describe the old verifier behaviour.
+Still to do (the plan): (1) re-link Charlie's WhatsApp + DNS/TLS; (2) rewrite his on-host brain
+(`/opt/.openclaw-chs/workspace-charlie/AGENTS.md`, `SKILLS.md`, `IDENTITY.md`) and the stale
+`verification/` docs from verifier → inviter; (3) build the drip send job (read `creator_contact.md`
+→ pick `<category>.md` → fill `{{name}}` → send → mark sent → schedule next, cap ~20/day);
+(4) define opt-out/stop handling + warm-up.
 
 ## OpenClaw fleet conventions (gda-ai01)
 
@@ -87,7 +93,9 @@ OPENCLAW_CONFIG_PATH=/opt/.openclaw-chs/openclaw.json OPENCLAW_STATE_DIR=/opt/.o
 ## Status — 2026-06-14
 
 - ✅ Login verification shipped (user-initiated WhatsApp click-to-verify; Twilio = login only).
-- ✅ `templates/` cleaned (5 DEMS categories, `{{name}}` merge field).
-- 🔜 Invitation repurpose decided — Charlie brain + `verification/` docs rewrite pending; DB→send job pending.
+- ✅ `templates/` complete: 5 DEMS templates (`{{name}}`), `creator_contact.md` (214 invites),
+  `invite_brief.md` (strategy + verification recap + country breakdown + throttle).
+- ✅ Throttle agreed: ~20/day, ~1h apart, OpenClaw-paced.
+- 🔜 Invitation repurpose decided — Charlie brain + `verification/` docs rewrite pending; drip send job pending.
 - ⏳ WhatsApp line +62 817-6917-122 **not yet linked** — owner will rescan QR later to activate.
 - ⏳ Panel TLS pending DNS (point `chs.gaiada.online` → 34.143.206.68).

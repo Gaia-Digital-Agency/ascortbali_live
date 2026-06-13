@@ -87,12 +87,29 @@ and links to `…/creator`.
 - ✅ `templates/creator_contact.md` generated from the app DB — **214 invites** (230 creators
   − 16 profiles on 6 duplicate numbers, now excluded): escorts 154 / dating 29 / massage 14 /
   sugar 11 / trans 6. Mostly +62 Indonesia (192). Regenerate when the creator list changes.
+- ✅ `templates/invite_brief.md` written — the invitation strategy: who sends, category→template
+  mapping, the 214-contact list + country-code breakdown, the creator's sign-in/verification
+  experience, send rules, and the ban-risk throttle.
 - ✅ Charlie's OpenClaw instance/service exists and runs (bound on :19389).
+- ✅ **Recommended throttle agreed**: ~20 invites/day, ~1h apart, paced by OpenClaw (~11 days for
+  the full run); warm-up + opt-out still to define.
 - 🔜 **Repurpose decided, not yet built**: rewrite Charlie's brain (`AGENTS.md` etc.) +
-  `verification/` docs for the invitation role; wire the DB → category → template send job.
+  `verification/` docs for the invitation role; wire the send/drip job (read `creator_contact.md`
+  → pick `<category>.md` → fill `{{name}}` → schedule).
 - ⏳ **WhatsApp line not linked** — owner will **rescan the QR later** to activate +62 817-6917-122.
   Foundation is being prepared in the meantime.
 - ⏳ **Panel TLS pending DNS** — `chs.gaiada.online` must point to gda-ai01 `34.143.206.68`
   before certbot. See `verification/runbook.md`.
 - ⚠️ **Open risk**: bulk unsolicited business-initiated marketing over an unofficial WhatsApp
-  Web client carries a real number-ban risk; throttling / opt-out / warm-up to be decided.
+  Web client carries a real number-ban risk — mitigated by the drip throttle above.
+
+## Plan / next steps (when work resumes)
+
+1. **Re-link Charlie's WhatsApp** (+62 817-6917-122) via the QR scan; fix DNS → TLS for the panel.
+2. **Rewrite Charlie's brain** (`AGENTS.md`, `SKILLS.md`, `IDENTITY.md`) from verifier → inviter,
+   plus the stale `verification/` docs.
+3. **Build the drip send job**: read `templates/creator_contact.md`, match each contact's
+   `<category>.md`, substitute `{{name}}`, send one message, mark sent, schedule next ~1h later,
+   cap ~20/day.
+4. **Define opt-out / stop handling** and a warm-up ramp before the first real batch.
+5. **Sanity-check malformed numbers** (e.g. the short +60 Malaysia number) before sending.
