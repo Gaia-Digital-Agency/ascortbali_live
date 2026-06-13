@@ -210,7 +210,7 @@ export function useSiteSettings() {
 
 // ── Featured carousel: Girl 1, Ad 1, Girl 2, Ad 2, Girl 3, Ad 3, Girl 4 ──
 
-export function FeaturedCarousel() {
+export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }) {
   const ads = useAdSpaces();
   const settings = useSiteSettings();
   const [girls, setGirls] = useState<(FeaturedCreator | null)[]>([null, null, null, null]);
@@ -247,7 +247,17 @@ export function FeaturedCarousel() {
         );
         // Preserve the slot order set in the admin (girl_1..girl_4).
         const result = names.map((name) => name ? byLower.get(name.toLowerCase()) ?? null : null);
-        setGirls(result);
+        // If a category filter is active, hide featured girls that don't match
+        if (categoryFilter) {
+          const filtered = result.map((girl) => {
+            if (!girl) return null;
+            const cats = parseCategoryCsv(girl.escort_type);
+            return cats.has(categoryFilter.toLowerCase()) ? girl : null;
+          });
+          setGirls(filtered);
+        } else {
+          setGirls(result);
+        }
       } catch { /* ignore */ }
     })();
   }, [settings]);
@@ -328,6 +338,15 @@ export function FeaturedCarousel() {
     );
   };
 
+
+  // When a category filter is active, skip rendering the featured carousel
+  // entirely if none of the featured girls match the filter (avoids showing
+  // 4 empty placeholder cards).
+  const hasVisibleGirls = categoryFilter
+    ? girls.some((g) => g !== null)
+    : girls.some((g) => g !== null);
+
+  if (!hasVisibleGirls) return null;
 
   return (
     <div ref={scrollRef}>

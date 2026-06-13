@@ -329,7 +329,7 @@ export default function HomePage() {
 
         {/* 1. Featured Girls cards (label is now above this wrapper) */}
         <section>
-          <FeaturedCarousel />
+          <FeaturedCarousel categoryFilter={selectedCategory} />
         </section>
 
       {/* 2. Tagline heading "Free, Real, Simple" — now BEFORE the top ad */}
