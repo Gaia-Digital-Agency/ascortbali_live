@@ -1,51 +1,95 @@
-# verification — `.openclaw-chs` (Charlie)
+# Bali Girls — `docs/` knowledge base
 
-A single-purpose OpenClaw instance whose agent **Charlie** verifies WhatsApp numbers on
-command from Mission Control (the OpenClaw control panel).
+This folder is the **project knowledge base, planning & ops workspace** for Bali Girls
+(a.k.a. *ascortbali*) — the adult-services creator listing site at
+`https://baligirls.gaiada2.online`. It is **not** application code; it is the reference,
+runbooks, client material, and operational notes around the project.
 
-## What it does
+This file and `CLAUDE.md` are the **index + status board for the whole `docs/` folder** —
+read them first, keep them current.
 
-```
-You (Mission Control)            Charlie (agent)                 Number owner (WhatsApp)
-─────────────────────            ───────────────                 ───────────────────────
-"Charlie verify +628…"   ──▶
-                                 sends WhatsApp:  ──────────────▶ "Confirm this number is
-                                 "confirm this number              yours? Reply YES/NO"
-                                  belongs to you, YES/NO"
-                                                  ◀────────────── "YES"
-                                 replies "✅ you are verified"
-        "+628… → VERIFIED ✅" ◀──
-```
+## Mirror / sync
 
-You type **`Charlie verify <phone_number>`** in the panel; Charlie WhatsApps the number a
-YES/NO confirmation, waits for the reply, tells the owner they're verified on a YES, and
-reports the verdict back to you.
+The same content lives in three places and is kept in sync:
 
-## Where it lives
+| Location | Path |
+|---|---|
+| Local working copy | `/Users/…/Downloads/wip/baligirls/` |
+| Server | `gda-pn01:/var/www/baligirls/docs/` (git repo, branch `main`) |
+| GitHub | `github.com:Gaia-Digital-Agency/ascortbali_live.git` (`main`, under `docs/`) |
+
+Workflow: edit locally → `rsync` local → server `docs/` (excluding `.DS_Store`) → commit & push
+from the server repo. `.DS_Store` files are never committed. See `CLAUDE.md` for exact commands.
+
+## Folder map
+
+| Folder | Contents |
+|---|---|
+| `ads_asset/` | Ad poster artwork + `incoming/` landscape/portrait creatives |
+| `changes/` | Change requests + QA smoke notes (`change_request*.md`, `qa-smoke-*.md`) |
+| `client_docs/` | Client brief + site-features spec |
+| `comparison/` | Competitor/solution case studies (ascortbali, payload/viceroy, gaiada) |
+| `engine_matters/` | Listing-engine notes: data injection, flow, engine readme |
+| `features/` | Feature inventory, architecture, access info, creator info, T&C, report |
+| `files_transfer/` | Brand assets in transit (logo) |
+| `gcp_move/` | GCP migration: access, postgres, secrets, phase01/02 move notes |
+| `manage/` | Operations: inventory, APIs, schema, local start, server restart |
+| `migration_matters/` | Image migration/location/diagram notes |
+| `previous_home_ads/` | Archived homepage ad images |
+| `templates/` | **WhatsApp creator-invitation copy, one per DEMS category** (see below) |
+| `testing/` | UAT, login info, fallback access, UI/UX flow, start notes |
+| `verification/` | Auth + the `.openclaw-chs` "Charlie" agent (see below) |
+
+## Two live workstreams
+
+### A. Login verification (shipped) — `verification/`
+
+Passwordless login for users & creators: identify by WhatsApp number, verify by WhatsApp
+**user-initiated click-to-verify** (the person taps a `wa.me` deep link; backend confirms by
+polling the Twilio Messages API for the `BG-` token). A Twilio Verify **SMS** fallback is built
+but **disabled in the UI**. **Twilio is used only for this login flow** — see
+`verification/whatsapp-auth-lessons.md` (authoritative) and `verification/twilio_auth_guide.md`
+(partially outdated).
+
+### B. Creator invitations (foundation in progress) — `templates/` + `verification/`
+
+The `.openclaw-chs` OpenClaw agent **"Charlie"** is being **repurposed from a number-verifier
+into an invitation sender**. New job: send a **one-time** WhatsApp invitation to each creator,
+using the `templates/` markdown that matches the creator's **DEMS category**
+(`dating`, `escorts`, `massage`, `sugar`, `trans`). Each template uses a `{{name}}` merge field
+and links to `…/creator`.
+
+- **No Twilio for invitations** — Charlie sends directly over OpenClaw's WhatsApp channel.
+- **Fire-and-forget** — one outbound message per creator; no ongoing two-way interaction required.
+- **Recipients** come from the **app database**, where each creator is already tagged with a
+  DEMS category (exact table/column to be wired when we build the send job).
+
+> ⚠️ The instance docs in `verification/` (`architecture.md`, `runbook.md`, `verify-flow.md`,
+> `bootstrap-chs.sh`) and Charlie's on-host `AGENTS.md` **still describe the old verifier
+> behaviour** — they will be rewritten for the invitation role.
+
+## `.openclaw-chs` ("Charlie") — where it lives
 
 | Thing | Value |
 |---|---|
-| Host | `gda-ai01` (34.143.206.68) |
+| Host | `gda-ai01` (34.143.206.68), user `azlan` |
 | Instance dir | `/opt/.openclaw-chs` |
 | Agent | **Charlie** (acp default agent `main`), workspace `/opt/.openclaw-chs/workspace-charlie` |
-| Model | `google/gemini-2.5-flash` (fallback `deepseek/deepseek-chat`), keys from `/opt/.openclaw-keys.env` |
+| Model | `google/gemini-2.5-flash` (fallback `deepseek/deepseek-chat`) |
 | Gateway | systemd user service `openclaw-chs-gateway.service`, loopback port **19389** |
 | WhatsApp line | **+62 817-6917-122** (linked via OpenClaw WhatsApp Web) |
 | Mission Control | `https://chs.gaiada.online` (nginx on gda-ai01 → loopback 19389) |
-| Gateway token | stored in `/opt/.openclaw-chs/openclaw.json` (`gateway.auth.token`) |
 
-## Status (2026-06-12)
+## Status — 2026-06-14
 
-- ✅ Instance, agent, config, systemd service created and **running** (bound on 19389).
-- ✅ nginx vhost staged + reloaded.
-- ⏳ **TLS pending DNS** — `chs.gaiada.online` resolves to `34.124.244.233` (gda-s01); it must
-  point to **gda-ai01 `34.143.206.68`** before certbot can issue the cert. See `docs/runbook.md`.
-- ⏳ **WhatsApp not yet linked** — scan the QR with +62 817-6917-122. See `docs/runbook.md`.
-
-## Repo contents
-
-- `bootstrap-chs.sh` — the script that creates the instance on gda-ai01 (idempotent guard).
-- `docs/architecture.md` — how the instance is wired into the OpenClaw fleet.
-- `docs/runbook.md` — DNS, TLS, WhatsApp linking, ops commands, troubleshooting.
-- `docs/verify-flow.md` — Charlie's exact verification behaviour (mirrors his `AGENTS.md`).
-- `CLAUDE.md` — playbook for future Claude sessions working on this instance.
+- ✅ Login verification (user-initiated WhatsApp click-to-verify) **shipped & in use**.
+- ✅ `templates/` cleaned and standardised (5 DEMS categories, `{{name}}` merge field).
+- ✅ Charlie's OpenClaw instance/service exists and runs (bound on :19389).
+- 🔜 **Repurpose decided, not yet built**: rewrite Charlie's brain (`AGENTS.md` etc.) +
+  `verification/` docs for the invitation role; wire the DB → category → template send job.
+- ⏳ **WhatsApp line not linked** — owner will **rescan the QR later** to activate +62 817-6917-122.
+  Foundation is being prepared in the meantime.
+- ⏳ **Panel TLS pending DNS** — `chs.gaiada.online` must point to gda-ai01 `34.143.206.68`
+  before certbot. See `verification/runbook.md`.
+- ⚠️ **Open risk**: bulk unsolicited business-initiated marketing over an unofficial WhatsApp
+  Web client carries a real number-ban risk; throttling / opt-out / warm-up to be decided.
