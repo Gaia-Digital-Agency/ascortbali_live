@@ -84,9 +84,9 @@ and links to `…/creator`.
 
 - ✅ Login verification (user-initiated WhatsApp click-to-verify) **shipped & in use**.
 - ✅ `templates/` cleaned and standardised (5 DEMS categories, `{{name}}` merge field).
-- ✅ `templates/creator_contact.md` generated from the app DB — **230 creators** matched to
-  name + E.164 number + category + template (escorts 170 / dating 29 / massage 14 / sugar 11 /
-  trans 6; 6 duplicate numbers flagged). Regenerate when the creator list changes.
+- ✅ `templates/creator_contact.md` generated from the app DB — **214 invites** (230 creators
+  − 16 profiles on 6 duplicate numbers, now excluded): escorts 154 / dating 29 / massage 14 /
+  sugar 11 / trans 6. Mostly +62 Indonesia (192). Regenerate when the creator list changes.
 - ✅ Charlie's OpenClaw instance/service exists and runs (bound on :19389).
 - 🔜 **Repurpose decided, not yet built**: rewrite Charlie's brain (`AGENTS.md` etc.) +
   `verification/` docs for the invitation role; wire the DB → category → template send job.

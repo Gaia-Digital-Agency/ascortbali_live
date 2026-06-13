@@ -15,26 +15,47 @@ is matched to the invitation template for their DEMS category. Generated from th
 
 ## Send rule
 For each contact, send the template in the **Template** column, replacing `{{name}}` with **Name**.
-**One message per number, fire-and-forget** (no follow-up needed). De-duplicate by phone.
+**One message per number, fire-and-forget** (no follow-up needed).
 
-## Summary — 230 contacts
-| Category | Template | Count |
+## Send-list summary — 214 invites
+(230 creators total − 16 profiles on 6 duplicate numbers excluded; see Skipped below.)
+
+| Category | Template | Invites |
 |---|---|---|
-| escorts | escorts.md | 170 |
+| escorts | escorts.md | 154 |
 | dating  | dating.md  | 29  |
 | massage | massage.md | 14  |
 | sugar   | sugar.md   | 11  |
 | trans   | trans.md   | 6   |
 
-## ⚠️ Duplicate numbers (same WhatsApp on multiple profiles — send only once)
-- `+37360808341` — mistress-viola, lina
-- `+380669265774` — mary, tess
-- `+380954174109` — lissa, aira, vikky, alice, alexa, alla
-- `+380957512429` — anita, kriss-kiss
-- `+380990382300` — marta, olivia
-- `+79181984588` — milana, veronika
+### By country code
+| Country | Invites |
+|---|---|
+| +62 Indonesia | 192 |
+| +7 Russia/KZ | 7 |
+| +44 UK | 2 |
+| +66 Thailand | 2 |
+| +61 Australia | 2 |
+| +373 Moldova | 2 |
+| +86 China | 1 |
+| +65 Singapore | 1 |
+| +971 UAE | 1 |
+| +972 Israel | 1 |
+| +60 Malaysia | 1 |
+| +33 France | 1 |
+| +380 Ukraine | 1 |
 
-## Contacts
+## ⛔ Skipped — excluded from invites (6 duplicate numbers, 16 profiles, all category=escorts)
+| Phone | Profiles |
+|---|---|
+| `+380954174109` | lissa, aira, vikky, alice, alexa, alla |
+| `+37360808341` | mistress-viola, lina |
+| `+380669265774` | mary, tess |
+| `+380957512429` | anita, kriss-kiss |
+| `+380990382300` | marta, olivia |
+| `+79181984588` | milana, veronika |
+
+## Contacts (send list)
 | Name | Phone | Category | Template | provider_id |
 |---|---|---|---|---|
 | anastasia | +79277529365 | dating | dating.md | 1029628 |
@@ -70,16 +91,12 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | aca | +6281770924121 | escorts | escorts.md | 960998 |
 | Adlina | +6289529987344 | escorts | escorts.md | P68817BE3 |
 | Agatha | +6281239501430 | escorts | escorts.md | PC22FD0DA |
-| aira | +380954174109 | escorts | escorts.md | 572512 |
 | alara | +628133696414 | escorts | escorts.md | 406433 |
-| alexa | +380954174109 | escorts | escorts.md | 983472 |
 | Aleza | +6285785073985 | escorts | escorts.md | PE9ABD3CB |
-| alice | +380954174109 | escorts | escorts.md | 719087 |
 | alicia-sasya | +6282144027184 | escorts | escorts.md | 1020394 |
 | Alina | +60135028500 | escorts | escorts.md | P3F9F842F |
 | aline | +62882009169020 | escorts | escorts.md | 1032182 |
 | alisa | +77475068586 | escorts | escorts.md | 1009003 |
-| alla | +380954174109 | escorts | escorts.md | 990086 |
 | Alyna | +6285785107198 | escorts | escorts.md | PB8EB0CC8 |
 | amber-olivia | +6285647263831 | escorts | escorts.md | 1027510 |
 | Amel | +628976843595 | escorts | escorts.md | PBFE75631 |
@@ -87,7 +104,6 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | angel | +6285745243872 | escorts | escorts.md | 796289 |
 | Angela | +6285726006186 | escorts | escorts.md | P4DD468F2 |
 | Anggi | +628217148819 | escorts | escorts.md | PC421EF4F |
-| anita | +380957512429 | escorts | escorts.md | 1018018 |
 | anna-adelyn | +6287711902305 | escorts | escorts.md | 1040646 |
 | April | +6285136586097 | escorts | escorts.md | PC6459921 |
 | Aprilia | +6283169480375 | escorts | escorts.md | PAE6A908A |
@@ -148,25 +164,18 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | Karina | +6281337369594 | escorts | escorts.md | PF50523A1 |
 | Kerin | +6287765300329 | escorts | escorts.md | PEBE0382F |
 | Kinan | +628977168496 | escorts | escorts.md | PCA66EF01 |
-| kriss-kiss | +380957512429 | escorts | escorts.md | 974432 |
 | kristy | +6282221772112 | escorts | escorts.md | 977407 |
 | leena | +6285810550466 | escorts | escorts.md | 747396 |
 | Lila | +6287849661904 | escorts | escorts.md | PB66E2995 |
-| lina | +37360808341 | escorts | escorts.md | 691646 |
 | lisa | +380990382325 | escorts | escorts.md | 646634 |
-| lissa | +380954174109 | escorts | escorts.md | 646791 |
 | Lizzy | +6289529693053 | escorts | escorts.md | P7A55015B |
 | Lula | +6281573348776 | escorts | escorts.md | P0BB61D53 |
 | Lusy | +6285808759204 | escorts | escorts.md | PBE6B3713 |
 | maria | +37368205009 | escorts | escorts.md | 1034416 |
-| marta | +380990382300 | escorts | escorts.md | 949679 |
-| mary | +380669265774 | escorts | escorts.md | 842989 |
 | Max | +33758677096 | escorts | escorts.md | 923493 |
 | Maya | +6281717309335 | escorts | escorts.md | P16469C46 |
 | mia | +971523503066 | escorts | escorts.md | 715396 |
-| milana | +79181984588 | escorts | escorts.md | 889758 |
 | Milly | +6283176957613 | escorts | escorts.md | P62F3F3A2 |
-| mistress-viola | +37360808341 | escorts | escorts.md | 983354 |
 | Monalissa | +6288987209847 | escorts | escorts.md | PF1C1D6CC |
 | nabila | +6283168693238 | escorts | escorts.md | 1000498 |
 | nadia | +6288245703732 | escorts | escorts.md | 1016226 |
@@ -175,7 +184,6 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | Nilla | +6285191383864 | escorts | escorts.md | P26742ABB |
 | Nindi | +628135324908 | escorts | escorts.md | P3127A177 |
 | Nya | +6285121202421 | escorts | escorts.md | P7D13675C |
-| olivia | +380990382300 | escorts | escorts.md | 1040564 |
 | Preshie | +6289671931291 | escorts | escorts.md | P58D97DAF |
 | Preshy | +6289673147294 | escorts | escorts.md | P46A845D8 |
 | Priska | +6287767751635 | escorts | escorts.md | PBA5C0325 |
@@ -213,7 +221,6 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | Tasya | +6281325235220 | escorts | escorts.md | PA63ECA6C |
 | Tata | +62895320801445 | escorts | escorts.md | P39ED2FDB |
 | Terry | +6281355540696 | escorts | escorts.md | PB8702786 |
-| tess | +380669265774 | escorts | escorts.md | 525740 |
 | tiara-adhisty | +6283183428636 | escorts | escorts.md | 1037477 |
 | Tina | +6287885981987 | escorts | escorts.md | P30884C7E |
 | valentina | +61406263985 | escorts | escorts.md | 684188 |
@@ -222,10 +229,8 @@ For each contact, send the template in the **Template** column, replacing `{{nam
 | Veona | +628133936578 | escorts | escorts.md | PA3C24E3D |
 | Vera | +62895429668835 | escorts | escorts.md | PC4363213 |
 | Veronica | +6285785068099 | escorts | escorts.md | PC42F313F |
-| veronika | +79181984588 | escorts | escorts.md | 888162 |
 | Verra | +6285735540921 | escorts | escorts.md | P42C32179 |
 | Victory | +6289677367100 | escorts | escorts.md | PE7F66EF3 |
-| vikky | +380954174109 | escorts | escorts.md | 555403 |
 | Violet | +628131852438 | escorts | escorts.md | P067D43F7 |
 | Viona | +6282342488860 | escorts | escorts.md | PE87F6034 |
 | Vioo | +6282230863009 | escorts | escorts.md | PDA3409E7 |
