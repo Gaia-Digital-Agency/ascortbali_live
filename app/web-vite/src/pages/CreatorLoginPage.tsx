@@ -45,6 +45,7 @@ export default function CreatorLoginPage() {
         label="GIRLS"
         defaultEmail="callista@email.com"
         defaultPassword="Admin@123"
+        emailLabel="USER ID"
         emailPlaceholder="username@email.com"
         redirectPath="/creator/logged"
         roleCheck={(role) => role === "creator"}

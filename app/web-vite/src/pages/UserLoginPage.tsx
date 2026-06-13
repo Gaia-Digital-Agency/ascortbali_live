@@ -15,6 +15,7 @@ export default function UserLoginPage() {
         label="USER"
         defaultEmail="user@email.com"
         defaultPassword="User@123"
+        emailLabel="USER ID"
         emailPlaceholder="name@email.com"
         redirectPath="/"
         roleCheck={(role) => role === "user"}
