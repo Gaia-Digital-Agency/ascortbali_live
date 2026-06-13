@@ -1,5 +1,13 @@
 # WhatsApp 2FA Setup Guide
 
+> ⚠️ **PARTIALLY OUTDATED (as of 2026-06-13).** This guide describes the original design
+> (password login + business-initiated OTP send, "verify once then password only"). The
+> **shipped** system is different: **passwordless login**, **user-initiated WhatsApp
+> click-to-verify** (no template/business verification needed), with a Twilio Verify **SMS**
+> fallback that is now **disabled in the login UI**. The authoritative, current reference is
+> **`whatsapp-auth-lessons.md`** in this folder — read that first. The Twilio account/env
+> setup steps below remain useful for context.
+
 ## 1. Twilio Account Setup
 
 You need a Twilio account with WhatsApp messaging enabled:
@@ -25,8 +33,16 @@ In `/var/www/baligirls/app/api/.env`, set:
 WHATSAPP_2FA_ENABLED=true
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+TWILIO_WHATSAPP_FROM=whatsapp:+17407628065   # live ONLINE sender (was sandbox +14155238886)
+# Twilio Verify powers the SMS fallback. SMS channel only — the WhatsApp channel on this
+# service is disabled (error 60223), so do NOT set TWILIO_VERIFY_CHANNEL=whatsapp.
+TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_VERIFY_CHANNEL=sms
 ```
+
+> Note: as of 2026-06-13 the SMS fallback is hidden in the UI (`SMS_FALLBACK_ENABLED=false`
+> in `app/web-vite/src/components/LoginForm.tsx`); these Verify vars stay set so it can be
+> re-enabled with a flag flip + rebuild.
 
 These must also be set in the PM2 process environment. When recreating the PM2 process, pass them as env vars before the `pm2 start` command. See the deployment notes for the full PM2 start command.
 

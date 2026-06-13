@@ -5,7 +5,8 @@ before touching anything related to Twilio, WhatsApp, OTP, or the login/2FA flow
 
 ## TL;DR
 - **Login is passwordless** for user + creator portals: identify the account by its
-  **WhatsApp number**, then verify by WhatsApp (or SMS fallback). Admin still uses
+  **WhatsApp number**, then verify by WhatsApp. (The Twilio Verify SMS fallback is built but
+  **disabled in the login UI** as of 2026-06-13 — see §7.) Admin still uses
   username + password.
 - **OTP delivery uses Twilio Verify** (`TWILIO_VERIFY_SERVICE_SID`), channel `sms` by
   default — flip `TWILIO_VERIFY_CHANNEL=whatsapp` only once a healthy WhatsApp sender
@@ -101,9 +102,30 @@ before touching anything related to Twilio, WhatsApp, OTP, or the login/2FA flow
   - `portal=admin` → username/email + password (unchanged).
   - `portal=user|creator` → `{ phone }` only → look up account by phone → return
     `{ twoFactorRequired, token, waNumber }`. Unknown phone → `unknown_user`.
-- Verification completes via `GET /auth/2fa/wa/poll` (WhatsApp, Twilio-polling) or
-  `POST /auth/2fa/sms/send` + `/sms/check` (SMS fallback).
+- Verification completes via `GET /auth/2fa/wa/poll` (WhatsApp, Twilio-polling). The SMS
+  fallback endpoints `POST /auth/2fa/sms/send` + `/sms/check` still exist but are no longer
+  surfaced in the login UI as of 2026-06-13 (see §7).
 - **Registration** collects email (required, stored) + WhatsApp number; **no password**;
   registration does **not** verify (only login does). A random unusable password hash is
   stored to satisfy the NOT NULL column.
 - Switch OTP back to WhatsApp-via-Verify later with one env var once the WABA is verified.
+
+## 7. Updates — 2026-06-13
+
+- **SMS verification turned OFF in the login UI.** WhatsApp (user-initiated click-to-verify)
+  is now the **sole** verification path. Rationale: it's self-sufficient — proven by inbound
+  `BG-` tokens arriving `received` from the registered number — and ~10× cheaper than SMS. It
+  does **not** depend on Twilio Verify, so the Verify WhatsApp channel being disabled (60223)
+  is irrelevant to it. (This corrects an earlier misread that equated "Verify-WhatsApp disabled"
+  with "WhatsApp login broken" — they are unrelated.)
+  - Implementation: a `SMS_FALLBACK_ENABLED = false` constant in
+    `app/web-vite/src/components/LoginForm.tsx` hides the "Use SMS instead" button (so `smsMode`
+    is never reachable). To restore: set it `true`, then `pnpm build` + reload `baligirls-web-vite`.
+    The backend `/auth/2fa/sms/*` endpoints are intentionally left intact.
+- **`TWILIO_WHATSAPP_FROM` fixed:** was the stale **sandbox** `whatsapp:+14155238886` (all
+  business-initiated sends `failed`); now the live **ONLINE** sender `whatsapp:+17407628065`
+  (the same number users message for click-to-verify). Business-initiated sends still need an
+  approved AUTHENTICATION template + opt-in — the login flow does not rely on them.
+- Active Verify service `VA…aa6ab4` ("Bali Girls") still has its **WhatsApp channel disabled**
+  (60223). Do **not** set `TWILIO_VERIFY_CHANNEL=whatsapp`. Verify is SMS-only here and, with the
+  UI fallback off, currently unused by the login flow.

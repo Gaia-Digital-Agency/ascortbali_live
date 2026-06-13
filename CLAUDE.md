@@ -80,7 +80,7 @@ Server access: `gda-pn01` is a GCE instance — use `gcloud compute ssh` / `gclo
 
 ## Gotchas (the kind that bite)
 
-- **`WHATSAPP_2FA_ENABLED` is parsed as an explicit string match** in [app/api/src/lib/env.ts](app/api/src/lib/env.ts). Do **not** revert to `z.coerce.boolean()` — it treats `"false"` as `true` because `Boolean("false") === true`. Production currently has 2FA **disabled** (`WHATSAPP_2FA_ENABLED=false`).
+- **`WHATSAPP_2FA_ENABLED` is parsed as an explicit string match** in [app/api/src/lib/env.ts](app/api/src/lib/env.ts). Do **not** revert to `z.coerce.boolean()` — it treats `"false"` as `true` because `Boolean("false") === true`. Production currently has 2FA **enabled** (`WHATSAPP_2FA_ENABLED=true`); verification is **WhatsApp-only** since the SMS fallback was hidden in the UI on 2026-06-13 (see [references/whatsapp-auth-lessons.md](references/whatsapp-auth-lessons.md) §7).
 - **GCS uploads need the JSON key**, not the VM's default service account. The default compute SA on `gda-pn01` has `devstorage.read_only` only and will fail uploads with `Provided scope(s) are not authorized`. Set `GOOGLE_APPLICATION_CREDENTIALS=/etc/gda-credentials/gda-viceroy-17373de6d690.json` (mode 600). Already wired in [app/web-vite/.env](app/web-vite/.env).
 - **GCS routes live on the web-vite server (8002), not the API**: `/api/upload`, `/api/uploads/*`, `/api/clean-image/*`, `/api/static/*` (the `/api/admin-asset/*` route was removed on 2026-04-29 — see [app/web-vite/server.ts](app/web-vite/server.ts) header comment). nginx routes each to 8002 with its own `location` block; everything else under `/api/*` falls through to the API on 8001. **If you add a new `/api/<thing>` handler in `web-vite/server.ts`, you MUST also add a matching `location /api/<thing>` block to `/etc/nginx/sites-enabled/baligirls` and `sudo nginx -s reload` — otherwise nginx will misroute it to the API and you'll see Express's HTML `Cannot GET /api/<thing>` instead of your JSON response.** This bit us on `/api/static/*` (added 2026-05-19).
 - **`/assets/*` is served by nginx directly** from `dist/client/assets/` with an immutable 1-year cache. After a `vite build`, those hashed files must exist on disk before nginx will serve the new build.
@@ -91,7 +91,8 @@ Server access: `gda-pn01` is a GCE instance — use `gcloud compute ssh` / `gclo
 ## Reference docs in this repo
 
 - [README.md](README.md) — full product, infra, endpoints, and migration history (canonical)
-- [twilio_auth_guide.md](twilio_auth_guide.md) — WhatsApp 2FA setup
+- [references/whatsapp-auth-lessons.md](references/whatsapp-auth-lessons.md) — **authoritative** auth/Twilio/WhatsApp reference (read first)
+- [twilio_auth_guide.md](twilio_auth_guide.md) — WhatsApp 2FA setup (**partially superseded** by the lessons doc above)
 - [references/features/](references/features/) — Inventory, architecture, creator info, access info (test creds), TnC, features_api, report
 - [creator_engine/cleanup.md](creator_engine/cleanup.md) — full 12-step per-batch creator-data ETL pipeline (cross-batch dedup → import → consolidation)
 
@@ -101,5 +102,6 @@ Server access: `gda-pn01` is a GCE instance — use `gcloud compute ssh` / `gclo
 - **`provider_images` row count**: ~976. The on-disk avatar placeholder is `gs://gda-ce01-bucket/baligirls/uploads/avatar-default-lady.png`; 30+ creators have it as their sole image (use `WHERE image_file = 'avatar-default-lady.png'`).
 - **NSFW audit set-up exists**: `audit_engine/` has the report files (`audit_report.{md,tsv}`, `flagged.json`, `all_detections.json`) + `image_manifest.tsv`. Re-running needs an `audit_engine/.venv` with `nudenet onnxruntime pillow` (was deleted post-run; recreate with `python3 -m venv .venv && .venv/bin/pip install ...`).
 - **Stale legacy refs in docs are gone**: All `app/web/...` Next.js paths were swept to their `app/web-vite/...` equivalents on 2026-05-16. If you see one, it's new.
+- **Login verification (2026-06-13)**: user/creator login is passwordless → **WhatsApp user-initiated click-to-verify** is the only path. SMS fallback is hidden via `SMS_FALLBACK_ENABLED=false` in `app/web-vite/src/components/LoginForm.tsx` (`/auth/2fa/sms/*` endpoints still exist). `TWILIO_WHATSAPP_FROM` is the live sender `whatsapp:+17407628065`. Test user accounts: `testuser1–4@baligirls.test` in `app_accounts`. Twilio Verify's WhatsApp channel is disabled (60223) — don't set `TWILIO_VERIFY_CHANNEL=whatsapp`.
 
 For the actual change history use `git log --oneline -20` against the canonical clone at `/home/azlan/repos/baligirls/`. This tree (`/var/www/baligirls/`) is not a git repo.

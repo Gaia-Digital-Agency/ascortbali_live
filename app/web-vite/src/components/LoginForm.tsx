@@ -5,6 +5,11 @@ import { withBasePath } from "../lib/paths";
 
 type Portal = "admin" | "user" | "creator";
 
+// SMS verification fallback toggle. WhatsApp (user-initiated) is the sole login
+// verification path; the Twilio Verify SMS fallback is no longer offered. Set
+// back to `true` to restore the "Use SMS instead" option on the 2FA screen.
+const SMS_FALLBACK_ENABLED = false;
+
 type LoginFormProps = {
   portal: Portal;
   label: string;
@@ -381,15 +386,17 @@ export default function LoginForm({
 
               {error ? <div className="text-xs text-red-400">{error}</div> : null}
 
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  disabled={smsSending}
-                  onClick={sendSms}
-                  className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
-                >
-                  {smsSending ? "Sending…" : "Use SMS instead"}
-                </button>
+              <div className={`flex items-center text-xs ${SMS_FALLBACK_ENABLED ? "justify-between" : "justify-center"}`}>
+                {SMS_FALLBACK_ENABLED ? (
+                  <button
+                    type="button"
+                    disabled={smsSending}
+                    onClick={sendSms}
+                    className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
+                  >
+                    {smsSending ? "Sending…" : "Use SMS instead"}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={resetTwoFactor}
