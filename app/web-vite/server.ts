@@ -302,6 +302,9 @@ const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   '/terms':             { title: 'Terms of Use — Bali Girls',       description: 'Terms and conditions for using the Bali Girls platform.' },
   '/privacy':           { title: 'Privacy Statement — Bali Girls',  description: 'Privacy statement for Bali Girls — how we handle and protect your data.' },
   '/blog':              { title: 'Blog — Bali Girls',                description: 'Long-form writing on wellness, culture, and life in Bali. New articles weekly.' },
+  // Public "AI & Technology" story page — reachable by direct URL only.
+  // noindex (index:false) and intentionally absent from sitemap.xml + footer.
+  '/info':              { title: 'AI & Technology — Bali Girls',     description: 'How Bali Girls is built and kept real by AI — an automated content pipeline and Charlie, our WhatsApp verification agent.', index: false },
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) =>

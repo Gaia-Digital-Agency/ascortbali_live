@@ -14,6 +14,7 @@ const UserLoggedPage = lazy(() => import('./pages/UserLoggedPage'))
 const UserRegisterPage = lazy(() => import('./pages/UserRegisterPage'))
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
 const AdminLoggedPage = lazy(() => import('./pages/AdminLoggedPage'))
+const InfoPage = lazy(() => import('./pages/InfoPage'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/TermsPage'))
 const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'))
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/admin/logged/creators" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
         <Route path="/admin/logged/users" element={<Suspense fallback={<PageLoader />}><AdminLoggedPage /></Suspense>} />
         <Route path="/admin/logged/blogs" element={<Suspense fallback={<PageLoader />}><AdminBlogsPage /></Suspense>} />
+        <Route path="/info" element={<Suspense fallback={<PageLoader />}><InfoPage /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
         <Route path="/blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
