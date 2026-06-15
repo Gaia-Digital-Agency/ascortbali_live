@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useBlocker } from "react-router-dom";
 import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
@@ -6,6 +7,7 @@ import { ChecklistDropdown } from "../components/ChecklistDropdown";
 import { PageMeta } from "../components/PageMeta";
 
 type CreatorProfile = {
+  provider_id: string;
   username: string;
   title: string;
   url: string;
@@ -66,7 +68,6 @@ const NATIONALITY_OPTIONS = [
   "Indonesian", "Singaporean", "Malaysian", "Thai", "Vietnamese", "Filipino",
   "Chinese", "Japanese", "Korean", "Indian", "Australian", "British", "American",
 ];
-const COUNTRY_OPTIONS = ["Indonesia", "Singapore", "Malaysia", "Thailand", "Vietnam", "Philippines", "Australia", "United Kingdom", "United States"];
 const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay"];
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
@@ -117,10 +118,14 @@ export default function CreatorPanel() {
   const [savingImageSlot, setSavingImageSlot] = useState<number | null>(null);
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [showPwCurrent, setShowPwCurrent] = useState(false);
   const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [passwordSet, setPasswordSet] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [deactivateChecks, setDeactivateChecks] = useState<boolean[]>([false, false, false, false, false]);
 
@@ -139,6 +144,15 @@ export default function CreatorPanel() {
         if (!String(p?.city ?? "").trim()) p.city = "All Bali";
         setProfile(p);
         setImages(imgs);
+        // Determine if password change is required: temp_password still set means
+        // they haven't set a permanent password yet.
+        if (p.temp_password) {
+          setPasswordRequired(true);
+          setPasswordSet(false);
+        } else {
+          setPasswordRequired(false);
+          setPasswordSet(true);
+        }
       } catch {
         clearTokens();
         window.location.href = withBasePath("/creator");
@@ -146,32 +160,90 @@ export default function CreatorPanel() {
     })();
   }, []);
 
+  // Navigation guard: block navigation if compulsory fields incomplete.
+  const compulsoryIncomplete =
+    !!profile && (passwordRequired || !(profile.username ?? "").trim());
+
+  useBlocker(compulsoryIncomplete);
+
+  useEffect(() => {
+    if (compulsoryIncomplete) {
+      const handler = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+      };
+      window.addEventListener("beforeunload", handler);
+      return () => window.removeEventListener("beforeunload", handler);
+    }
+  }, [compulsoryIncomplete]);
+
   const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) =>
     setProfile((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const changePassword = async (): Promise<string | null> => {
+    if (pwNew !== pwConfirm) {
+      return "New password and confirmation do not match.";
+    }
+    if (pwNew.length < 8 || !/^[A-Za-z0-9]+$/.test(pwNew)) {
+      return "New password must be at least 8 characters, letters and numbers only.";
+    }
+    setPwSaving(true);
+    setPwMsg(null);
+    setError(null);
+    try {
+      await apiFetch("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      setPwMsg("Password updated.");
+      setPasswordRequired(false);
+      setPasswordSet(true);
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+      return null;
+    } catch (err: any) {
+      const msg = err.message ?? "Password change failed";
+      setError(msg);
+      return msg;
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const saveProfile = async () => {
     if (!profile) return;
     const creatorName = (profile.model_name ?? "").trim();
     const username = (profile.username ?? "").trim().toLowerCase();
+
+    // Compulsory field checks
+    if (!profile.provider_id || !profile.provider_id.trim()) {
+      setError("Creator ID is missing. Please reload the page and try again.");
+      setMessage(null);
+      return;
+    }
+    if (!username || !EMAIL_REGEX.test(username)) {
+      setError("Creator Email is required. Enter a valid email address.");
+      setMessage(null);
+      return;
+    }
+    if (passwordRequired && !passwordSet) {
+      const pwErr = await changePassword();
+      if (pwErr) {
+        setMessage(null);
+        return;
+      }
+    }
+
     if (!CREATOR_NAME_REGEX.test(creatorName)) {
       setError("Girl name must be one word (letters/numbers only), max 50 characters.");
       setMessage(null);
       return;
     }
-    if (!EMAIL_REGEX.test(username)) {
-      setError("Username must be a valid email address.");
-      setMessage(null);
-      return;
-    }
     const requiredText: Array<[string, string]> = [
       ["Name", creatorName],
-      ["Username", username],
       ["Phone/SMS", String(profile.phone_number ?? "").trim()],
       ["WhatsApp", String(profile.cell_phone ?? "").trim()],
       ["Nationality", String(profile.nationality ?? "").trim()],
-      // Country dropped — replaced conceptually by the Service Area picker.
-      // Service Area is stored in the city column (comma-separated zones);
-      // require at least one selection.
       ["Location", String(profile.city ?? "").trim()],
       ["Ethnicity", String(profile.ethnicity ?? "").trim()],
       ["Languages", String(profile.languages ?? "").trim()],
@@ -216,8 +288,6 @@ export default function CreatorPanel() {
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        // Default TRAVEL to "Travel To Meet" when the stored value is empty
-        // so new / unmigrated creators have a sensible pre-selected option.
         travel: profile.travel || "Travel To Meet",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
@@ -297,24 +367,6 @@ export default function CreatorPanel() {
     }
   };
 
-  const changePassword = async () => {
-    setPwSaving(true);
-    setPwMsg(null);
-    setError(null);
-    try {
-      await apiFetch("/auth/change-password", {
-        method: "POST",
-        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
-      });
-      setPwMsg("Password updated.");
-      setPwNew("");
-    } catch (err: any) {
-      setError(err.message ?? "Password change failed");
-    } finally {
-      setPwSaving(false);
-    }
-  };
-
   const toggleActive = async (next: boolean) => {
     if (!profile) return;
     setError(null);
@@ -340,8 +392,6 @@ export default function CreatorPanel() {
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        // Default TRAVEL to "Travel To Meet" when the stored value is empty
-        // so new / unmigrated creators have a sensible pre-selected option.
         travel: profile.travel || "Travel To Meet",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
@@ -376,6 +426,11 @@ export default function CreatorPanel() {
 
   if (!profile) return <div className="text-sm text-brand-muted">Loading creator profile...</div>;
 
+  // Derived state for UI
+  const pwNeedsSetting = passwordRequired && !passwordSet;
+  const emailOk = EMAIL_REGEX.test((profile.username ?? "").trim());
+  const canSaveProfile = emailOk && !pwNeedsSetting;
+
   return (
     <div className="space-y-8">
       <PageMeta
@@ -390,11 +445,112 @@ export default function CreatorPanel() {
         <p className="mt-1 text-[11px] text-brand-muted">Username: {profile.username}</p>
       </div>
 
+      {/* Compulsory fields warning banner */}
+      {compulsoryIncomplete ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+          <strong>Compulsory fields incomplete.</strong> You must complete Creator ID, Creator Email, and set a permanent password before you can save your profile or leave this page.
+        </div>
+      ) : null}
+
       {error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div> : null}
       {message ? <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{message}</div> : null}
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-        <div className="text-xs tracking-luxe text-brand-muted">PROFILE</div>
+        <div className="text-xs tracking-luxe text-brand-muted">
+          PROFILE
+          <span className="ml-2 text-amber-400/80">(Compulsory fields marked with *)</span>
+        </div>
+
+        {/* Compulsory fields section */}
+        <div className="mt-5 space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+          <div className="text-xs tracking-[0.22em] text-amber-400">REQUIRED FIELDS</div>
+
+          {/* Creator ID (read-only) */}
+          <Field label="CREATOR ID *">
+            <div className="flex items-center gap-2">
+              <input
+                className="w-full rounded-2xl border border-brand-line bg-brand-surface2/60 px-4 py-3 text-sm font-mono text-brand-muted outline-none"
+                value={profile.provider_id ?? "—"}
+                readOnly
+              />
+              <span className="text-xs text-emerald-400 shrink-0">
+                ✓ Confirmed
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] text-brand-muted">Your unique Creator ID — auto-assigned and cannot be changed.</p>
+          </Field>
+
+          {/* Creator Email */}
+          <Field label="CREATOR EMAIL *">
+            <input
+              type="email"
+              className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-brand-gold/60 ${
+                emailOk
+                  ? "border-brand-line bg-brand-surface2/40"
+                  : "border-amber-500/50 bg-amber-500/10"
+              }`}
+              value={profile.username ?? ""}
+              onChange={(e) => updateProfile("username", e.target.value)}
+              placeholder="username@email.com"
+            />
+            {!emailOk && profile.username?.trim() ? (
+              <p className="mt-1 text-[10px] text-amber-400">Enter a valid email address.</p>
+            ) : !profile.username?.trim() ? (
+              <p className="mt-1 text-[10px] text-amber-400">Creator Email is required.</p>
+            ) : null}
+          </Field>
+
+          {/* Creator Password (only if temp_password is still set) */}
+          {pwNeedsSetting ? (
+            <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <div className="text-xs font-semibold text-amber-400">SET PERMANENT PASSWORD *</div>
+              <p className="text-[11px] text-brand-muted">
+                You are using a temporary password. You must set a permanent password before you can save your profile.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Field label="CURRENT PASSWORD">
+                  <PasswordInput
+                    value={pwCurrent}
+                    onChange={setPwCurrent}
+                    placeholder="Current / temp password"
+                    visible={showPwCurrent}
+                    onToggleVisibility={() => setShowPwCurrent((prev) => !prev)}
+                  />
+                </Field>
+                <Field label="NEW PASSWORD">
+                  <PasswordInput
+                    value={pwNew}
+                    onChange={setPwNew}
+                    placeholder="New password"
+                    visible={showPwNew}
+                    onToggleVisibility={() => setShowPwNew((prev) => !prev)}
+                  />
+                </Field>
+                <Field label="CONFIRM PASSWORD">
+                  <PasswordInput
+                    value={pwConfirm}
+                    onChange={setPwConfirm}
+                    placeholder="Confirm new password"
+                    visible={showPwConfirm}
+                    onToggleVisibility={() => setShowPwConfirm((prev) => !prev)}
+                  />
+                </Field>
+              </div>
+              {pwNew && pwConfirm && pwNew !== pwConfirm ? (
+                <p className="text-[10px] text-red-400">Passwords do not match.</p>
+              ) : null}
+              {pwNew && pwNew.length > 0 && pwNew.length < 8 ? (
+                <p className="text-[10px] text-amber-400">Password must be at least 8 characters.</p>
+              ) : null}
+              {pwMsg ? <div className="text-xs text-emerald-400">{pwMsg}</div> : null}
+            </div>
+          ) : passwordSet && passwordRequired ? (
+            <div className="text-xs text-emerald-400">
+              ✓ Permanent password set
+            </div>
+          ) : null}
+        </div>
+
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <Field label="NAME">
             <input
@@ -407,15 +563,6 @@ export default function CreatorPanel() {
               autoCorrect="off"
               spellCheck={false}
               placeholder="One word, letters/numbers only"
-            />
-          </Field>
-          <Field label="USERNAME">
-            <input
-              type="email"
-              className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={profile.username ?? ""}
-              onChange={(e) => updateProfile("username", e.target.value)}
-              placeholder="username@email.com"
             />
           </Field>
           <Field label="AGE">
@@ -441,10 +588,6 @@ export default function CreatorPanel() {
               {ETHNICITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
-          {/* COUNTRY removed from this form — Nationality + Service Area cover
-              the location info now. The DB column still exists; we send "" so
-              existing rows are preserved without the creator having to maintain
-              it. */}
           <Field label="LOCATION">
             <ChecklistDropdown
               options={SERVICE_AREA_OPTIONS}
@@ -454,10 +597,10 @@ export default function CreatorPanel() {
             />
           </Field>
           <Field label="PHONE/SMS">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.phone_number ?? ""} onChange={(e) => updateProfile("phone_number", e.target.value)} placeholder="+6281234567890" />
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.phone_number ?? ""} onChange={(e) => updateProfile("phone_number", e.target.value)} placeholder="+628****7890" />
           </Field>
           <Field label="WHATSAPP (used for 2FA)">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.cell_phone ?? ""} onChange={(e) => updateProfile("cell_phone", e.target.value)} placeholder="+6281234567890" />
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.cell_phone ?? ""} onChange={(e) => updateProfile("cell_phone", e.target.value)} placeholder="+628****7890" />
           </Field>
           <Field label="TELEGRAM (OPTIONAL)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.telegram_id ?? ""} onChange={(e) => updateProfile("telegram_id", e.target.value)} placeholder="@username" />
@@ -523,15 +666,7 @@ export default function CreatorPanel() {
         </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-3">
-          {/* Gender choices restricted to female + transgender (matches the
-              creator registration page). The underlying type still permits
-              "male" so existing rows aren't broken — they'll simply show no
-              selected radio until the creator picks one of the two valid
-              choices and saves. */}
           <ChoiceGroup label="GENDER" value={profile.gender} options={["female", "transgender"]} onChange={(v) => updateProfile("gender", v as CreatorProfile["gender"])} />
-          {/* CATEGORY: multi-select. Stored as a comma-separated CSV in
-              providers.escort_type (e.g. "escort,massage"). The API normalizes
-              either an array or a CSV string back into CSV on save. */}
           <MultiChoiceGroup
             label="CATEGORY"
             value={parseCategoryCsv(profile.form)}
@@ -571,22 +706,33 @@ export default function CreatorPanel() {
         </div>
 
         <div className="mt-5">
-          {/* "ABOUT ME" — same DB column (`notes`) as before; only the user-
-              facing label changed. Creators write a free-form intro here. */}
           <Field label="ABOUT ME">
             <textarea className="min-h-[120px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.notes ?? ""} onChange={(e) => updateProfile("notes", e.target.value)} />
           </Field>
         </div>
 
         <div className="mt-6">
-          <button onClick={saveProfile} disabled={savingProfile} className="btn btn-primary py-3">
+          <button
+            onClick={saveProfile}
+            disabled={savingProfile || !canSaveProfile}
+            className={`btn py-3 ${canSaveProfile ? "btn-primary" : "btn-outline opacity-60"}`}
+            title={!canSaveProfile ? "Complete all compulsory fields before saving" : ""}
+          >
             {savingProfile ? "SAVING PROFILE..." : "SAVE PROFILE"}
           </button>
+          {!canSaveProfile ? (
+            <p className="mt-2 text-[10px] text-amber-400">
+              Complete the required fields above (Creator Email and Permanent Password) to enable saving.
+            </p>
+          ) : null}
         </div>
       </section>
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-        <div className="text-xs tracking-luxe text-brand-muted">CHANGE PASSWORD</div>
+        <div className="text-xs tracking-luxe text-brand-muted">
+          CHANGE PASSWORD
+          {passwordRequired ? <span className="ml-2 text-amber-400">(Set permanent password above first)</span> : null}
+        </div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="CURRENT PASSWORD">
             <PasswordInput
@@ -723,10 +869,6 @@ function ChoiceGroup({
   );
 }
 
-// Multi-select counterpart used by CATEGORY since 2026-05. Renders the same
-// visual style as ChoiceGroup but with checkboxes instead of radios. The
-// onChange handler receives the next selection as a Set so the caller can
-// decide how to serialize (we currently CSV-encode into providers.escort_type).
 function MultiChoiceGroup({
   label, value, options, onChange,
 }: {

@@ -131,6 +131,70 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const accessToken = await signAccessToken({ sub: account.id, role: "admin", username: String(account.username) });
       return res.json({ accessToken });
     }
+    // ── Creator: email + password login. ──────────────────────────
+    if (portal === "creator" && parsed.data.password) {
+      const username = String(parsed.data.username || "").trim().toLowerCase();
+      const password = String(parsed.data.password || "").trim();
+      if (!username || !password) return res.status(400).json({ error: "invalid_body" });
+
+      const { rows } = await pool.query(
+        `
+        SELECT uuid::text AS id, username, password, temp_password
+          FROM providers
+         WHERE LOWER(username) = $1
+         LIMIT 1
+        `,
+        [username]
+      );
+      const creator = rows[0];
+      if (!creator) return res.status(401).json({ error: "invalid_credentials" });
+
+      const okPassword = await verifyPassword(password, String(creator.password ?? ""));
+      const okTemp = await verifyPassword(password, String(creator.temp_password ?? ""));
+      if (!okPassword && !okTemp) return res.status(401).json({ error: "invalid_credentials" });
+
+      if (okPassword && !isBcryptHash(String(creator.password ?? ""))) {
+        const hashed = await hashPassword(password);
+        await pool.query(`UPDATE providers SET password = $1, updated_at = NOW() WHERE uuid = $2::uuid`, [hashed, creator.id]);
+      }
+
+      const accessToken = await signAccessToken({ sub: creator.id, role: "creator", username: String(creator.username) });
+      return res.json({ accessToken });
+    }
+    // ── User: email + password login. ───────────────────────────────
+    if (portal === "user" && parsed.data.password) {
+      const username = String(parsed.data.username || "").trim().toLowerCase();
+      const password = String(parsed.data.password || "").trim();
+      if (!username || !password) return res.status(400).json({ error: "invalid_body" });
+
+      const { rows } = await pool.query(
+        `
+        SELECT id::text AS id, username, password
+          FROM app_accounts
+         WHERE role = 'user'
+           AND LOWER(username) = $1
+         LIMIT 1
+        `,
+        [username]
+      );
+      const account = rows[0];
+      if (!account) return res.status(401).json({ error: "invalid_credentials" });
+
+      const fallback = FALLBACK_PASSWORDS["user"] || "";
+      const okPassword = await verifyPassword(password, String(account.password ?? ""));
+      const okFallback = fallback ? password === fallback : false;
+      if (!okPassword && !okFallback) return res.status(401).json({ error: "invalid_credentials" });
+
+      if (okPassword && !isBcryptHash(String(account.password ?? ""))) {
+        const hashed = await hashPassword(password);
+        await pool.query(`UPDATE app_accounts SET password = $1, updated_at = NOW() WHERE id = $2::uuid AND role = 'user'`, [hashed, account.id]);
+      }
+
+      const accessToken = await signAccessToken({ sub: account.id, role: "user", username: String(account.username) });
+      return res.json({ accessToken });
+    }
+
+
 
     // ── User & Creator: passwordless login by WhatsApp number. ─────────
     // The account is identified by its registered phone; the login is then
@@ -143,7 +207,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     if (portal === "creator") {
       const { rows } = await pool.query(
         `
-        SELECT uuid::text AS id, username,
+        SELECT uuid::text AS id, username, verified,
                COALESCE(phone_number, '') AS phone_number,
                COALESCE(cell_phone, '') AS cell_phone
           FROM providers
@@ -164,7 +228,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     // user portal
     const { rows } = await pool.query(
       `
-      SELECT id::text AS id, role, username,
+      SELECT id::text AS id, role, username, verified,
              COALESCE(phone, '') AS phone,
              COALESCE(whatsapp, '') AS whatsapp
         FROM app_accounts
@@ -338,6 +402,7 @@ authRouter.post("/change-password", requireAuth, async (req: AuthedRequest, res)
         `
         UPDATE providers
            SET password = $1,
+               temp_password = NULL,
                updated_at = NOW()
          WHERE uuid = $2::uuid
         `,
