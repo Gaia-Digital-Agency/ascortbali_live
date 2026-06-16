@@ -347,7 +347,7 @@ export default function LoginForm({
   // 2FA OTP screen
   if (twoFactorToken) {
     const waDigits = waNumber.replace(/\D/g, "");
-    const waText = `Verify my Bali Girls login — ${twoFactorToken} (please don't edit this message)`;
+    const waText = `Verify my Bali Girls login — ${twoFactorToken} (send this message as is)`;
     const waHref = `https://wa.me/${waDigits}?text=${encodeURIComponent(waText)}`;
     const resetTwoFactor = () => {
       setTwoFactorToken(null);
