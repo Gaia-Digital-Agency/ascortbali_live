@@ -237,7 +237,7 @@ authRouter.post("/2fa/sms/check", authRateLimit, async (req, res) => {
 
 // POST /auth/wa/inbound — Twilio inbound-message webhook for the WhatsApp
 // "click to verify" flow. The user opens a 24h session by messaging our number;
-// we match the BG- token in their message AND require the sender's number to be
+// we match the 6-digit code in their message AND require the sender's number to be
 // the account's registered number, then mark the session verified. Replies with
 // TwiML so the user gets immediate feedback in WhatsApp.
 authRouter.post("/wa/inbound", urlencoded({ extended: false }), async (req, res) => {

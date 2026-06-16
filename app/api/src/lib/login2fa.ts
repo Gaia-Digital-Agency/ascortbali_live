@@ -21,8 +21,7 @@ const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /** Unguessable token, prefixed so it's recognisable inside a WhatsApp message. */
 function newToken(): string {
-  const b = randomBytes(9).toString("base64").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-  return `BG-${b.slice(0, 10)}`;
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /** Last 8 significant digits, for tolerant cross-format phone matching. */
@@ -71,7 +70,7 @@ export async function getSessionPhone(token: string): Promise<string | null> {
 }
 
 /**
- * Verify from an inbound WhatsApp message: parse the BG- token from the body and
+ * Verify from an inbound WhatsApp message: parse the 6-digit code from the body and
  * require the sender's number to match the session's registered number. Returns
  * a human-readable outcome for the auto-reply.
  */
@@ -79,7 +78,7 @@ export async function verifyInbound(
   body: string,
   fromPhone: string
 ): Promise<"verified" | "wrong_number" | "no_match" | "already_done"> {
-  const m = (body || "").toUpperCase().match(/BG-[A-Z0-9]{4,}/);
+  const m = (body || "").match(/\b(\d{6})\b/);
   if (!m) return "no_match";
   const s = await loadSession(m[0]);
   if (!s) return "no_match";
