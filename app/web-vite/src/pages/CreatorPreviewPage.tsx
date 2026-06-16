@@ -136,11 +136,9 @@ export default function CreatorPreviewPage() {
           ["Height", raw.height],
           ["Weight", raw.weight],
           ["Travel", titleCase(String(raw.travel ?? ""))],
-          // Services row — always visible. About Me below is a separate field.
-          ["Services", raw.services],
-          // About Me: editor's ABOUT ME textarea (notes column). Fallback to
+          // About Me: editor's ABOUT ME textarea (notes column).
           // services list when notes is empty so the row always has content.
-          ["About Me", String(raw.notes ?? "").trim() || raw.services],
+          ["About Me", String(raw.notes ?? "").trim() ],
           // Last four: contact channels — always shown, em-dash if missing.
           ["Phone/SMS", raw.phone_number],
           ["Whatsapp", raw.cell_phone],

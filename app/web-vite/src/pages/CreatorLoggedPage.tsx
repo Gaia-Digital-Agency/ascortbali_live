@@ -80,9 +80,6 @@ const ETHNICITY_OPTIONS = [
 import {
   TRAVEL_OPTIONS,
   HAIR_LENGTH_OPTIONS,
-  BUST_TYPE_OPTIONS,
-  PUBIC_HAIR_OPTIONS,
-  SERVICES_OPTIONS,
   SERVICE_AREA_OPTIONS,
   CATEGORY_OPTIONS,
   ORIENTATION_OPTIONS,
@@ -178,11 +175,8 @@ export default function CreatorPanel() {
       ["Eyes", String(profile.eyes ?? "").trim()],
       ["Hair Color", String(profile.hair_color ?? "").trim()],
       ["Hair Length", String(profile.hair_length ?? "").trim()],
-      ["Bust Type", String(profile.bust_type ?? "").trim()],
-      ["Pubic Hair", String(profile.pubic_hair ?? "").trim()],
       ["Height", String(profile.height ?? "").trim()],
       ["Weight", String(profile.weight ?? "").trim()],
-      ["Services", String(profile.services ?? "").trim()],
       ["Travel", String(profile.travel ?? "").trim()],
       ["About Me", String(profile.notes ?? "").trim()],
     ];
@@ -492,16 +486,6 @@ export default function CreatorPanel() {
               {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
-          <Field label="BUST TYPE">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.bust_type ?? "Natural"} onChange={(e) => updateProfile("bust_type", e.target.value)}>
-              {BUST_TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </Field>
-          <Field label="PUBIC HAIR">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.pubic_hair ?? "Trimmed"} onChange={(e) => updateProfile("pubic_hair", e.target.value)}>
-              {PUBIC_HAIR_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </Field>
           <Field label="HEIGHT">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.height ?? ""} onChange={(e) => updateProfile("height", e.target.value)}>
               <option value="">Select height</option>
@@ -544,31 +528,7 @@ export default function CreatorPanel() {
           <ChoiceGroup label="SMOKER" value={profile.smoker} options={["yes", "no"]} onChange={(v) => updateProfile("smoker", v as CreatorProfile["smoker"])} />
           <ChoiceGroup label="TATTOO" value={profile.tattoo} options={["yes", "no"]} onChange={(v) => updateProfile("tattoo", v as CreatorProfile["tattoo"])} />
           <ChoiceGroup label="PIERCING" value={profile.piercing} options={["yes", "no"]} onChange={(v) => updateProfile("piercing", v as CreatorProfile["piercing"])} />
-          <div>
-            <div className="text-xs tracking-[0.22em] text-brand-muted">SERVICES <span className="normal-case text-brand-muted/60">(select at least one)</span></div>
-            <div className="mt-2 space-y-2">
-              {SERVICES_OPTIONS.map((s) => {
-                const current = (profile.services ?? "").split(",").map((v) => v.trim()).filter(Boolean);
-                const checked = current.includes(s);
-                return (
-                  <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        const updated = e.target.checked
-                          ? [...current, s]
-                          : current.filter((v) => v !== s);
-                        updateProfile("services", updated.join(", "));
-                      }}
-                    />
-                    <span>{s}</span>
-                  </label>
-                );
-              })}
-            </div>
           </div>
-        </div>
 
         <div className="mt-5">
           {/* "ABOUT ME" — same DB column (`notes`) as before; only the user-

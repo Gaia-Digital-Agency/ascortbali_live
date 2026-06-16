@@ -244,9 +244,9 @@ const CreatorProfileSchema = z.object({
   smoker: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   tattoo: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
   piercing: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])),
-  services: z.string().min(2),
-  bustType: z.string().trim().min(1).max(20),
-  pubicHair: z.string().trim().min(1).max(20),
+  services: z.string().optional().default(""),
+  bustType: z.string().trim().max(20).optional().default("Natural"),
+  pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])),
   availableFor: z.preprocess(normalizeAvailableFor, z.enum(["incall", "outcall", "both"])),
   // Category: one or more of escort / sugar babies / massage / dating/brides.

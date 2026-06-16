@@ -7,9 +7,6 @@ import {
   CATEGORY_OPTIONS,
   ORIENTATION_OPTIONS,
   SERVICE_AREA_OPTIONS,
-  SERVICES_OPTIONS,
-  BUST_TYPE_OPTIONS,
-  PUBIC_HAIR_OPTIONS,
 } from "../lib/creatorOptions";
 
 const NATIONALITIES = [
@@ -57,7 +54,7 @@ export default function CreatorRegisterPage() {
   const [nationality, setNationality] = useState("");
   const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
   const [services, setServices] = useState<string[]>([]);
-  const [bustType, setBustType] = useState<string>(BUST_TYPE_OPTIONS[0]);
+  const [bustType, setBustType] = useState<string>("Natural");
   const [pubicHair, setPubicHair] = useState<string>("Trimmed");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -226,45 +223,6 @@ export default function CreatorRegisterPage() {
                 <option key={o} value={o}>{titleCase(o)}</option>
               ))}
             </select>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">BUST TYPE</label>
-              <select className={sel} value={bustType} onChange={(e) => setBustType(e.target.value)} aria-label="Bust Type">
-                {BUST_TYPE_OPTIONS.map((v) => (<option key={v} value={v}>{v}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">PUBIC HAIR</label>
-              <select className={sel} value={pubicHair} onChange={(e) => setPubicHair(e.target.value)} aria-label="Pubic Hair">
-                {PUBIC_HAIR_OPTIONS.map((v) => (<option key={v} value={v}>{v}</option>))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">
-              SERVICES <span className="normal-case text-brand-muted/60">(select all that apply)</span>
-            </label>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {SERVICES_OPTIONS.map((s) => {
-                const checked = services.includes(s);
-                return (
-                  <label key={s} className="flex items-center gap-2 rounded-xl border border-brand-line bg-brand-surface2/40 px-3 py-2 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) setServices((prev) => [...prev, s]);
-                        else setServices((prev) => prev.filter((v) => v !== s));
-                      }}
-                    />
-                    <span>{s}</span>
-                  </label>
-                );
-              })}
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
