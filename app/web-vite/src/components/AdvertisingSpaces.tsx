@@ -305,11 +305,14 @@ export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }
               alt={name + " profile photo"}
               width={480}
               height={640}
-              // First card is the mobile LCP candidate — sync decode + high
-              // fetchpriority push it to the top of the browser's queue.
+              // First card gets fetchpriority=high + sync decode. The featured
+              // carousel is only a handful of above-the-fold cards, and on
+              // mobile the *largest-painted* one (the actual LCP) can be a later
+              // card — so all featured cards load eagerly to keep the LCP image
+              // off the lazy-load queue. (Lighthouse flagged a lazy LCP image.)
               {...(index === 0
                 ? ({ fetchPriority: "high", decoding: "sync", loading: "eager" } as ImgHTMLAttributes<HTMLImageElement>)
-                : { decoding: "async" as const, loading: index <= 2 ? "eager" as const : "lazy" as const })}
+                : { decoding: "async" as const, loading: index <= 3 ? "eager" as const : "lazy" as const })}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -466,16 +469,27 @@ export function AdSlot({
         ? { width: 320, height: 1200 } // matches uploaded portrait PNG dims
         : { width: 360, height: 640 };
 
-  // Ad images are served at their original quality — no /api/clean-image
-  // proxy (which applies sharp + AVIF/WebP conversion + resizing). The
-  // operator's uploaded PNG/JPEG goes straight from GCS via the
-  // /api/uploads passthrough. No srcSet, no width parameter, no format
-  // negotiation.
-  const adSrc = ad.image ?? null;
+  // Route operator ad images through the /api/clean-image resizer (sharp +
+  // AVIF/WebP negotiation + width resize) instead of shipping the raw multi-MB
+  // PNG/JPEG straight from GCS. clean-image accepts a full GCS path, so we just
+  // swap the /api/uploads/ prefix for /api/clean-image/ and add ?w=. A raw
+  // 1.1 MB ad PNG drops to ~50 KB WebP / ~37 KB AVIF this way. External/CDN
+  // URLs (anything not under /api/uploads/) pass through untouched.
+  const adIsUploads = !!ad.image && /\/api\/uploads\//.test(ad.image);
+  const adCleanUrl = (w: number) => {
+    const m = (ad.image as string).match(/\/api\/uploads\/(.+?)(?:\?.*)?$/);
+    return m ? `${withBasePath(`/api/clean-image/${m[1]}`)}?w=${w}` : (ad.image as string);
+  };
+  const adSrc = ad.image ? (adIsUploads ? adCleanUrl(dims.width) : ad.image) : null;
+  const adSrcSet = ad.image && adIsUploads
+    ? `${adCleanUrl(Math.round(dims.width / 2))} ${Math.round(dims.width / 2)}w, ${adCleanUrl(dims.width)} ${dims.width}w`
+    : undefined;
+  const adSizes = adIsUploads ? (isAuto ? "100vw" : `${dims.width}px`) : undefined;
 
   const inner = ad.image ? (
     <img
       src={adSrc ?? ad.image}
+      {...(adSrcSet ? { srcSet: adSrcSet, sizes: adSizes } : {})}
       alt={altForAd(ad, slot, alt)}
       width={dims.width}
       height={dims.height}
