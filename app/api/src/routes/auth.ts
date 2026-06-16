@@ -13,7 +13,7 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification } from "../lib/twilio.js";
+import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, sendWhatsAppOtp } from "../lib/twilio.js";
 import {
   createLoginSession,
   getSessionPhone,
@@ -158,7 +158,8 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const token = await createLoginSession(payload, phone);
-      return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
+      sendWhatsAppOtp(phone, token).catch(() => {});
+      return res.json({ twoFactorRequired: true, token });
     }
 
     // user portal
@@ -180,7 +181,8 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const token = await createLoginSession(payload, phone);
-    return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
+    sendWhatsAppOtp(phone, token).catch(() => {});
+    return res.json({ twoFactorRequired: true, token });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
@@ -232,6 +234,18 @@ authRouter.post("/2fa/sms/check", authRateLimit, async (req, res) => {
   if (!ok) return res.status(401).json({ error: "invalid_otp" });
   const accessToken = await completeSession(parsed.data.token);
   if (!accessToken) return res.status(401).json({ error: "session_expired" });
+  return res.json({ accessToken });
+});
+
+
+const WaCheckSchema = z.object({ token: z.string().min(4).max(64) });
+
+// POST /auth/2fa/wa/check — verify the 6-digit code sent via WhatsApp and complete login.
+authRouter.post("/2fa/wa/check", authRateLimit, async (req, res) => {
+  const parsed = WaCheckSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const accessToken = await completeSession(parsed.data.token);
+  if (!accessToken) return res.status(401).json({ error: "invalid_otp" });
   return res.json({ accessToken });
 });
 

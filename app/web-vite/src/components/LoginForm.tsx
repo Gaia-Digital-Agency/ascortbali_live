@@ -5,9 +5,6 @@ import { withBasePath } from "../lib/paths";
 
 type Portal = "admin" | "user" | "creator";
 
-// SMS verification fallback toggle. WhatsApp (user-initiated) is the sole login
-// verification path; the Twilio Verify SMS fallback is no longer offered. Set
-// back to `true` to restore the "Use SMS instead" option on the 2FA screen.
 const SMS_FALLBACK_ENABLED = false;
 
 type LoginFormProps = {
@@ -97,7 +94,7 @@ export default function LoginForm({
 
   // 2FA state (WhatsApp-primary, SMS fallback)
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
-  const [waNumber, setWaNumber] = useState("");
+
   const [smsMode, setSmsMode] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -184,7 +181,7 @@ export default function LoginForm({
       // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
       if (json.twoFactorRequired) {
         setTwoFactorToken(json.token);
-        setWaNumber(json.waNumber || "");
+
         setSmsMode(false);
         setOtpCode("");
         return;
@@ -235,7 +232,7 @@ export default function LoginForm({
     setOtpLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/2fa/sms/check`, {
+      const res = await fetch(`${API_BASE}/auth/2fa/wa/check`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token: twoFactorToken, code: otpCode }),
@@ -346,9 +343,6 @@ export default function LoginForm({
 
   // 2FA OTP screen
   if (twoFactorToken) {
-    const waDigits = waNumber.replace(/\D/g, "");
-    const waText = `MY OTP IS ${twoFactorToken} (send message as is)`;
-    const waHref = `https://wa.me/${waDigits}?text=${encodeURIComponent(waText)}`;
     const resetTwoFactor = () => {
       setTwoFactorToken(null);
       setSmsMode(false);
@@ -363,103 +357,46 @@ export default function LoginForm({
         </div>
 
         <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
-          {!smsMode ? (
-            <div className="space-y-4">
-              <p className="text-sm text-brand-muted">
-                Tap below to verify on WhatsApp. We&apos;ll confirm it&apos;s you from your registered number —
-                no code to type. Just send the pre-filled message and return here.
-              </p>
+          <div className="space-y-4">
+            <p className="text-sm text-brand-muted">
+              We sent a 6-digit code to your WhatsApp. Enter it below to complete sign in.
+            </p>
 
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary btn-block min-h-[44px] py-3 inline-flex items-center justify-center"
-              >
-                VERIFY ON WHATSAPP
-              </a>
-
-              <div className="flex items-center justify-center gap-2 text-xs text-brand-muted">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand-gold" />
-                Waiting for WhatsApp confirmation…
-              </div>
-
-              {error ? <div className="text-xs text-red-400">{error}</div> : null}
-
-              <div className={`flex items-center text-xs ${SMS_FALLBACK_ENABLED ? "justify-between" : "justify-center"}`}>
-                {SMS_FALLBACK_ENABLED ? (
-                  <button
-                    type="button"
-                    disabled={smsSending}
-                    onClick={sendSms}
-                    className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
-                  >
-                    {smsSending ? "Sending…" : "Use SMS instead"}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={resetTwoFactor}
-                  className="min-h-[44px] text-brand-muted hover:text-brand-text"
-                >
-                  Back to login
-                </button>
-              </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
+              <input
+                className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                aria-label="Verification code"
+              />
             </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-brand-muted">
-                We sent a 6-digit code by SMS to your registered number. Enter it below to complete sign in.
-              </p>
 
-              <div>
-                <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  aria-label="Verification code"
-                />
-              </div>
+            {error ? <div className="text-xs text-red-400">{error}</div> : null}
 
-              {error ? <div className="text-xs text-red-400">{error}</div> : null}
+            <button
+              disabled={otpLoading || otpCode.length !== 6}
+              onClick={verifyOtp}
+              className="btn btn-primary btn-block min-h-[44px] py-3"
+            >
+              {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
+            </button>
 
+            <div className="flex items-center justify-center text-xs">
               <button
-                disabled={otpLoading || otpCode.length !== 6}
-                onClick={verifyOtp}
-                className="btn btn-primary btn-block min-h-[44px] py-3"
+                type="button"
+                onClick={resetTwoFactor}
+                className="min-h-[44px] text-brand-muted hover:text-brand-text"
               >
-                {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
+                Back to login
               </button>
-
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  disabled={smsSending}
-                  onClick={sendSms}
-                  className="min-h-[44px] text-brand-gold underline disabled:opacity-50"
-                >
-                  {smsSending ? "Sending…" : "Resend SMS"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSmsMode(false);
-                    setOtpCode("");
-                    setError(null);
-                  }}
-                  className="min-h-[44px] text-brand-muted hover:text-brand-text"
-                >
-                  Back to WhatsApp
-                </button>
-              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     );

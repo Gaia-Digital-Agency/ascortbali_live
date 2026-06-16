@@ -99,7 +99,7 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
   await tw.messages.create({
     to,
     from,
-    body: `Your Bali Girls verification code is: ${code}\n\nThis code expires in 5 minutes. Do not share it with anyone.`,
+    body: `Code expires in 5 minutes and do not share code with anyone. Your BG OTP is: ${code}`,
   });
 }
 
