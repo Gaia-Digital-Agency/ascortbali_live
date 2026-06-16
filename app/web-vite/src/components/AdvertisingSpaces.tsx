@@ -214,6 +214,12 @@ export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }
   const ads = useAdSpaces();
   const settings = useSiteSettings();
   const [girls, setGirls] = useState<(FeaturedCreator | null)[]>([null, null, null, null]);
+  // Track whether the featured-girls fetch has settled. The skeleton must stay
+  // up until BOTH ads and girls have resolved — otherwise (ads loaded, girls
+  // still empty) hasVisibleGirls is false and the carousel returns null,
+  // collapsing its reserved height to 0 and then snapping back when girls
+  // arrive. That 427px->0->427px bounce was the desktop CLS (0.42).
+  const [girlsLoaded, setGirlsLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const girlsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -232,6 +238,7 @@ export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }
     const wanted = names.filter(Boolean);
     if (wanted.length === 0) {
       setGirls([null, null, null, null]);
+      setGirlsLoaded(true);
       return;
     }
 
@@ -259,6 +266,7 @@ export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }
           setGirls(result);
         }
       } catch { /* ignore */ }
+      finally { setGirlsLoaded(true); }
     })();
   }, [settings]);
 
@@ -279,7 +287,7 @@ export function FeaturedCarousel({ categoryFilter }: { categoryFilter?: string }
   // Each card fills its grid cell naturally — no fixed viewport widths.
   const slotClass = "block";
 
-  if (ads === null) {
+  if (ads === null || !girlsLoaded) {
     return (
       <div className={trackClass}>
         {[1, 2, 3, 4].map((i) => (
