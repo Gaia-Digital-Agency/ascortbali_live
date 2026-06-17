@@ -352,7 +352,7 @@ export default function LoginForm({
     };
     const waDigits = (waNumber || "+17407628065").replace(/\D/g, "");
     const waLink = `https://wa.me/${waDigits}?text=${encodeURIComponent(
-      `Your BG OTP: ${twoFactorToken} (send message as-is)`
+      `Your BG OTP: ${twoFactorToken} (send this message as-is and you will be logged in automatically)`
     )}`;
     return (
       <div className="mx-auto max-w-md space-y-6">
