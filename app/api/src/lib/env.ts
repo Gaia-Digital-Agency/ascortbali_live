@@ -58,7 +58,7 @@ const EnvSchema = z.object({
   WHATSAPP_INBOUND_NUMBER: z.string().default("+17407628065"),
 
   // Public site origin used to build links in outbound messages (no trailing slash).
-  PUBLIC_SITE_URL: z.string().default("https://baligirls.gaiada2.online"),
+  PUBLIC_SITE_URL: z.string().default("https://bali-girls.com"),
 });
 
 // Parse and export the environment variables.

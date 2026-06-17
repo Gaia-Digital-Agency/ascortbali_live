@@ -572,7 +572,8 @@ const UserRegisterSchema = z.object({
   relationshipStatus: z.enum(["single", "married", "other"]),
   phoneNumber: z.string().trim().optional().default(""),
   // WhatsApp number is required — it's the login identifier (passwordless).
-  whatsapp: z.string().trim().min(1),
+  // Must be E.164 with leading + (e.g. +628123456789).
+  whatsapp: z.string().trim().regex(/^\+\d{7,20}$/, "WhatsApp must be in +country-code format, e.g. +628123456789"),
   // Auto-generated on the form (8-char alphanumeric); stored as a bcrypt hash
   // for login and in temp_password (plaintext) for admin visibility.
   password: z.string().min(1).max(200),
@@ -680,7 +681,8 @@ const CreatorRegisterSchema = z.object({
   nationality: z.string().max(50).optional().default(""),
   city: z.string().min(1).max(50),
   phoneNumber: z.string().max(50).optional().default(""),
-  whatsapp: z.string().min(1).max(50),
+  // WhatsApp must be E.164 with leading + (e.g. +628123456789).
+  whatsapp: z.string().trim().regex(/^\+\d{7,20}$/, "WhatsApp must be in +country-code format, e.g. +628123456789").max(50),
   telegramId: z.string().max(100).optional().default(""),
   // WeChat ID is optional at registration time. Stored in providers.wechat_id.
   wechatId: z.string().max(100).optional().default(""),

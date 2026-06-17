@@ -82,13 +82,14 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT uuid::text AS id, username, COALESCE(temp_password, '') AS password, COALESCE(temp_password, '') AS confirm_password, model_name, gender, age, nationality, city,
-              phone_number, cell_phone, telegram_id, wechat_id, last_seen, notes, eyes, hair_color, hair_length,
-              travel, weight, height, ethnicity, languages, orientation, smoker, tattoo, piercing,
-              escort_type,
-              body_rating, face_rating,
-              services, meeting_with, available_for, COALESCE(is_active, false) AS is_active,
-              COALESCE(verified, false) AS verified, created_at, updated_at
+      `SELECT uuid::text AS id, username, COALESCE(temp_password, '') AS password, COALESCE(temp_password, '') AS confirm_password,
+              model_name, age, nationality, ethnicity, city,
+              cell_phone, phone_number, telegram_id, wechat_id, languages,
+              eyes, hair_color, hair_length, height, weight, travel, last_seen,
+              gender, escort_type, orientation, available_for, meeting_with, smoker, tattoo, piercing,
+              services, notes,
+              body_rating, face_rating, COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified,
+              created_at, updated_at
          FROM providers
         WHERE uuid = $1::uuid`,
       [req.params.id]
