@@ -26,12 +26,20 @@ const defaultProfile: UserProfile = {
   whatsapp: "",
 };
 
+// 8-char alphanumeric password generator (no ambiguous chars).
+const genPassword = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let s = "";
+  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+};
+
 export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "register" }) {
   const isRegister = mode === "register";
-  // In register mode the username is auto-suggested from the full name until the
-  // user edits it directly. Stays fully editable.
-  const [usernameEdited, setUsernameEdited] = useState(false);
-  const toHandle = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
+  // Register mode: username + password + confirm are auto-generated and shown
+  // READ-ONLY here (they are only editable in the admin user view).
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
   const [me, setMe] = useState<{ username: string; role: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [saving, setSaving] = useState(false);
@@ -48,8 +56,11 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
 
   useEffect(() => {
     if (isRegister) {
-      // Prefill an auto-generated, editable username on load.
+      // Auto-generate username + password + confirm; all shown read-only here.
       setProfile((prev) => ({ ...prev, email: prev.email || ("user_" + Math.random().toString(36).slice(2, 8)) }));
+      const pw = genPassword();
+      setRegPassword(pw);
+      setRegConfirm(pw);
       return;
     }
     (async () => {
@@ -109,6 +120,7 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
       const whatsapp = profile.whatsapp.replace(/[\s-]/g, "");
       if (!/^\+\d{1,4}\d{6,16}$/.test(whatsapp)) throw new Error("Include your WhatsApp number with country code, e.g. +628****4567.");
       if (!profile.fullName.trim() || !profile.nationality.trim() || !profile.city.trim()) throw new Error("All fields are compulsory.");
+      if (regPassword !== regConfirm) throw new Error("Password and confirm password do not match.");
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -121,6 +133,7 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
           city: profile.city.trim(),
           relationshipStatus: profile.relationshipStatus,
           whatsapp,
+          password: regPassword,
         }),
       });
       const json = await res.json();
@@ -204,10 +217,20 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
         <div className="text-xs tracking-luxe text-brand-muted">ALL FIELDS REQUIRED</div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="USERNAME (login ID)">
-            <input type="text" className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.email} onChange={(e) => { setUsernameEdited(true); update("email", e.target.value); }} placeholder="your_username" />
+            <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={profile.email} placeholder="auto-generated" />
           </Field>
+          {isRegister ? (
+            <>
+              <Field label="PASSWORD (auto-generated)">
+                <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={regPassword} />
+              </Field>
+              <Field label="CONFIRM PASSWORD">
+                <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={regConfirm} />
+              </Field>
+            </>
+          ) : null}
           <Field label="FULL NAME">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => { const v = e.target.value; update("fullName", v); if (isRegister && !usernameEdited) update("email", toHandle(v)); }} />
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => update("fullName", e.target.value)} />
           </Field>
           <Field label="NATIONALITY">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />

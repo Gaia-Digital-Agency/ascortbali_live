@@ -573,6 +573,9 @@ const UserRegisterSchema = z.object({
   phoneNumber: z.string().trim().optional().default(""),
   // WhatsApp number is required — it's the login identifier (passwordless).
   whatsapp: z.string().trim().min(1),
+  // Auto-generated on the form (8-char alphanumeric); stored as a bcrypt hash
+  // for login and in temp_password (plaintext) for admin visibility.
+  password: z.string().min(1).max(200),
 });
 
 // POST route to register a new user account.
@@ -593,6 +596,7 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     relationshipStatus,
     phoneNumber,
     whatsapp,
+    password,
   } = parsed.data;
 
   try {
@@ -605,14 +609,15 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     // Pre-generate account UUID so we don't need RETURNING (Prisma pool uses $executeRawUnsafe for INSERTs).
     const accountId = randomUUID();
 
-    // Insert app_accounts row with explicit id. Login is passwordless (by
-    // WhatsApp number), so we store a random unusable hash to satisfy the
-    // NOT NULL password column.
-    const hashedPw = await hashPassword(randomUUID());
+    // Store the auto-generated password as a bcrypt hash (login) plus plaintext
+    // in temp_password (admin visibility). PHONE (SMS) defaults to the WhatsApp
+    // number when left blank.
+    const hashedPw = await hashPassword(password);
+    const phoneFinal = (phoneNumber && phoneNumber.trim()) || whatsapp;
     await pool.query(
-      `INSERT INTO app_accounts (id, role, username, password, phone, whatsapp)
-       VALUES ($1::uuid, 'user', $2, $3, $4, $5)`,
-      [accountId, username, hashedPw, phoneNumber || null, whatsapp || null]
+      `INSERT INTO app_accounts (id, role, username, password, phone, whatsapp, temp_password)
+       VALUES ($1::uuid, 'user', $2, $3, $4, $5, $6)`,
+      [accountId, username, hashedPw, phoneFinal || null, whatsapp || null, password]
     );
 
     // Insert user_profiles row.

@@ -61,7 +61,7 @@ adminRouter.get("/accounts/users/:id", async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT a.id::text AS id, a.username, a.password, COALESCE(a.phone, '') AS phone, COALESCE(a.whatsapp, '') AS whatsapp, a.created_at, a.updated_at,
+      `SELECT a.id::text AS id, a.username, COALESCE(a.temp_password, '') AS password, COALESCE(a.temp_password, '') AS confirm_password, COALESCE(a.phone, '') AS phone, COALESCE(a.whatsapp, '') AS whatsapp, a.created_at, a.updated_at,
               COALESCE(up.full_name, '') AS full_name, COALESCE(up.gender, '') AS gender, COALESCE(up.age_group, '') AS age_group,
               COALESCE(up.nationality, '') AS nationality, COALESCE(up.city, '') AS city,
               COALESCE(up.relationship_status, '') AS relationship_status
@@ -102,8 +102,9 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
 
 // Zod schema for updating a user account (admin can edit all fields).
 const UpdateUserSchema = z.object({
-  username: z.string().email().optional(),
-  password: z.string().min(6).max(200).optional(),
+  username: z.string().min(1).max(200).optional(),
+  password: z.string().min(1).max(200).optional(),
+  confirm_password: z.string().max(200).optional(),
   phone: z.string().max(50).optional(),
   whatsapp: z.string().max(50).optional(),
   fullName: z.string().max(120).optional(),
@@ -120,6 +121,10 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
   const parsed = UpdateUserSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const p = parsed.data;
+  // If the admin changes the password, confirm must match (when provided).
+  if (p.password !== undefined && p.confirm_password !== undefined && p.password !== p.confirm_password) {
+    return res.status(400).json({ error: "password_mismatch", message: "Password and confirm password do not match." });
+  }
 
   const pool = getPool();
   try {
@@ -127,7 +132,12 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
     const accSet: string[] = ["updated_at = NOW()"];
     const accVals: unknown[] = [req.params.id];
     if (p.username !== undefined) { accVals.push(p.username); accSet.push(`username = $${accVals.length}`); }
-    if (p.password !== undefined) { const hashed = await bcrypt.hash(p.password, 10); accVals.push(hashed); accSet.push(`password = $${accVals.length}`); }
+    // Password edit: store bcrypt hash (login) + plaintext temp_password (admin view).
+    if (p.password !== undefined) {
+      const hashed = await bcrypt.hash(p.password, 10);
+      accVals.push(hashed); accSet.push(`password = $${accVals.length}`);
+      accVals.push(p.password); accSet.push(`temp_password = $${accVals.length}`);
+    }
     if (p.phone !== undefined) { accVals.push(p.phone || null); accSet.push(`phone = $${accVals.length}`); }
     if (p.whatsapp !== undefined) { accVals.push(p.whatsapp || null); accSet.push(`whatsapp = $${accVals.length}`); }
     if (p.verified !== undefined) { accVals.push(p.verified); accSet.push(`verified = $${accVals.length}`); }
