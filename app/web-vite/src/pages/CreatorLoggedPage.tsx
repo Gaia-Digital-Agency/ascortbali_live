@@ -61,8 +61,11 @@ const toImageUrl = (file?: string | null) => {
 };
 
 const defaultSlots = Array.from({ length: 20 }, (_, i) => i + 1);
-const CREATOR_NAME_REGEX = /^[A-Za-z0-9]{1,50}$/;
+const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
+// via WhatsApp, so this section is hidden. Flip to true to re-enable it.
+const PASSWORD_CHANGE_ENABLED = false;
 const NATIONALITY_OPTIONS = [
   "Indonesian", "Singaporean", "Malaysian", "Thai", "Vietnamese", "Filipino",
   "Chinese", "Japanese", "Korean", "Indian", "Australian", "British", "American",
@@ -557,6 +560,7 @@ export default function CreatorPanel() {
         </div>
       </section>
 
+      {PASSWORD_CHANGE_ENABLED && (
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">CHANGE PASSWORD</div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -586,6 +590,7 @@ export default function CreatorPanel() {
           </button>
         </div>
       </section>
+      )}
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">IMAGES (20 SLOTS: 1 MAIN + 19 OTHERS)</div>
