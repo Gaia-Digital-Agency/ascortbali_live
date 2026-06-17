@@ -70,7 +70,6 @@ const UserProfileSchema = z.object({
   ageGroup: z.enum(["18-24", "25-34", "35-44", "45-54", "55-64", "65+", "45+"]),
   nationality: z.string().min(2).max(80),
   city: z.string().min(2).max(80),
-  preferredContact: z.enum(["whatsapp", "telegram", "wechat"]),
   relationshipStatus: z.enum(["single", "married", "other"]),
   phoneNumber: z.string().max(50).optional().default(""),
   whatsapp: z.string().max(50).optional().default(""),
@@ -87,7 +86,6 @@ meRouter.get("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
              up.age_group,
              up.nationality,
              up.city,
-             up.preferred_contact,
              up.relationship_status,
              COALESCE(a.phone, '') AS phone,
              COALESCE(a.whatsapp, '') AS whatsapp,
@@ -108,7 +106,6 @@ meRouter.get("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       ageGroup: rows[0].age_group,
       nationality: rows[0].nationality,
       city: rows[0].city,
-      preferredContact: rows[0].preferred_contact,
       relationshipStatus: rows[0].relationship_status,
       phoneNumber: rows[0].phone,
       whatsapp: rows[0].whatsapp,
@@ -151,21 +148,20 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
     const upsertRes = await pool.query(
       `
       INSERT INTO user_profiles (
-        account_id, full_name, gender, age_group, nationality, city, preferred_contact, relationship_status
+        account_id, full_name, gender, age_group, nationality, city, relationship_status
       )
-      VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (account_id) DO UPDATE SET
         full_name = EXCLUDED.full_name,
         gender = EXCLUDED.gender,
         age_group = EXCLUDED.age_group,
         nationality = EXCLUDED.nationality,
         city = EXCLUDED.city,
-        preferred_contact = EXCLUDED.preferred_contact,
         relationship_status = EXCLUDED.relationship_status,
         updated_at = NOW()
-      RETURNING full_name, gender, age_group, nationality, city, preferred_contact, relationship_status
+      RETURNING full_name, gender, age_group, nationality, city, relationship_status
       `,
-      [req.user!.id, p.fullName, p.gender, p.ageGroup, p.nationality, p.city, p.preferredContact, p.relationshipStatus]
+      [req.user!.id, p.fullName, p.gender, p.ageGroup, p.nationality, p.city, p.relationshipStatus]
     );
     // Defensive: if RETURNING is unexpectedly empty (seen in some managed PG/proxy setups),
     // follow up with a SELECT so the request still succeeds.
@@ -178,7 +174,6 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
                age_group,
                nationality,
                city,
-               preferred_contact,
                relationship_status
           FROM user_profiles
          WHERE account_id = $1::uuid
@@ -195,7 +190,6 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       ageGroup: row.age_group,
       nationality: row.nationality,
       city: row.city,
-      preferredContact: row.preferred_contact,
       relationshipStatus: row.relationship_status,
       phoneNumber: p.phoneNumber,
       whatsapp: p.whatsapp,

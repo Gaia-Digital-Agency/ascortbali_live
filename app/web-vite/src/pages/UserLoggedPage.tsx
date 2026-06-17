@@ -11,7 +11,6 @@ type UserProfile = {
   ageGroup: "18-24" | "25-34" | "35-44" | "45-54" | "55-64" | "65+" | "45+";
   nationality: string;
   city: string;
-  preferredContact: "whatsapp" | "telegram" | "wechat";
   relationshipStatus: "single" | "married" | "other";
   whatsapp: string;
 };
@@ -23,7 +22,6 @@ const defaultProfile: UserProfile = {
   ageGroup: "25-34",
   nationality: "",
   city: "",
-  preferredContact: "telegram",
   relationshipStatus: "single",
   whatsapp: "",
 };
@@ -113,7 +111,6 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
           ageGroup: profile.ageGroup,
           nationality: profile.nationality.trim(),
           city: profile.city.trim(),
-          preferredContact: profile.preferredContact,
           relationshipStatus: profile.relationshipStatus,
           whatsapp,
         }),
@@ -207,7 +204,7 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
           <Field label="NATIONALITY">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />
           </Field>
-          <Field label="CITY">
+          <Field label="CURRENT CITY">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.city} onChange={(e) => update("city", e.target.value)} />
           </Field>
           <Field label="WHATSAPP NUMBER (used for 2FA and login)">
@@ -227,7 +224,6 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
 
         <div className="mt-6 grid gap-6 md:grid-cols-3">
           <RadioGroup label="GENDER" value={profile.gender} options={["female", "male", "transgender"]} onChange={(value) => update("gender", value as UserProfile["gender"])} />
-          <RadioGroup label="PREFERRED CONTACT" value={profile.preferredContact} options={["whatsapp", "telegram", "wechat"]} onChange={(value) => update("preferredContact", value as UserProfile["preferredContact"])} />
           <RadioGroup label="RELATIONSHIP STATUS" value={profile.relationshipStatus} options={["single", "married", "other"]} onChange={(value) => update("relationshipStatus", value as UserProfile["relationshipStatus"])} />
         </div>
 

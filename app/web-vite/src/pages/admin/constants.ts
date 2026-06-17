@@ -82,7 +82,6 @@ export const FIELD_OPTIONS: Record<string, string[]> = {
   travel:        TRAVEL_OPTIONS,
   // user fields
   age_group:           ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
-  preferred_contact:   ["whatsapp", "telegram", "wechat"],
   relationship_status: ["single", "married", "other"],
 };
 

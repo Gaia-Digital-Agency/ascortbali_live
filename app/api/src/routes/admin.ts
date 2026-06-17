@@ -64,7 +64,7 @@ adminRouter.get("/accounts/users/:id", async (req, res) => {
       `SELECT a.id::text AS id, a.username, a.password, COALESCE(a.phone, '') AS phone, COALESCE(a.whatsapp, '') AS whatsapp, a.created_at, a.updated_at,
               COALESCE(up.full_name, '') AS full_name, COALESCE(up.gender, '') AS gender, COALESCE(up.age_group, '') AS age_group,
               COALESCE(up.nationality, '') AS nationality, COALESCE(up.city, '') AS city,
-              COALESCE(up.preferred_contact, '') AS preferred_contact, COALESCE(up.relationship_status, '') AS relationship_status
+              COALESCE(up.relationship_status, '') AS relationship_status
          FROM app_accounts a
          LEFT JOIN user_profiles up ON up.account_id = a.id
         WHERE a.id = $1::uuid AND a.role = 'user'`,
@@ -111,7 +111,6 @@ const UpdateUserSchema = z.object({
   ageGroup: z.string().max(20).optional(),
   nationality: z.string().max(80).optional(),
   city: z.string().max(80).optional(),
-  preferredContact: z.string().max(20).optional(),
   relationshipStatus: z.string().max(20).optional(),
   verified: z.boolean().optional(),
 });
@@ -142,7 +141,6 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
     if (p.ageGroup !== undefined) { profVals.push(p.ageGroup); profSet.push(`age_group = $${profVals.length}`); }
     if (p.nationality !== undefined) { profVals.push(p.nationality); profSet.push(`nationality = $${profVals.length}`); }
     if (p.city !== undefined) { profVals.push(p.city); profSet.push(`city = $${profVals.length}`); }
-    if (p.preferredContact !== undefined) { profVals.push(p.preferredContact); profSet.push(`preferred_contact = $${profVals.length}`); }
     if (p.relationshipStatus !== undefined) { profVals.push(p.relationshipStatus); profSet.push(`relationship_status = $${profVals.length}`); }
     if (profSet.length > 1) {
       await pool.query(`UPDATE user_profiles SET ${profSet.join(", ")} WHERE account_id = $1::uuid`, profVals);

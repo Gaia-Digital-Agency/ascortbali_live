@@ -569,7 +569,6 @@ const UserRegisterSchema = z.object({
   ageGroup: z.enum(["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]),
   nationality: z.string().min(1).max(80),
   city: z.string().min(1).max(80),
-  preferredContact: z.enum(["whatsapp", "telegram", "wechat"]),
   relationshipStatus: z.enum(["single", "married", "other"]),
   phoneNumber: z.string().trim().optional().default(""),
   // WhatsApp number is required — it's the login identifier (passwordless).
@@ -591,7 +590,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     ageGroup,
     nationality,
     city,
-    preferredContact,
     relationshipStatus,
     phoneNumber,
     whatsapp,
@@ -626,10 +624,9 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
          age_group,
          nationality,
          city,
-         preferred_contact,
          relationship_status
        )
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)`,
       [
         accountId,
         fullName,
@@ -637,7 +634,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
         ageGroup,
         nationality,
         city,
-        preferredContact,
         relationshipStatus,
       ]
     );
