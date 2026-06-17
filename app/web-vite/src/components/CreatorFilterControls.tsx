@@ -1,13 +1,14 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 type CreatorFilterControlsProps = {
-  selectedNationality: string;
+  selectedName: string;
   selectedAge: string;
   selectedHeight: string;
   selectedGender: string;
   selectedServiceArea: string;
   selectedCategory: string;
-  nationalityOptions: string[];
+  nameOptions: string[];
   ageOptions: string[];
   // Height options are 2-inch bands: { value: <min-inches>, label: '5\'4" - 5\'5" / 163-167 cm' }
   heightOptions: Array<{ value: string; label: string }>;
@@ -18,7 +19,7 @@ type CreatorFilterControlsProps = {
 };
 
 // All possible filter keys, used for type-safe URL param diffs.
-type FilterKey = "nationality" | "age" | "height" | "gender" | "serviceArea" | "category";
+type FilterKey = "name" | "age" | "height" | "gender" | "serviceArea" | "category";
 
 // Capitalize a lower-case option for display ("female" -> "Female",
 // "all bali" -> "All Bali"). Source values are pulled from the DB folded
@@ -29,13 +30,13 @@ function titleCase(s: string): string {
 }
 
 export function CreatorFilterControls({
-  selectedNationality,
+  selectedName,
   selectedAge,
   selectedHeight,
   selectedGender,
   selectedServiceArea,
   selectedCategory,
-  nationalityOptions,
+  nameOptions,
   ageOptions,
   heightOptions,
   genderOptions,
@@ -46,6 +47,12 @@ export function CreatorFilterControls({
   const location = useLocation();
   const pathname = location.pathname || "/";
   const navigate = useNavigate();
+
+  // Local input state for the name search so we don't navigate on every
+  // keystroke; commit on Enter, on blur, or when an autocomplete option is
+  // picked. Re-sync if the URL's name param changes (e.g. CLEAR).
+  const [nameInput, setNameInput] = useState(selectedName);
+  useEffect(() => { setNameInput(selectedName); }, [selectedName]);
 
   const onFilterChange = (next: Partial<Record<FilterKey, string>>) => {
     const params = new URLSearchParams(window.location.search);
@@ -71,17 +78,22 @@ export function CreatorFilterControls({
           mobile (so three stacked rows). The CLEAR button sits on a final
           row aligned to the right so it's always the bottom-right control. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <select
-          className={selectClass}
-          value={selectedNationality || ""}
-          onChange={(e) => onFilterChange({ nationality: e.target.value })}
-          aria-label="Nationality"
-        >
-          <option value="">ALL NATIONALITIES</option>
-          {nationalityOptions.map((option) => (
-            <option key={option} value={option.toLowerCase()}>{option}</option>
+        <input
+          className={`${selectClass} placeholder:text-brand-muted/60`}
+          type="search"
+          list="creator-name-options"
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onFilterChange({ name: nameInput.trim() }); }}
+          onBlur={() => { if (nameInput.trim() !== selectedName) onFilterChange({ name: nameInput.trim() }); }}
+          placeholder="SEARCH GIRL'S NAME"
+          aria-label="Search by name"
+        />
+        <datalist id="creator-name-options">
+          {nameOptions.map((option) => (
+            <option key={option} value={option} />
           ))}
-        </select>
+        </datalist>
 
         <select
           className={selectClass}

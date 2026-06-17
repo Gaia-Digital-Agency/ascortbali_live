@@ -637,7 +637,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               facing label changed. Creators write a free-form intro here. */}
           <Field label="ABOUT ME (required)">
             <textarea
-              className="min-h-[120px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
+              className="min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               maxLength={150}
               value={profile.notes ?? ""}
               onChange={(e) => updateProfile("notes", e.target.value)}

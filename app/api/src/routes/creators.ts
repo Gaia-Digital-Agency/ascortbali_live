@@ -97,7 +97,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
   }
   const pool = getPool();
   try {
-    const [natRes, htRes, genderRes, areaRes, catRes] = await Promise.all([
+    const [natRes, htRes, genderRes, areaRes, catRes, namesRes] = await Promise.all([
       pool.query(
         `SELECT DISTINCT BTRIM(nationality) AS v
            FROM providers
@@ -156,6 +156,16 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
             AND BTRIM(token) <> ''
           ORDER BY v ASC`
       ),
+      // Display names of active creators — powers the homepage name search
+      // autocomplete (the DEMS registry of girls).
+      pool.query(
+        `SELECT DISTINCT BTRIM(model_name) AS v
+           FROM providers
+          WHERE is_active IS TRUE
+            AND model_name IS NOT NULL
+            AND BTRIM(model_name) <> ''
+          ORDER BY v ASC`
+      ),
     ]);
     // Bucket the distinct cm values into the 2-inch bands defined above.
     // A band appears in the dropdown only if at least one active creator
@@ -173,6 +183,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
       genders: genderRes.rows.map((r: { v: string }) => r.v),
       serviceAreas: areaRes.rows.map((r: { v: string }) => r.v),
       categories: catRes.rows.map((r: { v: string }) => r.v),
+      names: namesRes.rows.map((r: { v: string }) => r.v),
     };
     filterOptionsCache = { payload, expiresAt: now + FILTER_OPTIONS_TTL_MS };
     return res.json(payload);
@@ -262,6 +273,7 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
   const page = Math.max(Number(req.query.page ?? 1), 1);
   const offset = (page - 1) * limit;
   const nationality = (req.query.nationality as string | undefined)?.trim() || null;
+  const nameQuery = (req.query.name as string | undefined)?.trim() || null;
   const heightFilter = (req.query.height as string | undefined)?.trim() || null;
   const ageRange = ageBandToRange((req.query.age as string | undefined) ?? null);
   const gender = (req.query.gender as string | undefined)?.trim() || null;
@@ -274,6 +286,11 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
     if (nationality) {
       filterParams.push(nationality.toLowerCase());
       conds.push(`LOWER(BTRIM(p.nationality)) = $${filterParams.length}`);
+    }
+    if (nameQuery) {
+      // Match the girls' display name (model_name) in the active registry.
+      filterParams.push(`%${nameQuery.toLowerCase()}%`);
+      conds.push(`LOWER(BTRIM(p.model_name)) LIKE $${filterParams.length}`);
     }
     if (heightFilter) {
       // heightFilter is the band's min-inches token (e.g. "64" for 5'4"-5'5").

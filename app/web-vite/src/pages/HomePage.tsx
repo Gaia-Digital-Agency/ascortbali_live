@@ -173,7 +173,7 @@ export default function HomePage() {
   const settings = useSiteSettings();
 
   const page = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
-  const selectedNationality = normalize(searchParams.get("nationality"));
+  const selectedName = normalize(searchParams.get("name"));
   const selectedAge = normalize(searchParams.get("age"));
   const selectedHeight = normalize(searchParams.get("height"));
   const selectedGender = normalize(searchParams.get("gender"));
@@ -184,14 +184,14 @@ export default function HomePage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<{
-    nationalities: string[];
+    names: string[];
     // Heights are 2-inch bands: { value: '64', label: '5\'4" - 5\'5" / 163-167 cm' }
     heights: Array<{ value: string; label: string }>;
     genders: string[];
     serviceAreas: string[];
     categories: string[];
   }>({
-    nationalities: [],
+    names: [],
     heights: [],
     genders: [],
     serviceAreas: [],
@@ -211,7 +211,7 @@ export default function HomePage() {
         const params = new URLSearchParams();
         params.set("page", String(page));
         params.set("limit", String(PAGE_SIZE));
-        if (selectedNationality) params.set("nationality", selectedNationality);
+        if (selectedName) params.set("name", selectedName);
         if (selectedAge) params.set("age", selectedAge);
         if (selectedHeight) params.set("height", selectedHeight);
         if (selectedGender) params.set("gender", selectedGender);
@@ -233,7 +233,7 @@ export default function HomePage() {
     };
     run();
     return () => controller.abort();
-  }, [page, selectedNationality, selectedAge, selectedHeight, selectedGender, selectedServiceArea, selectedCategory]);
+  }, [page, selectedName, selectedAge, selectedHeight, selectedGender, selectedServiceArea, selectedCategory]);
 
   // Filter dropdown universe — fetched once, server-cached for 60s.
   useEffect(() => {
@@ -244,7 +244,7 @@ export default function HomePage() {
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled) setFilterOptions({
-          nationalities: Array.isArray(data.nationalities) ? data.nationalities : [],
+          names: Array.isArray(data.names) ? data.names : [],
           heights: Array.isArray(data.heights) ? data.heights : [],
           genders: Array.isArray(data.genders) ? data.genders : [],
           serviceAreas: Array.isArray(data.serviceAreas) ? data.serviceAreas : [],
@@ -255,7 +255,7 @@ export default function HomePage() {
     return () => { cancelled = true };
   }, []);
 
-  const nationalityOptions = filterOptions.nationalities;
+  const nameOptions = filterOptions.names;
   const heightOptions = filterOptions.heights;
   const genderOptions = filterOptions.genders;
   const serviceAreaOptions = filterOptions.serviceAreas;
@@ -263,7 +263,7 @@ export default function HomePage() {
   const ageOptions = ["18-24", "25-29", "30-34", "35+"];
 
   const hasActiveFilters = Boolean(
-    selectedNationality || selectedAge || selectedHeight ||
+    selectedName || selectedAge || selectedHeight ||
     selectedGender || selectedServiceArea || selectedCategory
   );
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -272,7 +272,7 @@ export default function HomePage() {
   const makePageHref = (targetPage: number) => {
     const params = new URLSearchParams();
     params.set("page", String(targetPage));
-    if (selectedNationality) params.set("nationality", selectedNationality);
+    if (selectedName) params.set("name", selectedName);
     if (selectedAge) params.set("age", selectedAge);
     if (selectedHeight) params.set("height", selectedHeight);
     if (selectedGender) params.set("gender", selectedGender);
@@ -351,13 +351,13 @@ export default function HomePage() {
       {/* 4. Filter controls */}
       <section>
         <CreatorFilterControls
-          selectedNationality={selectedNationality}
+          selectedName={selectedName}
           selectedAge={selectedAge}
           selectedHeight={selectedHeight}
           selectedGender={selectedGender}
           selectedServiceArea={selectedServiceArea}
           selectedCategory={selectedCategory}
-          nationalityOptions={nationalityOptions}
+          nameOptions={nameOptions}
           ageOptions={ageOptions}
           heightOptions={heightOptions}
           genderOptions={genderOptions}
