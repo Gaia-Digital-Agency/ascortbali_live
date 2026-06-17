@@ -48,7 +48,7 @@ const normalizeAvailableFor = (value: unknown) => {
   if (v.includes("outcall")) return "outcall";
   return v;
 };
-const CREATOR_NAME_REGEX = /^[A-Za-z0-9]{1,50}$/;
+const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 
 // Route to get the currently authenticated user's basic information.
 meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
@@ -219,7 +219,7 @@ const CreatorProfileSchema = z.object({
   modelName: z.string().trim().regex(CREATOR_NAME_REGEX),
   isActive: z.boolean().optional(),
   gender: z.preprocess(normalizeGender, z.enum(["female", "male", "transgender"])),
-  age: z.coerce.number().int().min(18).max(60),
+  age: z.coerce.number().int().min(18).max(70),
   location: z.string().max(100),
   eyes: z.string().min(1).max(20),
   hairColor: z.string().min(1).max(30),

@@ -57,7 +57,7 @@ export default function CreatorLoginPage() {
               REGISTER AS GIRL
             </a>
             <div className="text-xs text-brand-muted">
-              Sign in using your creator email and password.
+              Sign in with your registered WhatsApp number — we&apos;ll verify you on WhatsApp. No password needed.
             </div>
           </>
         }

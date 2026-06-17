@@ -666,9 +666,9 @@ const CreatorRegisterSchema = z.object({
   email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
   // Display name: one word, letters/numbers only (matches the profile editor's
   // CREATOR_NAME_REGEX so a name accepted at signup is also editable later).
-  modelName: z.string().trim().regex(/^[A-Za-z0-9]{1,50}$/),
+  modelName: z.string().trim().regex(/^[A-Za-z0-9-]{1,50}$/),
   gender: z.string().min(1).max(20),
-  age: z.number().int().min(18).max(99),
+  age: z.number().int().min(18).max(70),
   nationality: z.string().min(1).max(50),
   city: z.string().min(1).max(50),
   phoneNumber: z.string().max(50).optional().default(""),

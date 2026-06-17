@@ -85,8 +85,8 @@ export default function CreatorRegisterPage() {
       setError("Username must be 3–50 characters: letters, numbers, - or _ only (no spaces).");
       return;
     }
-    if (!/^[A-Za-z0-9]{1,50}$/.test(modelName.trim())) {
-      setError("Display name must be one word — letters and numbers only, no spaces or symbols.");
+    if (!/^[A-Za-z0-9-]{1,50}$/.test(modelName.trim())) {
+      setError("Display name must be a single word — letters, numbers and hyphens only, no spaces.");
       return;
     }
     if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
