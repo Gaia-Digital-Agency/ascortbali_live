@@ -656,13 +656,18 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 
 // Zod schema for creator registration.
 const CreatorRegisterSchema = z.object({
-  username: z.string().trim().toLowerCase().email(),
+  // Username is now a free-text login handle (no longer an email). Stored in
+  // providers.username, unique (case-insensitive). Login itself remains
+  // WhatsApp-number passwordless; the username is the account's identifier.
+  username: z.string().trim().toLowerCase().min(3).max(50),
+  // Email is now a separate, OPTIONAL field stored in providers.email.
+  email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
   modelName: z.string().min(1).max(100),
   gender: z.string().min(1).max(20),
   age: z.number().int().min(18).max(99),
   nationality: z.string().min(1).max(50),
   city: z.string().min(1).max(50),
-  phoneNumber: z.string().min(1).max(50),
+  phoneNumber: z.string().max(50).optional().default(""),
   whatsapp: z.string().min(1).max(50),
   telegramId: z.string().max(100).optional().default(""),
   // WeChat ID is optional at registration time. Stored in providers.wechat_id.
@@ -694,7 +699,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
+  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -723,8 +728,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     // Passwordless login (by WhatsApp number) — store a random unusable hash.
     const hashedPw = await hashPassword(randomUUID());
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
       [
         creatorId,
         providerId,
@@ -747,6 +752,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         orientation,
         bustType || "Natural",
         pubicHair || "Trimmed",
+        email || null,
       ]
     );
 

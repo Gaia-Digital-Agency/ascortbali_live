@@ -41,6 +41,7 @@ const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase())
 // land on the editor.
 
 export default function CreatorRegisterPage() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
@@ -80,7 +81,16 @@ export default function CreatorRegisterPage() {
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const normalizedPhone = phoneNumber.replace(/[\s-]/g, "");
     const normalizedWhatsapp = whatsappNumber.replace(/[\s-]/g, "");
-    if (!normalizedPhone || !phoneRegex.test(normalizedPhone)) {
+    if (username.trim().length < 3) {
+      setError("Username is required (at least 3 characters).");
+      return;
+    }
+    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError("Enter a valid email or leave it blank.");
+      return;
+    }
+    // Phone/SMS is optional; only validate the format if something was entered.
+    if (normalizedPhone && !phoneRegex.test(normalizedPhone)) {
       setError("Phone number must include country code, e.g. +6281234567");
       return;
     }
@@ -96,7 +106,8 @@ export default function CreatorRegisterPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          username: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase(),
+          email: email.trim().toLowerCase() || undefined,
           modelName: modelName.trim(),
           gender,
           age: parseInt(age, 10),
@@ -146,8 +157,13 @@ export default function CreatorRegisterPage() {
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME (EMAIL) <span className="normal-case text-brand-muted/60">(used as your login)</span></label>
-            <input required type="email" className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="username@email.com" aria-label="Username email" />
+            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME <span className="normal-case text-brand-muted/60">(used as your login)</span></label>
+            <input required className={inp} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="your_username" aria-label="Username" />
+          </div>
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">USER EMAIL <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <input type="email" className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="username@email.com" aria-label="User email" />
           </div>
 
           <p className="text-xs text-brand-muted">
@@ -227,8 +243,8 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE/SMS</label>
-              <input required className={inp} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+6281234567890" aria-label="Phone / SMS" />
+              <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE/SMS <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <input className={inp} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+6281234567890" aria-label="Phone / SMS" />
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP <span className="normal-case text-brand-muted/60">(used for 2FA)</span></label>
