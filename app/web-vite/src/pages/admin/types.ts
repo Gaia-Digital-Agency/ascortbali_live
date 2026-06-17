@@ -17,6 +17,7 @@ export type UserAccount = {
 export type CreatorAccount = {
   id: string;
   username: string;
+  model_name: string | null;
   password: string | null;
   temp_password: string | null;
   last_seen: string | null;

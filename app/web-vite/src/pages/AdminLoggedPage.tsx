@@ -335,9 +335,10 @@ export default function AdminDashboard() {
     setViewSaving(true); setError(null); setAccountMsg(null);
     try {
       if (viewType === "creator") {
-        await apiFetch(`/admin/accounts/creators/${viewId}`, { method: "PUT", body: JSON.stringify({ is_active: false }) });
-        setCreators((prev) => prev.map((c) => c.id === viewId ? { ...c, is_active: false } : c));
-        setAccountMsg("Girl deactivated (soft deleted).");
+        await apiFetch(`/admin/accounts/creators/${viewId}`, { method: "DELETE" });
+        setCreators((prev) => prev.filter((c) => c.id !== viewId));
+        setStats((prev) => prev ? { ...prev, creatorCount: Math.max(0, (prev.creatorCount ?? 0) - 1) } : prev);
+        setAccountMsg("Girl deleted.");
       } else {
         await apiFetch(`/admin/accounts/${viewType}s/${viewId}`, { method: "DELETE" });
         setUsers((prev) => prev.filter((u) => u.id !== viewId));

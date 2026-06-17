@@ -661,10 +661,16 @@ const CreatorRegisterSchema = z.object({
   // Login stays WhatsApp-number passwordless; username is never a credential.
   // Kept optional here only for backward-compat with any client still sending
   // one; when present it must still be a valid handle.
+  // Auto-generated server-side; hidden on the creator form. Optional here
+  // because the server fills it (uniqueProviderUsername) when absent.
   username: z.string().trim().toLowerCase().min(3).max(50).regex(/^[a-z0-9_-]+$/).optional(),
   // Email is OPTIONAL and no longer collected from the form. Stored in
   // providers.email when present.
   email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
+  // Auto-generated server-side (8-char alphanumeric) when absent; hidden on the
+  // creator form. Stored as a bcrypt hash for login + providers.temp_password
+  // (plaintext) for admin visibility/editing.
+  password: z.string().min(1).max(200).optional(),
   // Display name: one word, letters/numbers only (matches the profile editor's
   // CREATOR_NAME_REGEX so a name accepted at signup is also editable later).
   modelName: z.string().trim().regex(/^[A-Za-z0-9-]{1,50}$/),
@@ -719,7 +725,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, travel, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
+  const { username, email, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, travel, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -743,6 +749,13 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       finalUsername = await uniqueProviderUsername(pool, modelName);
     }
 
+    // Display Name must be unique (case-insensitive). Single-word format is
+    // already enforced by the schema regex.
+    const nameExists = await pool.query(`SELECT uuid FROM providers WHERE LOWER(model_name) = LOWER($1) LIMIT 1`, [modelName]);
+    if (nameExists.rows.length > 0) {
+      return res.status(409).json({ error: "creator_name_taken" });
+    }
+
     // Services is free text (max 150 chars). Accept a string or, from older
     // clients, an array that we join into CSV.
     const servicesText = (Array.isArray(services) ? services.join(", ") : services).slice(0, 150);
@@ -757,16 +770,21 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     // Public URL uses the slug now that Phase D has shipped.
     const url = `/creator/preview/${slug}`;
 
-    // Passwordless login (by WhatsApp number) — store a random unusable hash.
-    const hashedPw = await hashPassword(randomUUID());
+    // Store the password as a bcrypt hash (login) plus plaintext in
+    // temp_password (admin visibility). Generated server-side when the form
+    // doesn't send one (the creator form hides it). Login stays passwordless.
+    const pwChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    const pwPlain = password || Array.from({ length: 8 }, () => pwChars[Math.floor(Math.random() * pwChars.length)]).join("");
+    const hashedPw = await hashPassword(pwPlain);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email, travel, eyes, hair_color, ethnicity, languages, height, weight, meeting_with, available_for, smoker, tattoo, piercing, notes)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, temp_password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email, travel, eyes, hair_color, ethnicity, languages, height, weight, meeting_with, available_for, smoker, tattoo, piercing, notes)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)`,
       [
         creatorId,
         providerId,
         finalUsername,
         hashedPw,
+        pwPlain,
         modelName,
         gender,
         age,

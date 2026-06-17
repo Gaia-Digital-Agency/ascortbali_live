@@ -32,7 +32,7 @@ adminRouter.get("/accounts", async (req, res) => {
         [limit, offset]
       ),
       pool.query(
-        `SELECT uuid::text AS id, username, password, temp_password, last_seen, created_at, updated_at,
+        `SELECT uuid::text AS id, username, model_name, password, temp_password, last_seen, created_at, updated_at,
                 COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified,
                 body_rating, face_rating
            FROM providers
@@ -82,7 +82,7 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT uuid::text AS id, provider_id, username, password, temp_password, model_name, gender, age, nationality, city,
+      `SELECT uuid::text AS id, provider_id, username, COALESCE(temp_password, '') AS password, COALESCE(temp_password, '') AS confirm_password, model_name, gender, age, nationality, city,
               phone_number, cell_phone, telegram_id, wechat_id, last_seen, notes, location, eyes, hair_color, hair_length,
               travel, weight, height, ethnicity, languages, country, orientation, smoker, tattoo, piercing,
               bust_type, pubic_hair, escort_type,
@@ -179,8 +179,9 @@ adminRouter.delete("/accounts/users/:id", async (req, res) => {
 
 // Zod schema for updating a creator account (admin can edit all fields).
 const UpdateCreatorSchema = z.object({
-  username: z.string().email().optional(),
-  password: z.string().min(6).max(200).optional(),
+  username: z.string().min(1).max(200).optional(),
+  password: z.string().min(1).max(200).optional(),
+  confirm_password: z.string().max(200).optional(),
   tempPassword: z.string().max(200).optional().nullable(),
   model_name: z.string().max(100).optional(),
   gender: z.string().max(20).optional(),
@@ -225,6 +226,10 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
   const parsed = UpdateCreatorSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const p = parsed.data;
+  // If the admin changes the password, confirm must match (when provided).
+  if (p.password !== undefined && p.confirm_password !== undefined && p.password !== p.confirm_password) {
+    return res.status(400).json({ error: "password_mismatch", message: "Password and confirm password do not match." });
+  }
 
   const pool = getPool();
   try {
@@ -233,8 +238,9 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     const add = (col: string, val: unknown) => { values.push(val); setClauses.push(`${col} = $${values.length}`); };
 
     if (p.username !== undefined) add("username", p.username);
-    if (p.password !== undefined) { const hashed = await bcrypt.hash(p.password, 10); add("password", hashed); }
-    if (p.tempPassword !== undefined) add("temp_password", p.tempPassword ?? null);
+    // Password edit: store bcrypt hash (login) + plaintext temp_password (admin view).
+    if (p.password !== undefined) { const hashed = await bcrypt.hash(p.password, 10); add("password", hashed); add("temp_password", p.password); }
+    else if (p.tempPassword !== undefined) add("temp_password", p.tempPassword ?? null);
     if (p.model_name !== undefined) add("model_name", p.model_name);
     if (p.gender !== undefined) add("gender", p.gender);
     if (p.age !== undefined) add("age", p.age);
@@ -285,6 +291,8 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
 adminRouter.delete("/accounts/creators/:id", async (req, res) => {
   const pool = getPool();
   try {
+    // Remove the creator's images first (no ON DELETE CASCADE), then the row.
+    await pool.query(`DELETE FROM provider_images WHERE provider_uuid = $1::uuid`, [req.params.id]);
     const rowCount = await pool.query(`DELETE FROM providers WHERE uuid = $1::uuid`, [req.params.id]);
     if (rowCount.rowCount === 0) return res.status(404).json({ error: "not_found" });
     res.json({ ok: true });

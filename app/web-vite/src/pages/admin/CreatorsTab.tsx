@@ -1,5 +1,4 @@
 import type { CreatorAccount, Rating } from "./types";
-import { fmtDate } from "./constants";
 
 const RATING_OPTIONS: Rating[] = ["A", "B", "C", "D", "E", "F"];
 
@@ -31,11 +30,11 @@ export function CreatorsTab({
         <thead>
           <tr className="border-b border-brand-line text-left text-xs tracking-[0.18em] text-brand-muted">
             <th className="pb-3 pr-4 font-normal">USERNAME</th>
+            <th className="pb-3 pr-4 font-normal">DISPLAY NAME</th>
             <th className="pb-3 pr-4 font-normal">BODY</th>
             <th className="pb-3 pr-4 font-normal">FACE</th>
             <th className="pb-3 pr-4 font-normal">VERIFIED</th>
             <th className="pb-3 pr-4 font-normal">LAST SEEN</th>
-            <th className="pb-3 pr-4 font-normal">REGISTERED</th>
             <th className="pb-3 font-normal">ACTIONS</th>
           </tr>
         </thead>
@@ -45,6 +44,7 @@ export function CreatorsTab({
           ) : list.map((c) => (
             <tr key={c.id} className="border-b border-brand-line/40 last:border-0">
               <td className="py-3 pr-4 font-mono text-xs">{c.username || "—"}</td>
+              <td className="py-3 pr-4 text-xs">{c.model_name || "—"}</td>
               <td className="py-3 pr-4">
                 <RatingSelect
                   value={c.body_rating}
@@ -69,7 +69,6 @@ export function CreatorsTab({
                 />
               </td>
               <td className="py-3 pr-4 text-xs text-brand-muted">{c.last_seen || "—"}</td>
-              <td className="py-3 pr-4 text-xs text-brand-muted">{fmtDate(c.created_at)}</td>
               <td className="py-3">
                 <div className="flex items-center gap-2">
                   <button onClick={() => onView(c.id)} className="btn btn-outline px-3 py-1.5 text-xs">VIEW</button>
