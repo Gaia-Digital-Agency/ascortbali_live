@@ -519,10 +519,10 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             </select>
           </Field>
           <Field label="NATIONALITY">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} list="nat-options" placeholder="Type nationality" />
-            <datalist id="nat-options">
-              {NATIONALITIES.map((n) => <option key={n} value={n} />)}
-            </datalist>
+            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)}>
+              <option value="" disabled>Select A Country</option>
+              {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
           </Field>
           <Field label="ETHNICITY (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile("ethnicity", e.target.value)}>
