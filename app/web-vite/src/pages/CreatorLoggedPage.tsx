@@ -67,7 +67,7 @@ const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
 const COUNTRY_OPTIONS = ["Indonesia", "Singapore", "Malaysia", "Thailand", "Vietnam", "Philippines", "Australia", "United Kingdom", "United States"];
-const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish"];
+const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish", "Others"];
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
 const ETHNICITY_OPTIONS = [
