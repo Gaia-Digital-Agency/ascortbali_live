@@ -41,7 +41,7 @@ export function AuthNavButton() {
     return (
       <div className="flex min-w-0 items-center gap-1 whitespace-nowrap">
         <Link className="btn btn-outline min-h-[44px] px-3 py-2.5 text-xs tracking-[0.14em]" to="/user">
-          LOGIN/REGISTER
+          MENS ZONE
         </Link>
       </div>
     );
