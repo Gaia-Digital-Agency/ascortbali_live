@@ -17,16 +17,16 @@ export function FooterStatus() {
           Privacy Statement
         </Link>
         <Link
-          to="/creator"
-          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-brand-line px-4 py-2 underline underline-offset-2 hover:text-brand-gold"
-        >
-          Girls Zone
-        </Link>
-        <Link
           to="/blog"
           className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-brand-line px-4 py-2 underline underline-offset-2 hover:text-brand-gold"
         >
           Blog
+        </Link>
+        <Link
+          to="/creator"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-brand-gold px-6 py-2 font-semibold text-brand-bg shadow-luxe transition hover:bg-brand-gold/90"
+        >
+          Girls Zone
         </Link>
       </div>
 
