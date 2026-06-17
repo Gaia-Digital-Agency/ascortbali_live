@@ -9,6 +9,21 @@ import sharp from 'sharp'
 import crypto from 'crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Load .env manually (PM2 doesn't pass --env-file to the interpreter).
+try {
+  const envPath = path.join(__dirname, '.env')
+  const envContent = fs.readFileSync(envPath, 'utf-8')
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const key = trimmed.slice(0, eqIdx).trim()
+    const val = trimmed.slice(eqIdx + 1).trim()
+    if (key && !process.env[key]) process.env[key] = val
+  }
+} catch { /* .env not found — use system env */ }
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8002
 
 const app = express()
