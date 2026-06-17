@@ -61,7 +61,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
 
 // Zod schema for validating user profile data.
 const UserProfileSchema = z.object({
-  email: z.string().trim().toLowerCase().email().optional(),
+  email: z.string().trim().optional(),
   fullName: z.string().min(2).max(120),
   gender: z.enum(["female", "male", "transgender"]),
   ageGroup: z.enum(["18-24", "25-34", "35-44", "45+"]),
@@ -131,7 +131,7 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
         [p.email, req.user!.id]
       );
       if (dup.rows.length > 0) {
-        return res.status(409).json({ error: "email_taken", message: "This email is already in use." });
+        return res.status(409).json({ error: "email_taken", message: "This username is already in use." });
       }
     }
 

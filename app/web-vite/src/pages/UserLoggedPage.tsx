@@ -40,6 +40,8 @@ export default function UserDashboard() {
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [showPwCurrent, setShowPwCurrent] = useState(false);
   const [showPwNew, setShowPwNew] = useState(false);
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -67,8 +69,8 @@ export default function UserDashboard() {
     setError(null);
     setMessage(null);
     try {
-      if (!profile.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) {
-        throw new Error("A valid email is required.");
+      if (!profile.email.trim()) {
+        throw new Error("Username is required.");
       }
       if (!profile.fullName.trim() || !profile.nationality.trim() || !profile.city.trim()) {
         throw new Error("All fields are compulsory.");
@@ -77,7 +79,7 @@ export default function UserDashboard() {
       setMessage("Profile updated.");
     } catch (err: any) {
       if (err?.message === "email_taken") {
-        setError("That email is linked to another account — try a different one");
+        setError("That username is already taken — try a different one");
       } else {
         setError(err.message ?? "Couldn't save your changes — please try again");
       }
@@ -95,6 +97,11 @@ export default function UserDashboard() {
     setPwSaving(true);
     setPwMsg(null);
     setError(null);
+    if (pwNew !== pwConfirm) {
+      setPwSaving(false);
+      setError("New passwords do not match");
+      return;
+    }
     try {
       await apiFetch("/auth/change-password", {
         method: "POST",
@@ -102,6 +109,7 @@ export default function UserDashboard() {
       });
       setPwMsg("Password updated.");
       setPwNew("");
+      setPwConfirm("");
     } catch (err: any) {
       setError(err.message ?? "Couldn't change your password — please try again");
     } finally {
@@ -135,8 +143,8 @@ export default function UserDashboard() {
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">ALL FIELDS REQUIRED</div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="EMAIL (login ID)">
-            <input type="email" className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
+          <Field label="USERNAME (login ID)">
+            <input type="text" className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.email} onChange={(e) => update("email", e.target.value)} placeholder="your_username" />
           </Field>
           <Field label="FULL NAME">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => update("fullName", e.target.value)} />
@@ -182,10 +190,14 @@ export default function UserDashboard() {
           <Field label="NEW PASSWORD">
             <PasswordInput value={pwNew} onChange={setPwNew} visible={showPwNew} onToggleVisibility={() => setShowPwNew((prev) => !prev)} />
           </Field>
+          <Field label="CONFIRM NEW PASSWORD">
+            <PasswordInput value={pwConfirm} onChange={setPwConfirm} visible={showPwConfirm} onToggleVisibility={() => setShowPwConfirm((prev) => !prev)} />
+          </Field>
         </div>
         {pwMsg ? <div className="mt-4 text-xs text-emerald-400">{pwMsg}</div> : null}
+        {pwNew && pwConfirm && pwNew !== pwConfirm ? <div className="mt-4 text-xs text-yellow-300">Passwords do not match</div> : null}
         <div className="mt-6">
-          <button onClick={changePassword} disabled={pwSaving || !pwNew.trim()} className="btn btn-primary py-3">
+          <button onClick={changePassword} disabled={pwSaving || !pwNew.trim() || pwNew !== pwConfirm} className="btn btn-primary py-3">
             {pwSaving ? "SAVING..." : "UPDATE PASSWORD"}
           </button>
         </div>
