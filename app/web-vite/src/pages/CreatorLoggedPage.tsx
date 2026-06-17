@@ -168,18 +168,10 @@ export default function CreatorPanel() {
       ["Username", username],
       ["Phone/SMS", String(profile.phone_number ?? "").trim()],
       ["WhatsApp", String(profile.cell_phone ?? "").trim()],
-      ["Nationality", String(profile.nationality ?? "").trim()],
       // Country dropped — replaced conceptually by the Service Area picker.
       // Service Area is stored in the city column (comma-separated zones);
       // require at least one selection.
       ["Location", String(profile.city ?? "").trim()],
-      ["Ethnicity", String(profile.ethnicity ?? "").trim()],
-      ["Languages", String(profile.languages ?? "").trim()],
-      ["Eyes", String(profile.eyes ?? "").trim()],
-      ["Hair Color", String(profile.hair_color ?? "").trim()],
-      ["Height", String(profile.height ?? "").trim()],
-      ["Weight", String(profile.weight ?? "").trim()],
-      ["Travel", String(profile.travel ?? "").trim()],
       ["About Me", String(profile.notes ?? "").trim()],
     ];
     const missing = requiredText.find(([, v]) => !v);
@@ -213,9 +205,9 @@ export default function CreatorPanel() {
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        // Default TRAVEL to "Travel To Meet" when the stored value is empty
+        
         // so new / unmigrated creators have a sensible pre-selected option.
-        travel: profile.travel || "Travel To Meet",
+        travel: profile.travel || "",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
         ethnicity: profile.ethnicity ?? "",
@@ -338,9 +330,9 @@ export default function CreatorPanel() {
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        // Default TRAVEL to "Travel To Meet" when the stored value is empty
+        
         // so new / unmigrated creators have a sensible pre-selected option.
-        travel: profile.travel || "Travel To Meet",
+        travel: profile.travel || "",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
         ethnicity: profile.ethnicity ?? "",

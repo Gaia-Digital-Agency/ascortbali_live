@@ -154,7 +154,8 @@ export default function UserRegisterPage() {
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">CITY</label>
-              <input required aria-label="City" className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Bali" />
+              <input required aria-label="City" className={fieldClass} value={city} onChange={(e) => { setCity(e.target.value); clearFieldError("city"); }} placeholder="e.g. Bali" />
+            {FE("city")}
             </div>
           </div>
 

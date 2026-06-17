@@ -669,7 +669,7 @@ const CreatorRegisterSchema = z.object({
   modelName: z.string().trim().regex(/^[A-Za-z0-9-]{1,50}$/),
   gender: z.string().min(1).max(20),
   age: z.number().int().min(18).max(70),
-  nationality: z.string().min(1).max(50),
+  nationality: z.string().max(50).optional().default(""),
   city: z.string().min(1).max(50),
   phoneNumber: z.string().max(50).optional().default(""),
   whatsapp: z.string().min(1).max(50),
@@ -688,11 +688,25 @@ const CreatorRegisterSchema = z.object({
   // Services and hair length are now optional at registration. Creators are
   // required to fill these in later from the profile editor (which still
   // enforces min length / non-empty via CreatorProfileSchema in me.ts).
-  services: z.array(z.string()).min(1),
-  hairLength: z.string().min(1).max(30),
+  services: z.array(z.string()).optional().default([]),
+  hairLength: z.string().max(30).optional().default(""),
   // Single-select dropdowns; defaults applied when omitted.
-  bustType: z.string().trim().min(1).max(20),
-  pubicHair: z.string().trim().min(1).max(20),
+  bustType: z.string().trim().max(20).optional().default("Natural"),
+  pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
+  // New optional fields for detailed creator profile info.
+  travel: z.string().max(50).optional().default(""),
+  eyes: z.string().max(30).optional().default(""),
+  hairColor: z.string().max(30).optional().default(""),
+  ethnicity: z.string().max(50).optional().default(""),
+  languages: z.string().max(400).optional().default(""),
+  height: z.string().max(30).optional().default(""),
+  weight: z.string().max(30).optional().default(""),
+  meetingWith: z.string().max(30).optional().default(""),
+  availableFor: z.string().max(30).optional().default(""),
+  smoker: z.string().max(10).optional().default(""),
+  tattoo: z.string().max(10).optional().default(""),
+  piercing: z.string().max(10).optional().default(""),
+  notes: z.string().max(4000).optional().default(""),
   imageFiles: z.array(z.string()).min(1),
 });
 
@@ -704,7 +718,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, imageFiles } = parsed.data;
+  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, travel, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -733,8 +747,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     // Passwordless login (by WhatsApp number) — store a random unusable hash.
     const hashedPw = await hashPassword(randomUUID());
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email, travel, eyes, hair_color, ethnicity, languages, height, weight, meeting_with, available_for, smoker, tattoo, piercing, notes)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)`,
       [
         creatorId,
         providerId,
@@ -758,6 +772,19 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         bustType || "Natural",
         pubicHair || "Trimmed",
         email || null,
+        travel || null,
+        eyes || null,
+        hairColor || null,
+        ethnicity || null,
+        languages || null,
+        height || null,
+        weight || null,
+        meetingWith || null,
+        availableFor || null,
+        smoker || null,
+        tattoo || null,
+        piercing || null,
+        notes || null,
       ]
     );
 

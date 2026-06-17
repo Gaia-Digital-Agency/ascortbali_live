@@ -8,30 +8,8 @@ import {
   ORIENTATION_OPTIONS,
   SERVICE_AREA_OPTIONS,
   HAIR_LENGTH_OPTIONS,
-  BUST_TYPE_OPTIONS,
-  PUBIC_HAIR_OPTIONS,
   SERVICES_OPTIONS,
 } from "../lib/creatorOptions";
-
-const NATIONALITIES = [
-  "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Argentinian", "Armenian",
-  "Australian", "Austrian", "Azerbaijani", "Bahraini", "Bangladeshi", "Belarusian", "Belgian",
-  "Bolivian", "Bosnian", "Brazilian", "British", "Bulgarian", "Cambodian", "Cameroonian",
-  "Canadian", "Chilean", "Chinese", "Colombian", "Congolese", "Croatian", "Cuban", "Czech",
-  "Danish", "Dominican", "Dutch", "Ecuadorian", "Egyptian", "Emirati", "Estonian", "Ethiopian",
-  "Filipino", "Finnish", "French", "Georgian", "German", "Ghanaian", "Greek", "Guatemalan",
-  "Honduran", "Hong Konger", "Hungarian", "Indian", "Indonesian", "Iranian", "Iraqi", "Irish",
-  "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Jordanian", "Kazakhstani", "Kenyan",
-  "Korean", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Libyan", "Lithuanian",
-  "Luxembourgish", "Macanese", "Malaysian", "Maldivian", "Maltese", "Mexican", "Moldovan",
-  "Mongolian", "Moroccan", "Mozambican", "Myanmarese", "Namibian", "Nepalese", "New Zealander",
-  "Nicaraguan", "Nigerian", "Norwegian", "Omani", "Pakistani", "Palestinian", "Panamanian",
-  "Paraguayan", "Peruvian", "Polish", "Portuguese", "Puerto Rican", "Qatari", "Romanian",
-  "Russian", "Saudi", "Senegalese", "Serbian", "Singaporean", "Slovak", "Slovenian",
-  "South African", "Spanish", "Sri Lankan", "Sudanese", "Swedish", "Swiss", "Syrian",
-  "Taiwanese", "Tajik", "Thai", "Tunisian", "Turkish", "Turkmen", "Ugandan", "Ukrainian",
-  "Uruguayan", "Uzbek", "Venezuelan", "Vietnamese", "Yemeni", "Zimbabwean",
-];
 
 const AGES = Array.from({ length: 53 }, (_, i) => 18 + i); // 18–70
 
@@ -49,22 +27,32 @@ export default function CreatorRegisterPage() {
     setForm((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
   const [orientation, setOrientation] = useState<string>(ORIENTATION_OPTIONS[0]);
   const [age, setAge] = useState("");
-  const [nationality, setNationality] = useState("");
   const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
   const [services, setServices] = useState<string[]>([SERVICES_OPTIONS[0]]);
   const toggleService = (option: string) =>
     setServices((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
   const [hairLength, setHairLength] = useState("");
-  const [bustType, setBustType] = useState<string>("Natural");
-  const [pubicHair, setPubicHair] = useState<string>("Trimmed");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [wechatId, setWechatId] = useState("");
+  const [languages, setLanguages] = useState("");
+  const [eyes, setEyes] = useState("");
+  const [hairColor, setHairColor] = useState("");
+  const [ethnicity, setEthnicity] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [meetingWith, setMeetingWith] = useState("");
+  const [availableFor, setAvailableFor] = useState("");
+  const [smoker, setSmoker] = useState("");
+  const [tattoo, setTattoo] = useState("");
+  const [piercing, setPiercing] = useState("");
+  const [notes, setNotes] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [policyConfirmed, setPolicyConfirmed] = useState(false);
@@ -72,6 +60,8 @@ export default function CreatorRegisterPage() {
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [noNudeConfirmed, setNoNudeConfirmed] = useState(false);
   const hasAllConfirmations = policyConfirmed && termsConfirmed && privacyConfirmed && noNudeConfirmed;
+
+  const clearFieldError = (field: string) => setFieldErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -84,6 +74,7 @@ export default function CreatorRegisterPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (!hasAllConfirmations) {
       setError("Please confirm all agreements before registering.");
@@ -93,37 +84,30 @@ export default function CreatorRegisterPage() {
     const normalizedPhone = phoneNumber.replace(/[\s-]/g, "");
     const normalizedWhatsapp = whatsappNumber.replace(/[\s-]/g, "");
     if (!/^[a-z0-9_-]{3,50}$/.test(username.trim().toLowerCase())) {
-      setError("Username must be 3–50 characters: letters, numbers, - or _ only (no spaces).");
+      setFieldErrors({ username: "3–50 characters: letters, numbers, - or _ only" });
       return;
     }
     if (!/^[A-Za-z0-9-]{1,50}$/.test(modelName.trim())) {
-      setError("Display name must be a single word — letters, numbers and hyphens only, no spaces.");
+      setFieldErrors({ modelName: "Single word, letters/numbers/hyphens only, no spaces" });
       return;
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Enter a valid email or leave it blank.");
+      setFieldErrors({ email: "Enter a valid email or leave it blank" });
       return;
     }
     if (normalizedPhone && !phoneRegex.test(normalizedPhone)) {
-      setError("Phone number must include country code, e.g. +628****4567");
+      setFieldErrors({ phoneNumber: "Include country code, e.g. +628****4567" });
       return;
     }
     if (!normalizedWhatsapp || !phoneRegex.test(normalizedWhatsapp)) {
-      setError("WhatsApp number must include country code, e.g. +628****4567");
+      setFieldErrors({ whatsapp: "Include country code, e.g. +628****4567" });
       return;
     }
     if (selectedFiles.length === 0) {
-      setError("Please select at least one profile photo.");
+      setFieldErrors({ photos: "Select at least one profile photo" });
       return;
     }
-    if (!hairLength) {
-      setError("Please select your hair length.");
-      return;
-    }
-    if (services.length === 0) {
-      setError("Please select at least one service.");
-      return;
-    }
+
 
     setLoading(true);
     try {
@@ -155,7 +139,6 @@ export default function CreatorRegisterPage() {
           modelName: modelName.trim(),
           gender,
           age: parseInt(age, 10),
-          nationality,
           city: city.trim(),
           phoneNumber: normalizedPhone,
           whatsapp: normalizedWhatsapp,
@@ -164,17 +147,35 @@ export default function CreatorRegisterPage() {
           form,
           orientation,
           services,
-          hairLength,
-          bustType,
-          pubicHair,
+          hairLength: hairLength || undefined,
+          services: services.length > 0 ? services : undefined,
           imageFiles: imageUrls,
+          languages: languages || undefined,
+          eyes: eyes || undefined,
+          hairColor: hairColor || undefined,
+          ethnicity: ethnicity || undefined,
+          height: height || undefined,
+          weight: weight || undefined,
+          meetingWith: meetingWith || undefined,
+          availableFor: availableFor || undefined,
+          smoker: smoker || undefined,
+          tattoo: tattoo || undefined,
+          piercing: piercing || undefined,
+          notes: notes.trim() || undefined,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
+        if (json?.error === "invalid_body" && json?.details?.fieldErrors) {
+          const parsed: Record<string, string> = {};
+          for (const [field, msgs] of Object.entries(json.details.fieldErrors)) {
+            parsed[field] = (msgs as string[]).join(", ");
+          }
+          setFieldErrors(parsed);
+          return;
+        }
         const messages: Record<string, string> = {
           username_taken: "That username is already taken — please choose another.",
-          invalid_body: "Some details are missing or invalid. Please review the highlighted fields and try again.",
           registration_failed: "Sorry, something went wrong creating your account. Please try again in a moment.",
         };
         throw new Error(messages[json?.error] ?? "Could not create your account. Please check your details and try again.");
@@ -187,6 +188,8 @@ export default function CreatorRegisterPage() {
       setLoading(false);
     }
   };
+
+  const FE = (f: string) => fieldErrors[f] ? <div className="mt-1 text-xs text-amber-400">{fieldErrors[f]}</div> : null;
 
   const sel = "mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60";
   const inp = "mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60";
@@ -207,13 +210,15 @@ export default function CreatorRegisterPage() {
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME <span className="normal-case text-brand-muted/60">(used as your login)</span></label>
-            <input required className={inp} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="your_username" aria-label="Username" />
+            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME</label>
+            <input required className={inp} value={username} onChange={(e) => { setUsername(e.target.value); clearFieldError("username"); }} placeholder="your_username" aria-label="Username" />
+            {FE("username")}
           </div>
 
           <div>
             <label className="text-xs tracking-[0.22em] text-brand-muted">USER EMAIL <span className="normal-case text-brand-muted/60">(optional)</span></label>
-            <input type="email" className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="username@email.com" aria-label="User email" />
+            <input type="email" className={inp} value={email} onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }} placeholder="username@email.com" aria-label="User email" />
+            {FE("email")}
           </div>
 
           <p className="text-xs text-brand-muted">
@@ -224,13 +229,14 @@ export default function CreatorRegisterPage() {
 
           <div>
             <label className="text-xs tracking-[0.22em] text-brand-muted">DISPLAY NAME</label>
-            <input required className={inp} value={modelName} onChange={(e) => setModelName(e.target.value)} placeholder="Your display name" aria-label="Display name" />
+            <input required className={inp} value={modelName} onChange={(e) => { setModelName(e.target.value); clearFieldError("modelName"); }} placeholder="Your display name" aria-label="Display name" />
+            {FE("modelName")}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">GENDER</label>
-              <select required className={sel} value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Gender">
+              <select required className={sel} value={gender} onChange={(e) => { setGender(e.target.value); clearFieldError("gender"); }} aria-label="Gender">
                 <option value="" disabled>Select...</option>
                 <option value="female">Female</option>
                 <option value="transgender">Transgender</option>
@@ -259,32 +265,23 @@ export default function CreatorRegisterPage() {
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">AGE</label>
-              <select required className={sel} value={age} onChange={(e) => setAge(e.target.value)} aria-label="Age">
+              <select required className={sel} value={age} onChange={(e) => { setAge(e.target.value); clearFieldError("age"); }} aria-label="Age">
                 <option value="" disabled>Select...</option>
                 {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">NATIONALITY</label>
-              <select required className={sel} value={nationality} onChange={(e) => setNationality(e.target.value)} aria-label="Nationality">
-                <option value="" disabled>Select...</option>
-                {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">LOCATION</label>
-              <select required className={sel} value={city} onChange={(e) => setCity(e.target.value)} aria-label="Location">
-                {SERVICE_AREA_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">LOCATION</label>
+            <select required className={sel} value={city} onChange={(e) => { setCity(e.target.value); clearFieldError("city"); }} aria-label="Location">
+              {SERVICE_AREA_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
           </div>
 
           <div>
             <label className="text-xs tracking-[0.22em] text-brand-muted">ORIENTATION</label>
-            <select className={sel} value={orientation} onChange={(e) => setOrientation(e.target.value)} aria-label="Orientation">
+            <select className={sel} value={orientation} onChange={(e) => { setOrientation(e.target.value); clearFieldError("orientation"); }} aria-label="Orientation">
               {ORIENTATION_OPTIONS.map((o) => (
                 <option key={o} value={o}>{titleCase(o)}</option>
               ))}
@@ -315,30 +312,230 @@ export default function CreatorRegisterPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR LENGTH <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <select className={sel} value={hairLength} onChange={(e) => { setHairLength(e.target.value); clearFieldError("hairLength"); }} aria-label="Hair length">
+              <option value="">Select...</option>
+              {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR LENGTH</label>
-              <select required className={sel} value={hairLength} onChange={(e) => setHairLength(e.target.value)} aria-label="Hair length">
-                <option value="" disabled>Select...</option>
-                {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              <label className="text-xs tracking-[0.22em] text-brand-muted">LANGUAGES <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={languages} onChange={(e) => { setLanguages(e.target.value); clearFieldError("languages"); }} aria-label="Languages">
+                <option value="">Select...</option>
+                <option value="English">English</option>
+                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                <option value="Mandarin">Mandarin</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Korean">Korean</option>
+                <option value="Thai">Thai</option>
+                <option value="Vietnamese">Vietnamese</option>
+                <option value="Malay">Malay</option>
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">BUST</label>
-              <select className={sel} value={bustType} onChange={(e) => setBustType(e.target.value)} aria-label="Bust type">
-                {BUST_TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">PUBIC</label>
-              <select className={sel} value={pubicHair} onChange={(e) => setPubicHair(e.target.value)} aria-label="Pubic hair">
-                {PUBIC_HAIR_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              <label className="text-xs tracking-[0.22em] text-brand-muted">EYES <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={eyes} onChange={(e) => { setEyes(e.target.value); clearFieldError("eyes"); }} aria-label="Eyes">
+                <option value="">Select...</option>
+                <option value="Brown">Brown</option>
+                <option value="Dark Brown">Dark Brown</option>
+                <option value="Black">Black</option>
+                <option value="Hazel">Hazel</option>
+                <option value="Blue">Blue</option>
+                <option value="Green">Green</option>
+                <option value="Gray">Gray</option>
               </select>
             </div>
           </div>
 
-          <hr className="border-brand-line" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR COLOR <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={hairColor} onChange={(e) => { setHairColor(e.target.value); clearFieldError("hairColor"); }} aria-label="Hair color">
+                <option value="">Select...</option>
+                <option value="Black">Black</option>
+                <option value="Dark Brown">Dark Brown</option>
+                <option value="Brown">Brown</option>
+                <option value="Light Brown">Light Brown</option>
+                <option value="Blonde">Blonde</option>
+                <option value="Red">Red</option>
+                <option value="Auburn">Auburn</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">ETHNICITY <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={ethnicity} onChange={(e) => { setEthnicity(e.target.value); clearFieldError("ethnicity"); }} aria-label="Ethnicity">
+                <option value="">Select...</option>
+                <option value="Asian">Asian</option>
+                <option value="West European">West European</option>
+                <option value="Eastern European">Eastern European</option>
+                <option value="African">African</option>
+                <option value="Australian">Australian</option>
+                <option value="North American">North American</option>
+                <option value="South American">South American</option>
+                <option value="Black">Black</option>
+                <option value="Caucasian">Caucasian</option>
+                <option value="Middle Eastern">Middle Eastern</option>
+                <option value="Hispanic">Hispanic</option>
+                <option value="Latin">Latin</option>
+                <option value="Pacific Islander">Pacific Islander</option>
+                <option value="Mixed">Mixed</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">HEIGHT <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={height} onChange={(e) => { setHeight(e.target.value); clearFieldError("height"); }} aria-label="Height">
+                <option value="">Select...</option>
+                <option value="140cm - 144cm ">140cm - 144cm</option>
+                <option value="145cm - 149cm ">145cm - 149cm</option>
+                <option value="150cm - 154cm ">150cm - 154cm</option>
+                <option value="155cm - 159cm ">155cm - 159cm</option>
+                <option value="160cm - 164cm ">160cm - 164cm</option>
+                <option value="165cm - 169cm ">165cm - 169cm</option>
+                <option value="170cm - 174cm ">170cm - 174cm</option>
+                <option value="175cm - 179cm ">175cm - 179cm</option>
+                <option value="180cm - 184cm ">180cm - 184cm</option>
+                <option value="185cm - 189cm ">185cm - 189cm</option>
+                <option value="190cm - 194cm ">190cm - 194cm</option>
+                <option value="195cm - 199cm ">195cm - 199cm</option>
+                <option value="200cm+">200cm+</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">WEIGHT <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <select className={sel} value={weight} onChange={(e) => { setWeight(e.target.value); clearFieldError("weight"); }} aria-label="Weight">
+                <option value="">Select...</option>
+                <option value="30 kg">30 kg</option>
+                <option value="31 kg">31 kg</option>
+                <option value="32 kg">32 kg</option>
+                <option value="33 kg">33 kg</option>
+                <option value="34 kg">34 kg</option>
+                <option value="35 kg">35 kg</option>
+                <option value="36 kg">36 kg</option>
+                <option value="37 kg">37 kg</option>
+                <option value="38 kg">38 kg</option>
+                <option value="39 kg">39 kg</option>
+                <option value="40 kg">40 kg</option>
+                <option value="41 kg">41 kg</option>
+                <option value="42 kg">42 kg</option>
+                <option value="43 kg">43 kg</option>
+                <option value="44 kg">44 kg</option>
+                <option value="45 kg">45 kg</option>
+                <option value="46 kg">46 kg</option>
+                <option value="47 kg">47 kg</option>
+                <option value="48 kg">48 kg</option>
+                <option value="49 kg">49 kg</option>
+                <option value="50 kg">50 kg</option>
+                <option value="51 kg">51 kg</option>
+                <option value="52 kg">52 kg</option>
+                <option value="53 kg">53 kg</option>
+                <option value="54 kg">54 kg</option>
+                <option value="55 kg">55 kg</option>
+                <option value="56 kg">56 kg</option>
+                <option value="57 kg">57 kg</option>
+                <option value="58 kg">58 kg</option>
+                <option value="59 kg">59 kg</option>
+                <option value="60 kg">60 kg</option>
+                <option value="61 kg">61 kg</option>
+                <option value="62 kg">62 kg</option>
+                <option value="63 kg">63 kg</option>
+                <option value="64 kg">64 kg</option>
+                <option value="65 kg">65 kg</option>
+                <option value="66 kg">66 kg</option>
+                <option value="67 kg">67 kg</option>
+                <option value="68 kg">68 kg</option>
+                <option value="69 kg">69 kg</option>
+                <option value="70 kg">70 kg</option>
+                <option value="71 kg">71 kg</option>
+                <option value="72 kg">72 kg</option>
+                <option value="73 kg">73 kg</option>
+                <option value="74 kg">74 kg</option>
+                <option value="75 kg">75 kg</option>
+                <option value="76 kg">76 kg</option>
+                <option value="77 kg">77 kg</option>
+                <option value="78 kg">78 kg</option>
+                <option value="79 kg">79 kg</option>
+                <option value="80 kg">80 kg</option>
+                <option value="81 kg">81 kg</option>
+                <option value="82 kg">82 kg</option>
+                <option value="83 kg">83 kg</option>
+                <option value="84 kg">84 kg</option>
+                <option value="85 kg">85 kg</option>
+                <option value="86 kg">86 kg</option>
+                <option value="87 kg">87 kg</option>
+                <option value="88 kg">88 kg</option>
+                <option value="89 kg">89 kg</option>
+                <option value="90 kg">90 kg</option>
+                <option value="91 kg">91 kg</option>
+                <option value="92 kg">92 kg</option>
+                <option value="93 kg">93 kg</option>
+                <option value="94 kg">94 kg</option>
+                <option value="95 kg">95 kg</option>
+                <option value="96 kg">96 kg</option>
+                <option value="97 kg">97 kg</option>
+                <option value="98 kg">98 kg</option>
+                <option value="99 kg">99 kg</option>
+                <option value="100 kg+">100 kg+</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">INCALL/OUTCALL <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <div className="mt-2 space-y-2">
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={availableFor === "incall"} onChange={() => { setAvailableFor("incall"); clearFieldError("availableFor"); }} /><span>Incall</span></label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={availableFor === "outcall"} onChange={() => { setAvailableFor("outcall"); clearFieldError("availableFor"); }} /><span>Outcall</span></label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={availableFor === "both"} onChange={() => { setAvailableFor("both"); clearFieldError("availableFor"); }} /><span>Both</span></label>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">MEET <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <div className="mt-2 space-y-2">
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "men"} onChange={() => { setMeetingWith("men"); clearFieldError("meetingWith"); }} /><span>Men</span></label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "women"} onChange={() => { setMeetingWith("women"); clearFieldError("meetingWith"); }} /><span>Women</span></label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "couples"} onChange={() => { setMeetingWith("couples"); clearFieldError("meetingWith"); }} /><span>Couples</span></label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "all"} onChange={() => { setMeetingWith("all"); clearFieldError("meetingWith"); }} /><span>All</span></label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">SMOKER <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={smoker === "yes"} onChange={() => { setSmoker("yes"); clearFieldError("smoker"); }} /><span>Yes</span></label>
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={smoker === "no"} onChange={() => { setSmoker("no"); clearFieldError("smoker"); }} /><span>No</span></label>
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="text-xs tracking-[0.22em] text-brand-muted">TATTOO <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={tattoo === "yes"} onChange={() => { setTattoo("yes"); clearFieldError("tattoo"); }} /><span>Yes</span></label>
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={tattoo === "no"} onChange={() => { setTattoo("no"); clearFieldError("tattoo"); }} /><span>No</span></label>
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="text-xs tracking-[0.22em] text-brand-muted">PIERCING <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={piercing === "yes"} onChange={() => { setPiercing("yes"); clearFieldError("piercing"); }} /><span>Yes</span></label>
+                  <label className="flex items-center gap-2 text-sm"><input type="radio" checked={piercing === "no"} onChange={() => { setPiercing("no"); clearFieldError("piercing"); }} /><span>No</span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">ABOUT ME <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <textarea className="mt-2 min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60" value={notes} onChange={(e) => { setNotes(e.target.value); clearFieldError("notes"); }} placeholder="Tell us about yourself..." />
+          </div>
+
+          <hr className="border-brand-line" />
           <div>
             <label className="text-xs tracking-[0.22em] text-brand-muted">PROFILE PHOTOS <span className="normal-case text-brand-muted/60">(at least 1 required)</span></label>
             <div
@@ -371,6 +568,8 @@ export default function CreatorRegisterPage() {
             {selectedFiles.length > 0 ? (
               <div className="mt-1 text-xs text-brand-muted">{selectedFiles.length} photo(s) selected</div>
             ) : null}
+            {FE("photos")}
+            {FE("imageFiles")}
           </div>
 
           <hr className="border-brand-line" />
@@ -378,22 +577,22 @@ export default function CreatorRegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE/SMS <span className="normal-case text-brand-muted/60">(optional)</span></label>
-              <input className={inp} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+628****7890" aria-label="Phone / SMS" />
+              <input className={inp} value={phoneNumber} onChange={(e) => { setPhoneNumber(e.target.value); clearFieldError("phoneNumber"); }} placeholder="+628****7890" aria-label="Phone / SMS" />
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP <span className="normal-case text-brand-muted/60">(used for 2FA)</span></label>
-              <input required className={inp} value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+628****7890" aria-label="WhatsApp number" />
+              <input required className={inp} value={whatsappNumber} onChange={(e) => { setWhatsappNumber(e.target.value); clearFieldError("whatsapp"); }} placeholder="+628****7890" aria-label="WhatsApp number" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">TELEGRAM <span className="normal-case text-brand-muted/60">(optional)</span></label>
-              <input className={inp} value={telegramId} onChange={(e) => setTelegramId(e.target.value)} placeholder="@username" aria-label="Telegram" />
+              <input className={inp} value={telegramId} onChange={(e) => { setTelegramId(e.target.value); clearFieldError("telegramId"); }} placeholder="@username" aria-label="Telegram" />
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">WECHAT ID <span className="normal-case text-brand-muted/60">(optional)</span></label>
-              <input className={inp} value={wechatId} onChange={(e) => setWechatId(e.target.value)} placeholder="WeChat ID" aria-label="WeChat ID" />
+              <input className={inp} value={wechatId} onChange={(e) => { setWechatId(e.target.value); clearFieldError("wechatId"); }} placeholder="WeChat ID" aria-label="WeChat ID" />
             </div>
           </div>
 
