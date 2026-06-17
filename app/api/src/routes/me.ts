@@ -348,19 +348,6 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
 
   const pool = getPool();
   try {
-    const duplicateNameRes = await pool.query(
-      `
-      SELECT 1
-        FROM providers
-       WHERE LOWER(model_name) = LOWER($1)
-         AND uuid <> $2::uuid
-       LIMIT 1
-      `,
-      [p.modelName, req.user!.id]
-    );
-    if (duplicateNameRes.rows[0]) {
-      return res.status(409).json({ error: "creator_name_taken", message: "Creator name is already in use." });
-    }
     const duplicateUsernameRes = await pool.query(
       `
       SELECT 1

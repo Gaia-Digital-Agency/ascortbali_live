@@ -674,7 +674,7 @@ const CreatorRegisterSchema = z.object({
   password: z.string().min(1).max(200).optional(),
   // Display name: one word, letters/numbers only (matches the profile editor's
   // CREATOR_NAME_REGEX so a name accepted at signup is also editable later).
-  modelName: z.string().trim().regex(/^[A-Za-z0-9-]{1,50}$/),
+  modelName: z.string().trim().regex(/^[A-Za-z]{1,50}$/),
   // Gender is optional now.
   gender: z.string().max(20).optional().default(""),
   age: z.number().int().min(18).max(70),
@@ -750,13 +750,6 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       finalUsername = username;
     } else {
       finalUsername = await uniqueProviderUsername(pool, modelName);
-    }
-
-    // Display Name must be unique (case-insensitive). Single-word format is
-    // already enforced by the schema regex.
-    const nameExists = await pool.query(`SELECT uuid FROM providers WHERE LOWER(model_name) = LOWER($1) LIMIT 1`, [modelName]);
-    if (nameExists.rows.length > 0) {
-      return res.status(409).json({ error: "creator_name_taken" });
     }
 
     // WhatsApp number must be unique across creators (login matches on the last

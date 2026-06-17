@@ -62,7 +62,7 @@ const toImageUrl = (file?: string | null) => {
   return `/api/clean-image/${encodeURIComponent(filename)}`;
 };
 
-const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
+const CREATOR_NAME_REGEX = /^[A-Za-z]{1,50}$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
@@ -115,7 +115,7 @@ const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   username: "", email: null, title: "", url: "", temp_password: null,
   telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
-  gender: "female", form: "escort", age: 18, location: "", eyes: "", hair_color: "",
+  gender: "female", form: "escort", age: "", location: "", eyes: "", hair_color: "",
   hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
   languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
   city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
@@ -191,8 +191,9 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const whatsapp = (profile.cell_phone ?? "").replace(/[\s-]/g, "");
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Display name must be one word (letters/numbers only), max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
     if (!whatsapp || !phoneRegex.test(whatsapp)) fe.cell_phone = "Include your WhatsApp number with country code, e.g. +628****4567.";
+    if (!profile.age || !AGE_OPTIONS.includes(Number(profile.age))) fe.age = "Please select your age.";
     if (!(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
     if (regFiles.length === 0) fe.photos = "Please add at least one profile photo.";
     if (!allAgreed) fe.agreements = "Please confirm all agreements before registering.";
@@ -277,7 +278,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     // Required fields, shown inline under each field. (phone_number is not a
     // form field — it defaults to the WhatsApp number server-side.)
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Girl name must be one word (letters/numbers only), max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
     if (!String(profile.cell_phone ?? "").trim()) fe.cell_phone = "WhatsApp is required.";
     if (!String(profile.city ?? "").trim()) fe.city = "Location is required.";
     if (!String(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
@@ -495,22 +496,23 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             <input
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={profile.model_name ?? ""}
-              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 50))}
+              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 50))}
               maxLength={50}
               inputMode="text"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
-              placeholder="One word, letters/numbers only"
+              placeholder="Enter Name"
             />
             {FE("model_name")}
           </Field>
           <Field label="AGE (required)">
             <select
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={String(profile.age ?? 18)}
-              onChange={(e) => updateProfile("age", Number(e.target.value))}
+              value={profile.age ? String(profile.age) : ""}
+              onChange={(e) => updateProfile("age", e.target.value ? Number(e.target.value) : "")}
             >
+              <option value="" disabled>Select Age</option>
               {AGE_OPTIONS.map((age) => (
                 <option key={age} value={age}>{age}</option>
               ))}
