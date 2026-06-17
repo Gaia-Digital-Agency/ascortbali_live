@@ -101,7 +101,12 @@ const HEIGHT_OPTIONS = (() => {
   }
   return ranges;
 })();
-const WEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => `${30 + i} kg`);
+const WEIGHT_OPTIONS = (() => {
+  const ranges: string[] = [];
+  for (let start = 40; start <= 95; start += 5) ranges.push(`${start} kg - ${start + 4} kg`);
+  ranges.push("100 kg+");
+  return ranges;
+})();
 const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 
 // Blank profile used when this same form is rendered as the REGISTRATION form
@@ -186,7 +191,6 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
       setError("Include your WhatsApp number with country code, e.g. +628****4567.");
       return;
     }
-    if (!profile.gender) { setError("Please select a gender."); return; }
     if (!(profile.notes ?? "").trim()) { setError("About Me is required."); return; }
     if (regFiles.length === 0) { setError("Please add at least one profile photo."); return; }
     if (!allAgreed) { setError("Please confirm all agreements before registering."); return; }

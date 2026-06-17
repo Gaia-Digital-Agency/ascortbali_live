@@ -217,7 +217,7 @@ const CreatorProfileSchema = z.object({
   notes: z.string().max(4000).optional().default(""),
   modelName: z.string().trim().regex(CREATOR_NAME_REGEX),
   isActive: z.boolean().optional(),
-  gender: z.preprocess(normalizeGender, z.enum(["female", "male", "transgender"])),
+  gender: z.preprocess(normalizeGender, z.enum(["female", "male", "transgender"]).or(z.literal(""))).optional().default(""),
   age: z.coerce.number().int().min(18).max(70),
   location: z.string().max(100),
   eyes: z.string().max(20).optional().default(""),
