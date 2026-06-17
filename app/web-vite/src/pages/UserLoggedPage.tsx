@@ -18,7 +18,7 @@ type UserProfile = {
 const defaultProfile: UserProfile = {
   email: "",
   fullName: "",
-  gender: "female",
+  gender: "male",
   ageGroup: "25-34",
   nationality: "",
   city: "",
@@ -216,32 +216,32 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">ALL FIELDS REQUIRED</div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="USERNAME (login ID)">
+          <Field label="USERNAME (view only)">
             <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={profile.email} placeholder="auto-generated" />
           </Field>
           {isRegister ? (
             <>
-              <Field label="PASSWORD (auto-generated)">
+              <Field label="PASSWORD (view only)">
                 <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={regPassword} />
               </Field>
-              <Field label="CONFIRM PASSWORD">
+              <Field label="CONFIRM PASSWORD (view only)">
                 <input type="text" readOnly className="w-full rounded-2xl border border-brand-line bg-brand-surface2/20 px-4 py-3 text-sm text-brand-muted outline-none" value={regConfirm} />
               </Field>
             </>
           ) : null}
-          <Field label="FULL NAME">
+          <Field label="FULL NAME (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => update("fullName", e.target.value)} />
           </Field>
-          <Field label="NATIONALITY">
+          <Field label="NATIONALITY (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />
           </Field>
-          <Field label="CURRENT CITY">
+          <Field label="CURRENT CITY (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.city} onChange={(e) => update("city", e.target.value)} />
           </Field>
           <Field label="WHATSAPP NUMBER (used for 2FA and login)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} placeholder="+6281234567890" />
           </Field>
-          <Field label="AGE GROUP">
+          <Field label="AGE GROUP (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ageGroup} onChange={(e) => update("ageGroup", e.target.value as UserProfile["ageGroup"])}>
               <option value="18-24">18-24</option>
               <option value="25-34">25-34</option>
@@ -254,7 +254,7 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
         </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-3">
-          <RadioGroup label="GENDER" value={profile.gender} options={["female", "male", "transgender"]} onChange={(value) => update("gender", value as UserProfile["gender"])} />
+          <RadioGroup label="GENDER" value={profile.gender} options={["male", "female", "transgender"]} onChange={(value) => update("gender", value as UserProfile["gender"])} />
           <RadioGroup label="RELATIONSHIP STATUS" value={profile.relationshipStatus} options={["single", "married", "other"]} onChange={(value) => update("relationshipStatus", value as UserProfile["relationshipStatus"])} />
         </div>
 
