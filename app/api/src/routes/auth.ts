@@ -659,10 +659,14 @@ const CreatorRegisterSchema = z.object({
   // Username is now a free-text login handle (no longer an email). Stored in
   // providers.username, unique (case-insensitive). Login itself remains
   // WhatsApp-number passwordless; the username is the account's identifier.
-  username: z.string().trim().toLowerCase().min(3).max(50),
+  // Letters/numbers plus - and _ as fillers; NO spaces. Distinct from the
+  // display name. Login stays WhatsApp passwordless; username is the handle.
+  username: z.string().trim().toLowerCase().min(3).max(50).regex(/^[a-z0-9_-]+$/),
   // Email is now a separate, OPTIONAL field stored in providers.email.
   email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
-  modelName: z.string().min(1).max(100),
+  // Display name: one word, letters/numbers only (matches the profile editor's
+  // CREATOR_NAME_REGEX so a name accepted at signup is also editable later).
+  modelName: z.string().trim().regex(/^[A-Za-z0-9]{1,50}$/),
   gender: z.string().min(1).max(20),
   age: z.number().int().min(18).max(99),
   nationality: z.string().min(1).max(50),

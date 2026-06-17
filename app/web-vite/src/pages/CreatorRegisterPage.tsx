@@ -81,8 +81,12 @@ export default function CreatorRegisterPage() {
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const normalizedPhone = phoneNumber.replace(/[\s-]/g, "");
     const normalizedWhatsapp = whatsappNumber.replace(/[\s-]/g, "");
-    if (username.trim().length < 3) {
-      setError("Username is required (at least 3 characters).");
+    if (!/^[a-z0-9_-]{3,50}$/.test(username.trim().toLowerCase())) {
+      setError("Username must be 3–50 characters: letters, numbers, - or _ only (no spaces).");
+      return;
+    }
+    if (!/^[A-Za-z0-9]{1,50}$/.test(modelName.trim())) {
+      setError("Display name must be one word — letters and numbers only, no spaces or symbols.");
       return;
     }
     if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {

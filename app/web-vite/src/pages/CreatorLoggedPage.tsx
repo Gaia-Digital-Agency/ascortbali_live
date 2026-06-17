@@ -7,6 +7,7 @@ import { PageMeta } from "../components/PageMeta";
 
 type CreatorProfile = {
   username: string;
+  email: string | null;
   title: string;
   url: string;
   temp_password: string | null;
@@ -194,6 +195,7 @@ export default function CreatorPanel() {
       const autoLastSeen = new Date().toISOString();
       const payload = {
         username,
+        email: profile.email ?? "",
         title: username,
         url: profile.url ?? "",
         tempPassword: profile.temp_password ?? "",
@@ -318,6 +320,7 @@ export default function CreatorPanel() {
     try {
       const payload = {
         username: (profile.username ?? "").trim().toLowerCase(),
+        email: profile.email ?? "",
         title: (profile.username ?? "").trim().toLowerCase(),
         url: profile.url,
         tempPassword: profile.temp_password ?? "",
@@ -410,6 +413,15 @@ export default function CreatorPanel() {
               value={profile.username ?? ""}
               onChange={(e) => updateProfile("username", e.target.value)}
               placeholder="your_username"
+            />
+          </Field>
+          <Field label="USER EMAIL (optional)">
+            <input
+              type="email"
+              className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
+              value={profile.email ?? ""}
+              onChange={(e) => updateProfile("email", e.target.value)}
+              placeholder="username@email.com"
             />
           </Field>
           <Field label="AGE">

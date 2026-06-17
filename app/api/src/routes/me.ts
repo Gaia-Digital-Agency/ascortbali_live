@@ -208,6 +208,8 @@ const CreatorProfileSchema = z.object({
   // Username is a free-text login handle (matches /register/creator). Lenient
   // max(100) so legacy creators whose username is still an email keep saving.
   username: z.string().trim().toLowerCase().min(3).max(100),
+  // Optional email (matches /register/creator). Stored in providers.email.
+  email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
   title: z.string().min(1).max(255),
   url: z.string().max(2000),
   tempPassword: z.string().max(100),
@@ -267,6 +269,7 @@ meRouter.get("/creator-profile", requireAuth, requireRole(["creator"]), async (r
       SELECT uuid::text AS uuid,
              provider_id,
              username,
+             email,
              title,
              url,
              temp_password,
@@ -434,6 +437,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                slug = $36,
                bust_type = $37,
                pubic_hair = $38,
+               email = $39,
                verified = CASE WHEN phone_number IS DISTINCT FROM $22 OR cell_phone IS DISTINCT FROM $23 THEN false ELSE verified END,
                updated_at = NOW()
        WHERE uuid = $1::uuid
@@ -515,6 +519,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
         nextSlug,
         p.bustType,
         p.pubicHair,
+        p.email,
       ]
     );
     let row = updateRes.rows[0];
