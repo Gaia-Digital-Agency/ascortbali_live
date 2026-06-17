@@ -64,7 +64,10 @@ const UserProfileSchema = z.object({
   email: z.string().trim().optional(),
   fullName: z.string().min(2).max(120),
   gender: z.enum(["female", "male", "transgender"]),
-  ageGroup: z.enum(["18-24", "25-34", "35-44", "45+"]),
+  // Matches the 6 buckets on the registration form. "45+" is retained for
+  // backward-compat with profiles saved under the old 4-bucket scheme so they
+  // can still be re-saved.
+  ageGroup: z.enum(["18-24", "25-34", "35-44", "45-54", "55-64", "65+", "45+"]),
   nationality: z.string().min(2).max(80),
   city: z.string().min(2).max(80),
   preferredContact: z.enum(["whatsapp", "telegram", "wechat"]),
@@ -205,9 +208,11 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
 
 // Zod schema for validating creator profile data.
 const CreatorProfileSchema = z.object({
-  // Username is a free-text login handle (matches /register/creator). Lenient
+  // Username is an internal handle (auto-generated at registration; no longer
+  // shown or edited on the form). It is round-tripped unchanged on save, so we
+  // only sanity-check it: min(1) (auto handles can be short) and a lenient
   // max(100) so legacy creators whose username is still an email keep saving.
-  username: z.string().trim().toLowerCase().min(3).max(100),
+  username: z.string().trim().toLowerCase().min(1).max(100),
   // Optional email (matches /register/creator). Stored in providers.email.
   email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
   title: z.string().min(1).max(255),
@@ -248,7 +253,7 @@ const CreatorProfileSchema = z.object({
   smoker: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
   tattoo: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
   piercing: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
-  services: z.string().optional().default(""),
+  services: z.string().max(150).optional().default(""),
   bustType: z.string().trim().max(20).optional().default("Natural"),
   pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])).optional().default(""),

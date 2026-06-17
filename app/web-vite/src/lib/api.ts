@@ -90,6 +90,19 @@ export async function apiFetch<T = any>(path: string, init?: RequestInit): Promi
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // Validation failures (Zod) come back as { error: "invalid_body",
+    // details: flatten() }. Surface the actual field/form messages instead of
+    // the meaningless "invalid_body" code so the user knows what to fix.
+    if (body?.error === "invalid_body" && body?.details) {
+      const fieldErrors = body.details.fieldErrors ?? {};
+      const parts = Object.entries(fieldErrors)
+        .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`);
+      const formErrors: string[] = body.details.formErrors ?? [];
+      const detail = [...parts, ...formErrors].filter(Boolean).join("; ");
+      const err = new Error(detail || "Some details are invalid — please check the form.");
+      (err as any).code = "invalid_body";
+      throw err;
+    }
     throw new Error(body?.error ?? `http_${res.status}`);
   }
   return res.json();

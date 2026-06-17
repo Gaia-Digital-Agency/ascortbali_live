@@ -9,7 +9,6 @@ export default function UserRegisterPage() {
   const [searchParams] = useSearchParams();
   const [username, setUsername] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [telegramId, setTelegramId] = useState("");
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "transgender">("male");
   const [ageGroup, setAgeGroup] = useState<"18-24" | "25-34" | "35-44" | "45-54" | "55-64" | "65+">("25-34");
@@ -46,7 +45,6 @@ export default function UserRegisterPage() {
           preferredContact,
           relationshipStatus,
           whatsapp: normalizedWhatsapp,
-          telegramId: telegramId.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -101,11 +99,6 @@ export default function UserRegisterPage() {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">TELEGRAM ID (OPTIONAL)</label>
-            <input className={fieldClass} value={telegramId} onChange={(e) => setTelegramId(e.target.value)} placeholder="@telegram_id" aria-label="Telegram ID" />
-          </div>
-
           <hr className="border-brand-line" />
 
           <div>
@@ -154,8 +147,7 @@ export default function UserRegisterPage() {
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">CITY</label>
-              <input required aria-label="City" className={fieldClass} value={city} onChange={(e) => { setCity(e.target.value); clearFieldError("city"); }} placeholder="e.g. Bali" />
-            {FE("city")}
+              <input required aria-label="City" className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Bali" />
             </div>
           </div>
 

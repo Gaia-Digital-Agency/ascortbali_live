@@ -8,7 +8,6 @@ import {
   ORIENTATION_OPTIONS,
   SERVICE_AREA_OPTIONS,
   HAIR_LENGTH_OPTIONS,
-  SERVICES_OPTIONS,
 } from "../lib/creatorOptions";
 
 const AGES = Array.from({ length: 53 }, (_, i) => 18 + i); // 18–70
@@ -18,8 +17,6 @@ const AGES = Array.from({ length: 53 }, (_, i) => 18 + i); // 18–70
 const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
 
 export default function CreatorRegisterPage() {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
   const [form, setForm] = useState<string[]>([CATEGORY_OPTIONS[0]]);
@@ -28,11 +25,8 @@ export default function CreatorRegisterPage() {
   const [orientation, setOrientation] = useState<string>(ORIENTATION_OPTIONS[0]);
   const [age, setAge] = useState("");
   const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
-  const [services, setServices] = useState<string[]>([SERVICES_OPTIONS[0]]);
-  const toggleService = (option: string) =>
-    setServices((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
+  const [services, setServices] = useState("");
   const [hairLength, setHairLength] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [wechatId, setWechatId] = useState("");
@@ -81,24 +75,12 @@ export default function CreatorRegisterPage() {
       return;
     }
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
-    const normalizedPhone = phoneNumber.replace(/[\s-]/g, "");
     const normalizedWhatsapp = whatsappNumber.replace(/[\s-]/g, "");
-    if (!/^[a-z0-9_-]{3,50}$/.test(username.trim().toLowerCase())) {
-      setFieldErrors({ username: "3–50 characters: letters, numbers, - or _ only" });
-      return;
-    }
     if (!/^[A-Za-z0-9-]{1,50}$/.test(modelName.trim())) {
       setFieldErrors({ modelName: "Single word, letters/numbers/hyphens only, no spaces" });
       return;
     }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setFieldErrors({ email: "Enter a valid email or leave it blank" });
-      return;
-    }
-    if (normalizedPhone && !phoneRegex.test(normalizedPhone)) {
-      setFieldErrors({ phoneNumber: "Include country code, e.g. +628****4567" });
-      return;
-    }
+
     if (!normalizedWhatsapp || !phoneRegex.test(normalizedWhatsapp)) {
       setFieldErrors({ whatsapp: "Include country code, e.g. +628****4567" });
       return;
@@ -134,21 +116,17 @@ export default function CreatorRegisterPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          username: username.trim().toLowerCase(),
-          email: email.trim().toLowerCase() || undefined,
           modelName: modelName.trim(),
           gender,
           age: parseInt(age, 10),
           city: city.trim(),
-          phoneNumber: normalizedPhone,
           whatsapp: normalizedWhatsapp,
           telegramId: telegramId.trim() || undefined,
           wechatId: wechatId.trim() || undefined,
           form,
           orientation,
-          services,
           hairLength: hairLength || undefined,
-          services: services.length > 0 ? services : undefined,
+          services: services.trim() || undefined,
           imageFiles: imageUrls,
           languages: languages || undefined,
           eyes: eyes || undefined,
@@ -166,12 +144,22 @@ export default function CreatorRegisterPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json?.error === "invalid_body" && json?.details?.fieldErrors) {
+        if (json?.error === "invalid_body" && json?.details) {
+          const fieldErrors = json.details.fieldErrors ?? {};
           const parsed: Record<string, string> = {};
-          for (const [field, msgs] of Object.entries(json.details.fieldErrors)) {
+          for (const [field, msgs] of Object.entries(fieldErrors)) {
             parsed[field] = (msgs as string[]).join(", ");
           }
           setFieldErrors(parsed);
+          // Also surface a readable summary at the top — some fields are hidden
+          // (username/email) and have no inline slot, so without this the error
+          // would be invisible to the user.
+          const formErrors: string[] = json.details.formErrors ?? [];
+          const summary = [
+            ...Object.entries(parsed).map(([f, m]) => `${f}: ${m}`),
+            ...formErrors,
+          ].filter(Boolean).join("; ");
+          setError(summary || "Some details are invalid — please check the form.");
           return;
         }
         const messages: Record<string, string> = {
@@ -209,18 +197,6 @@ export default function CreatorRegisterPage() {
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME</label>
-            <input required className={inp} value={username} onChange={(e) => { setUsername(e.target.value); clearFieldError("username"); }} placeholder="your_username" aria-label="Username" />
-            {FE("username")}
-          </div>
-
-          <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">USER EMAIL <span className="normal-case text-brand-muted/60">(optional)</span></label>
-            <input type="email" className={inp} value={email} onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }} placeholder="username@email.com" aria-label="User email" />
-            {FE("email")}
-          </div>
-
           <p className="text-xs text-brand-muted">
             No password needed — you&apos;ll sign in with your WhatsApp number and verify on WhatsApp.
           </p>
@@ -291,29 +267,21 @@ export default function CreatorRegisterPage() {
           <hr className="border-brand-line" />
 
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">SERVICES <span className="normal-case text-brand-muted/60">(select one or more)</span></label>
-            <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Services">
-              {SERVICES_OPTIONS.map((s) => {
-                const active = services.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => toggleService(s)}
-                    className={`min-h-[44px] rounded-2xl border px-3 py-2 text-sm transition ${active
-                      ? "border-brand-gold/70 bg-brand-gold/15 text-brand-text"
-                      : "border-brand-line bg-brand-surface2/40 text-brand-muted hover:text-brand-text"}`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">SERVICES <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <textarea
+              className="mt-2 min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
+              maxLength={150}
+              value={services}
+              onChange={(e) => { setServices(e.target.value); clearFieldError("services"); }}
+              placeholder="Describe the services you offer..."
+              aria-label="Services"
+            />
+            <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {services.length}</p>
+            {FE("services")}
           </div>
 
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR LENGTH <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR LENGTH </label>
             <select className={sel} value={hairLength} onChange={(e) => { setHairLength(e.target.value); clearFieldError("hairLength"); }} aria-label="Hair length">
               <option value="">Select...</option>
               {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -323,7 +291,7 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">LANGUAGES <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">LANGUAGES </label>
               <select className={sel} value={languages} onChange={(e) => { setLanguages(e.target.value); clearFieldError("languages"); }} aria-label="Languages">
                 <option value="">Select...</option>
                 <option value="English">English</option>
@@ -337,7 +305,7 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">EYES <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">EYES </label>
               <select className={sel} value={eyes} onChange={(e) => { setEyes(e.target.value); clearFieldError("eyes"); }} aria-label="Eyes">
                 <option value="">Select...</option>
                 <option value="Brown">Brown</option>
@@ -353,7 +321,7 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR COLOR <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR COLOR </label>
               <select className={sel} value={hairColor} onChange={(e) => { setHairColor(e.target.value); clearFieldError("hairColor"); }} aria-label="Hair color">
                 <option value="">Select...</option>
                 <option value="Black">Black</option>
@@ -366,7 +334,7 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">ETHNICITY <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">ETHNICITY </label>
               <select className={sel} value={ethnicity} onChange={(e) => { setEthnicity(e.target.value); clearFieldError("ethnicity"); }} aria-label="Ethnicity">
                 <option value="">Select...</option>
                 <option value="Asian">Asian</option>
@@ -390,7 +358,7 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">HEIGHT <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">HEIGHT </label>
               <select className={sel} value={height} onChange={(e) => { setHeight(e.target.value); clearFieldError("height"); }} aria-label="Height">
                 <option value="">Select...</option>
                 <option value="140cm - 144cm ">140cm - 144cm</option>
@@ -409,7 +377,7 @@ export default function CreatorRegisterPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">WEIGHT <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">WEIGHT </label>
               <select className={sel} value={weight} onChange={(e) => { setWeight(e.target.value); clearFieldError("weight"); }} aria-label="Weight">
                 <option value="">Select...</option>
                 <option value="30 kg">30 kg</option>
@@ -489,7 +457,7 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">INCALL/OUTCALL <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">INCALL/OUTCALL </label>
               <div className="mt-2 space-y-2">
                 <label className="flex items-center gap-2 text-sm"><input type="radio" checked={availableFor === "incall"} onChange={() => { setAvailableFor("incall"); clearFieldError("availableFor"); }} /><span>Incall</span></label>
                 <label className="flex items-center gap-2 text-sm"><input type="radio" checked={availableFor === "outcall"} onChange={() => { setAvailableFor("outcall"); clearFieldError("availableFor"); }} /><span>Outcall</span></label>
@@ -497,7 +465,7 @@ export default function CreatorRegisterPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">MEET <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">MEET </label>
               <div className="mt-2 space-y-2">
                 <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "men"} onChange={() => { setMeetingWith("men"); clearFieldError("meetingWith"); }} /><span>Men</span></label>
                 <label className="flex items-center gap-2 text-sm"><input type="radio" checked={meetingWith === "women"} onChange={() => { setMeetingWith("women"); clearFieldError("meetingWith"); }} /><span>Women</span></label>
@@ -507,21 +475,21 @@ export default function CreatorRegisterPage() {
             </div>
             <div className="space-y-2">
               <div>
-                <label className="text-xs tracking-[0.22em] text-brand-muted">SMOKER <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">SMOKER </label>
                 <div className="mt-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={smoker === "yes"} onChange={() => { setSmoker("yes"); clearFieldError("smoker"); }} /><span>Yes</span></label>
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={smoker === "no"} onChange={() => { setSmoker("no"); clearFieldError("smoker"); }} /><span>No</span></label>
                 </div>
               </div>
               <div className="mt-3">
-                <label className="text-xs tracking-[0.22em] text-brand-muted">TATTOO <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">TATTOO </label>
                 <div className="mt-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={tattoo === "yes"} onChange={() => { setTattoo("yes"); clearFieldError("tattoo"); }} /><span>Yes</span></label>
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={tattoo === "no"} onChange={() => { setTattoo("no"); clearFieldError("tattoo"); }} /><span>No</span></label>
                 </div>
               </div>
               <div className="mt-3">
-                <label className="text-xs tracking-[0.22em] text-brand-muted">PIERCING <span className="normal-case text-brand-muted/60">(optional)</span></label>
+                <label className="text-xs tracking-[0.22em] text-brand-muted">PIERCING </label>
                 <div className="mt-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={piercing === "yes"} onChange={() => { setPiercing("yes"); clearFieldError("piercing"); }} /><span>Yes</span></label>
                   <label className="flex items-center gap-2 text-sm"><input type="radio" checked={piercing === "no"} onChange={() => { setPiercing("no"); clearFieldError("piercing"); }} /><span>No</span></label>
@@ -531,7 +499,7 @@ export default function CreatorRegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">ABOUT ME <span className="normal-case text-brand-muted/60">(optional)</span></label>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">ABOUT ME </label>
             <textarea className="mt-2 min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60" value={notes} onChange={(e) => { setNotes(e.target.value); clearFieldError("notes"); }} placeholder="Tell us about yourself..." />
           </div>
 
@@ -575,10 +543,7 @@ export default function CreatorRegisterPage() {
           <hr className="border-brand-line" />
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE/SMS <span className="normal-case text-brand-muted/60">(optional)</span></label>
-              <input className={inp} value={phoneNumber} onChange={(e) => { setPhoneNumber(e.target.value); clearFieldError("phoneNumber"); }} placeholder="+628****7890" aria-label="Phone / SMS" />
-            </div>
+            
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP <span className="normal-case text-brand-muted/60">(used for 2FA)</span></label>
               <input required className={inp} value={whatsappNumber} onChange={(e) => { setWhatsappNumber(e.target.value); clearFieldError("whatsapp"); }} placeholder="+628****7890" aria-label="WhatsApp number" />
@@ -587,11 +552,11 @@ export default function CreatorRegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">TELEGRAM <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">TELEGRAM </label>
               <input className={inp} value={telegramId} onChange={(e) => { setTelegramId(e.target.value); clearFieldError("telegramId"); }} placeholder="@username" aria-label="Telegram" />
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">WECHAT ID <span className="normal-case text-brand-muted/60">(optional)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">WECHAT ID </label>
               <input className={inp} value={wechatId} onChange={(e) => { setWechatId(e.target.value); clearFieldError("wechatId"); }} placeholder="WeChat ID" aria-label="WeChat ID" />
             </div>
           </div>

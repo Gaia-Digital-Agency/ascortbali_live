@@ -22,7 +22,7 @@ import {
   completeSession,
   completeIfVerified,
 } from "../lib/login2fa.js";
-import { uniqueCreatorSlug } from "../lib/slug.js";
+import { uniqueCreatorSlug, uniqueProviderUsername } from "../lib/slug.js";
 
 export const authRouter = Router();
 
@@ -574,7 +574,6 @@ const UserRegisterSchema = z.object({
   phoneNumber: z.string().trim().optional().default(""),
   // WhatsApp number is required — it's the login identifier (passwordless).
   whatsapp: z.string().trim().min(1),
-  telegramId: z.string().trim().optional().default(""),
 });
 
 // POST route to register a new user account.
@@ -596,7 +595,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     relationshipStatus,
     phoneNumber,
     whatsapp,
-    telegramId,
   } = parsed.data;
 
   try {
@@ -656,13 +654,15 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 
 // Zod schema for creator registration.
 const CreatorRegisterSchema = z.object({
-  // Username is now a free-text login handle (no longer an email). Stored in
-  // providers.username, unique (case-insensitive). Login itself remains
-  // WhatsApp-number passwordless; the username is the account's identifier.
-  // Letters/numbers plus - and _ as fillers; NO spaces. Distinct from the
-  // display name. Login stays WhatsApp passwordless; username is the handle.
-  username: z.string().trim().toLowerCase().min(3).max(50).regex(/^[a-z0-9_-]+$/),
-  // Email is now a separate, OPTIONAL field stored in providers.email.
+  // Username is the account's internal handle, stored in providers.username
+  // (unique, case-insensitive). It is NOT collected from the registration form
+  // anymore — the server auto-generates a unique handle from modelName below.
+  // Login stays WhatsApp-number passwordless; username is never a credential.
+  // Kept optional here only for backward-compat with any client still sending
+  // one; when present it must still be a valid handle.
+  username: z.string().trim().toLowerCase().min(3).max(50).regex(/^[a-z0-9_-]+$/).optional(),
+  // Email is OPTIONAL and no longer collected from the form. Stored in
+  // providers.email when present.
   email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
   // Display name: one word, letters/numbers only (matches the profile editor's
   // CREATOR_NAME_REGEX so a name accepted at signup is also editable later).
@@ -685,10 +685,10 @@ const CreatorRegisterSchema = z.object({
   // Orientation: Straight / Bi Sexual / Lesbian. Stored lower-case in
   // providers.orientation.
   orientation: z.string().trim().toLowerCase().min(1).max(30).optional().default("straight"),
-  // Services and hair length are now optional at registration. Creators are
-  // required to fill these in later from the profile editor (which still
-  // enforces min length / non-empty via CreatorProfileSchema in me.ts).
-  services: z.array(z.string()).optional().default([]),
+  // Services is now free text (max 150 chars), optional at registration.
+  // Stored as-is in providers.services. Accept a string (preferred) or, for
+  // backward-compat with older clients, an array that we join into CSV.
+  services: z.union([z.string(), z.array(z.string())]).optional().default(""),
   hairLength: z.string().max(30).optional().default(""),
   // Single-select dropdowns; defaults applied when omitted.
   bustType: z.string().trim().max(20).optional().default("Natural"),
@@ -726,13 +726,25 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   const whatsappFinal = whatsapp || phoneNumber;
 
   try {
-    // Check username uniqueness.
-    const existing = await pool.query(`SELECT uuid FROM providers WHERE LOWER(username) = $1 LIMIT 1`, [
-      username.toLowerCase(),
-    ]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: "username_taken" });
+    // Username is auto-generated from the display name (the form no longer
+    // collects it). If a legacy client still sends one, honour it but verify
+    // uniqueness; otherwise derive a unique handle from modelName.
+    let finalUsername: string;
+    if (username) {
+      const existing = await pool.query(`SELECT uuid FROM providers WHERE LOWER(username) = $1 LIMIT 1`, [
+        username.toLowerCase(),
+      ]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: "username_taken" });
+      }
+      finalUsername = username;
+    } else {
+      finalUsername = await uniqueProviderUsername(pool, modelName);
     }
+
+    // Services is free text (max 150 chars). Accept a string or, from older
+    // clients, an array that we join into CSV.
+    const servicesText = (Array.isArray(services) ? services.join(", ") : services).slice(0, 150);
 
     // Pre-generate UUIDs so we don't need RETURNING (Prisma pool uses $executeRawUnsafe for INSERTs).
     const creatorId = randomUUID();
@@ -752,7 +764,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       [
         creatorId,
         providerId,
-        username,
+        finalUsername,
         hashedPw,
         modelName,
         gender,
@@ -763,7 +775,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         whatsappFinal,
         telegramId || null,
         wechatId || null,
-        services.join(", "),
+        servicesText,
         hairLength || null,
         url,
         slug,
@@ -798,7 +810,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       );
     }
 
-    const payload = { sub: creatorId, role: "creator", username };
+    const payload = { sub: creatorId, role: "creator", username: finalUsername };
     const accessToken = await signAccessToken(payload);
     return res.status(201).json({ accessToken });
   } catch {

@@ -65,6 +65,32 @@ export async function uniqueCreatorSlug(pool: SqlPool, raw: string): Promise<str
 }
 
 /**
+ * Build a unique provider username handle from a free-text display name.
+ * Same dedup algorithm as uniqueCreatorSlug but checks providers.username
+ * (case-insensitive). Used when a creator registers without supplying a
+ * username — the form no longer collects one. The slugified base is a valid
+ * username (matches /^[a-z0-9_-]+$/ since slugify only emits a–z, 0–9, '-').
+ */
+export async function uniqueProviderUsername(pool: SqlPool, raw: string): Promise<string> {
+  const base = slugify(raw) || "creator";
+  const { rows } = await pool.query<{ username: string }>(
+    `SELECT LOWER(username) AS username FROM providers
+      WHERE LOWER(username) = $1 OR LOWER(username) LIKE $1 || '-%'`,
+    [base]
+  );
+  if (rows.length === 0) return base;
+  let maxN = 1;
+  let seenBase = false;
+  for (const r of rows) {
+    const s = String(r.username);
+    if (s === base) { seenBase = true; continue; }
+    const m = s.match(/-(\d+)$/);
+    if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
+  }
+  return seenBase || maxN > 1 ? `${base}-${maxN + 1}` : base;
+}
+
+/**
  * Build a unique slug for a new blog post. Same algorithm as
  * uniqueCreatorSlug but checks against the `blogs.slug` column.
  * `excludeId` lets the admin edit form keep its current slug when the

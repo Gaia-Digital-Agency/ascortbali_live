@@ -61,7 +61,6 @@ const toImageUrl = (file?: string | null) => {
 };
 
 const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
@@ -158,14 +157,8 @@ export default function CreatorPanel() {
       setMessage(null);
       return;
     }
-    if (username.length < 3) {
-      setError("Username is required (at least 3 characters).");
-      setMessage(null);
-      return;
-    }
     const requiredText: Array<[string, string]> = [
       ["Name", creatorName],
-      ["Username", username],
       ["Phone/SMS", String(profile.phone_number ?? "").trim()],
       ["WhatsApp", String(profile.cell_phone ?? "").trim()],
       // Country dropped — replaced conceptually by the Service Area picker.
@@ -377,7 +370,6 @@ export default function CreatorPanel() {
       <div>
         <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
         <h1 className="mt-2 font-display text-2xl md:text-3xl">Girls Profile Page</h1>
-        <p className="mt-1 text-[11px] text-brand-muted">Username: {profile.username}</p>
       </div>
 
       {error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div> : null}
@@ -397,24 +389,6 @@ export default function CreatorPanel() {
               autoCorrect="off"
               spellCheck={false}
               placeholder="One word, letters/numbers only"
-            />
-          </Field>
-          <Field label="USERNAME">
-            <input
-              type="text"
-              className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={profile.username ?? ""}
-              onChange={(e) => updateProfile("username", e.target.value)}
-              placeholder="your_username"
-            />
-          </Field>
-          <Field label="USER EMAIL (optional)">
-            <input
-              type="email"
-              className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={profile.email ?? ""}
-              onChange={(e) => updateProfile("email", e.target.value)}
-              placeholder="username@email.com"
             />
           </Field>
           <Field label="AGE">
@@ -451,9 +425,6 @@ export default function CreatorPanel() {
               onChange={(next) => updateProfile("city", next.join(", "))}
               placeholder="Select areas..."
             />
-          </Field>
-          <Field label="PHONE/SMS">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.phone_number ?? ""} onChange={(e) => updateProfile("phone_number", e.target.value)} placeholder="+6281234567890" />
           </Field>
           <Field label="WHATSAPP (used for 2FA)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.cell_phone ?? ""} onChange={(e) => updateProfile("cell_phone", e.target.value)} placeholder="+6281234567890" />
@@ -540,6 +511,22 @@ export default function CreatorPanel() {
               facing label changed. Creators write a free-form intro here. */}
           <Field label="ABOUT ME">
             <textarea className="min-h-[120px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.notes ?? ""} onChange={(e) => updateProfile("notes", e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="mt-5">
+          {/* SERVICES — free text (max 150 chars), stored in providers.services.
+              Replaces the old fixed dropdown so creators can describe services
+              in their own words. Optional. */}
+          <Field label="SERVICES (optional)">
+            <textarea
+              className="min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
+              maxLength={150}
+              value={profile.services ?? ""}
+              onChange={(e) => updateProfile("services", e.target.value)}
+              placeholder="Describe the services you offer..."
+            />
+            <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.services ?? "").length}</p>
           </Field>
         </div>
 

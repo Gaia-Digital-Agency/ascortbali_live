@@ -8,7 +8,7 @@ type UserProfile = {
   email: string;
   fullName: string;
   gender: "female" | "male" | "transgender";
-  ageGroup: "18-24" | "25-34" | "35-44" | "45+";
+  ageGroup: "18-24" | "25-34" | "35-44" | "45-54" | "55-64" | "65+" | "45+";
   nationality: string;
   city: string;
   preferredContact: "whatsapp" | "telegram" | "wechat";
@@ -163,7 +163,9 @@ export default function UserDashboard() {
               <option value="18-24">18-24</option>
               <option value="25-34">25-34</option>
               <option value="35-44">35-44</option>
-              <option value="45+">45+</option>
+              <option value="45-54">45-54</option>
+              <option value="55-64">55-64</option>
+              <option value="65+">65+</option>
             </select>
           </Field>
         </div>
