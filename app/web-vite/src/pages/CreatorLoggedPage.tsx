@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
+import { NATIONALITIES } from "../lib/nationalities";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
 import { PageMeta } from "../components/PageMeta";
 
@@ -516,7 +517,10 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             </select>
           </Field>
           <Field label="NATIONALITY">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} placeholder="Type nationality" />
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} list="nat-options" placeholder="Type nationality" />
+            <datalist id="nat-options">
+              {NATIONALITIES.map((n) => <option key={n} value={n} />)}
+            </datalist>
           </Field>
           <Field label="ETHNICITY (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile("ethnicity", e.target.value)}>

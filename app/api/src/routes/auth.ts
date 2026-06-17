@@ -678,7 +678,7 @@ const CreatorRegisterSchema = z.object({
   // Gender is optional now.
   gender: z.string().max(20).optional().default(""),
   age: z.number().int().min(18).max(70),
-  nationality: z.string().max(50).optional().default(""),
+  nationality: z.string().max(50).optional().default("Indonesian"),
   city: z.string().min(1).max(50),
   phoneNumber: z.string().max(50).optional().default(""),
   // WhatsApp must be E.164 with leading + (e.g. +628123456789).

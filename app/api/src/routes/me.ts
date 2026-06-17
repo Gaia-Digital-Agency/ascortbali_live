@@ -227,7 +227,7 @@ const CreatorProfileSchema = z.object({
   weight: z.string().max(30).optional().default(""),
   height: z.string().max(30).optional().default(""),
   ethnicity: z.string().max(50).optional().default(""),
-  nationality: z.string().max(50).optional().default(""),
+  nationality: z.string().max(50).optional().default("Indonesian"),
   languages: z.string().max(400).optional().default(""),
   phoneNumber: z.string().max(50).optional().default(""),
   cellPhone: z.string().max(50).optional().default(""),
