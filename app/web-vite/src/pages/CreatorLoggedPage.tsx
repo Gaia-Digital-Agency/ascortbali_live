@@ -65,12 +65,8 @@ const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
-const NATIONALITY_OPTIONS = [
-  "Indonesian", "Singaporean", "Malaysian", "Thai", "Vietnamese", "Filipino",
-  "Chinese", "Japanese", "Korean", "Indian", "Australian", "British", "American",
-];
 const COUNTRY_OPTIONS = ["Indonesia", "Singapore", "Malaysia", "Thailand", "Vietnam", "Philippines", "Australia", "United Kingdom", "United States"];
-const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay"];
+const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish"];
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
 const ETHNICITY_OPTIONS = [
@@ -116,8 +112,8 @@ const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   gender: "female", form: "escort", age: 18, location: "", eyes: "", hair_color: "",
   hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
   languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
-  city: "All Bali", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
-  services: "", meeting_with: "all", available_for: "both", bust_type: "Natural", pubic_hair: "Trimmed",
+  city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
+  services: "", meeting_with: "men", available_for: "both", bust_type: "Natural", pubic_hair: "Trimmed",
 };
 
 export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "register" }) {
@@ -155,9 +151,6 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
           return;
         }
         const [p, imgs] = await Promise.all([apiFetch("/me/creator-profile"), apiFetch("/me/creator-images")]);
-        // Default Service Area to "All Bali" when the creator hasn't picked
-        // any zones yet. The next profile save will persist it.
-        if (!String(p?.city ?? "").trim()) p.city = "All Bali";
         setProfile(p);
         setImages(imgs);
       } catch {
@@ -496,7 +489,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">PROFILE</div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <Field label="NAME">
+          <Field label="NAME (required)">
             <input
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={profile.model_name ?? ""}
@@ -509,7 +502,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               placeholder="One word, letters/numbers only"
             />
           </Field>
-          <Field label="AGE">
+          <Field label="AGE (required)">
             <select
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={String(profile.age ?? 18)}
@@ -521,12 +514,9 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             </select>
           </Field>
           <Field label="NATIONALITY">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)}>
-              <option value="">Select nationality</option>
-              {NATIONALITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} placeholder="Type nationality" />
           </Field>
-          <Field label="ETHNICITY">
+          <Field label="ETHNICITY (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile("ethnicity", e.target.value)}>
               <option value="">Select ethnicity</option>
               {ETHNICITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -536,7 +526,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               the location info now. The DB column still exists; we send "" so
               existing rows are preserved without the creator having to maintain
               it. */}
-          <Field label="LOCATION">
+          <Field label="LOCATION (required)">
             <ChecklistDropdown
               options={SERVICE_AREA_OPTIONS}
               selected={(profile.city ?? "").split(",").map((v) => v.trim()).filter(Boolean)}
@@ -553,14 +543,13 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
           <Field label="WECHAT ID (OPTIONAL)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.wechat_id ?? ""} onChange={(e) => updateProfile("wechat_id", e.target.value)} placeholder="WeChat ID" />
           </Field>
-          <Field label="LAST SEEN ONLINE (auto-updated on save)">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm text-brand-muted outline-none" value={profile.last_seen ? new Date(profile.last_seen).toLocaleString() : "—"} readOnly />
-          </Field>
           <Field label="LANGUAGES">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.languages ?? ""} onChange={(e) => updateProfile("languages", e.target.value)}>
-              <option value="">Select language</option>
-              {LANGUAGE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
+            <ChecklistDropdown
+              options={LANGUAGE_OPTIONS}
+              selected={(profile.languages ?? "").split(",").map((v) => v.trim()).filter(Boolean)}
+              onChange={(next) => updateProfile("languages", next.join(", "))}
+              placeholder="Select languages..."
+            />
           </Field>
           <Field label="EYES">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.eyes ?? ""} onChange={(e) => updateProfile("eyes", e.target.value)}>
@@ -597,6 +586,9 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               <option value="">Select travel preference</option>
               {TRAVEL_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
+          </Field>
+          <Field label="LAST SEEN ONLINE (view only)">
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm text-brand-muted outline-none" value={profile.last_seen ? new Date(profile.last_seen).toLocaleString() : "—"} readOnly />
           </Field>
         </div>
 
