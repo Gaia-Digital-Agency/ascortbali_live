@@ -47,7 +47,11 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
   const [showPwConfirm, setShowPwConfirm] = useState(false);
 
   useEffect(() => {
-    if (isRegister) return; // registration starts blank, no auth fetch
+    if (isRegister) {
+      // Prefill an auto-generated, editable username on load.
+      setProfile((prev) => ({ ...prev, email: prev.email || ("user_" + Math.random().toString(36).slice(2, 8)) }));
+      return;
+    }
     (async () => {
       try {
         const m = await apiFetch("/me");
