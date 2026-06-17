@@ -13,13 +13,14 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, sendWhatsAppOtp } from "../lib/twilio.js";
+import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification } from "../lib/twilio.js";
 import {
   createLoginSession,
   getSessionPhone,
   verifyInbound,
   pollVerify,
   completeSession,
+  completeIfVerified,
 } from "../lib/login2fa.js";
 import { uniqueCreatorSlug } from "../lib/slug.js";
 
@@ -158,8 +159,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const token = await createLoginSession(payload, phone);
-      sendWhatsAppOtp(phone, token).catch(() => {});
-      return res.json({ twoFactorRequired: true, token });
+      return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
     }
 
     // user portal
@@ -181,8 +181,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const token = await createLoginSession(payload, phone);
-    sendWhatsAppOtp(phone, token).catch(() => {});
-    return res.json({ twoFactorRequired: true, token });
+    return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
@@ -240,13 +239,20 @@ authRouter.post("/2fa/sms/check", authRateLimit, async (req, res) => {
 
 const WaCheckSchema = z.object({ token: z.string().min(4).max(64) });
 
-// POST /auth/2fa/wa/check — verify the 6-digit code sent via WhatsApp and complete login.
+// POST /auth/2fa/wa/check — complete login ONLY if the session was already
+// verified by an inbound WhatsApp from the account's registered number. This
+// must NOT complete a still-`pending` session (doing so was an auth bypass:
+// anyone holding a session token for a phone could log in without proving
+// control of the number). The browser normally completes via /2fa/wa/poll;
+// this endpoint is a manual fallback and is held to the same verified gate.
 authRouter.post("/2fa/wa/check", authRateLimit, async (req, res) => {
   const parsed = WaCheckSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
-  const accessToken = await completeSession(parsed.data.token);
-  if (!accessToken) return res.status(401).json({ error: "invalid_otp" });
-  return res.json({ accessToken });
+  const result = await completeIfVerified(parsed.data.token);
+  if (result.status !== "verified" || !result.accessToken) {
+    return res.status(401).json({ error: "not_verified" });
+  }
+  return res.json({ accessToken: result.accessToken });
 });
 
 // POST /auth/wa/inbound — Twilio inbound-message webhook for the WhatsApp
@@ -735,12 +741,12 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         wechatId || null,
         services.join(", "),
         hairLength || null,
-        bustType || "Natural",
-        pubicHair || "Trimmed",
         url,
         slug,
         form,
         orientation,
+        bustType || "Natural",
+        pubicHair || "Trimmed",
       ]
     );
 

@@ -94,6 +94,7 @@ export default function LoginForm({
 
   // 2FA state (WhatsApp-primary, SMS fallback)
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [waNumber, setWaNumber] = useState<string>("");
 
   const [smsMode, setSmsMode] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
@@ -181,7 +182,7 @@ export default function LoginForm({
       // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
       if (json.twoFactorRequired) {
         setTwoFactorToken(json.token);
-
+        setWaNumber(json.waNumber || "+17407628065");
         setSmsMode(false);
         setOtpCode("");
         return;
@@ -349,6 +350,10 @@ export default function LoginForm({
       setOtpCode("");
       setError(null);
     };
+    const waDigits = (waNumber || "+17407628065").replace(/\D/g, "");
+    const waLink = `https://wa.me/${waDigits}?text=${encodeURIComponent(
+      `My Bali Girls verification code: ${twoFactorToken}`
+    )}`;
     return (
       <div className="mx-auto max-w-md space-y-6">
         <div className="text-center">
@@ -359,33 +364,25 @@ export default function LoginForm({
         <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
           <div className="space-y-4">
             <p className="text-sm text-brand-muted">
-              We sent a 6-digit code to your WhatsApp. Enter it below to complete sign in.
+              Tap below to open WhatsApp and send us the pre-filled message from
+              your registered number. We&apos;ll confirm it&apos;s you and sign you
+              in automatically — no code to type.
             </p>
 
-            <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">VERIFICATION CODE</label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.5em] outline-none placeholder:text-brand-muted/60 focus:border-brand-gold/60"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                aria-label="Verification code"
-              />
-            </div>
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary btn-block min-h-[44px] py-3 flex items-center justify-center"
+            >
+              Verify on WhatsApp
+            </a>
+
+            <p className="text-center text-xs text-brand-muted">
+              Waiting for WhatsApp verification…
+            </p>
 
             {error ? <div className="text-xs text-red-400">{error}</div> : null}
-
-            <button
-              disabled={otpLoading || otpCode.length !== 6}
-              onClick={verifyOtp}
-              className="btn btn-primary btn-block min-h-[44px] py-3"
-            >
-              {otpLoading ? "VERIFYING..." : "VERIFY CODE"}
-            </button>
 
             <div className="flex items-center justify-center text-xs">
               <button
