@@ -28,6 +28,10 @@ const defaultProfile: UserProfile = {
 
 export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "register" }) {
   const isRegister = mode === "register";
+  // In register mode the username is auto-suggested from the full name until the
+  // user edits it directly. Stays fully editable.
+  const [usernameEdited, setUsernameEdited] = useState(false);
+  const toHandle = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
   const [me, setMe] = useState<{ username: string; role: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [saving, setSaving] = useState(false);
@@ -196,10 +200,10 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
         <div className="text-xs tracking-luxe text-brand-muted">ALL FIELDS REQUIRED</div>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="USERNAME (login ID)">
-            <input type="text" className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.email} onChange={(e) => update("email", e.target.value)} placeholder="your_username" />
+            <input type="text" className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.email} onChange={(e) => { setUsernameEdited(true); update("email", e.target.value); }} placeholder="your_username" />
           </Field>
           <Field label="FULL NAME">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => update("fullName", e.target.value)} />
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => { const v = e.target.value; update("fullName", v); if (isRegister && !usernameEdited) update("email", toHandle(v)); }} />
           </Field>
           <Field label="NATIONALITY">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />
