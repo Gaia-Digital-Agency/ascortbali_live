@@ -126,8 +126,12 @@ export default function CreatorRegisterPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json?.error === "username_taken") throw new Error("Username is already taken. Choose another.");
-        throw new Error(json?.error ?? "Registration failed.");
+        const messages: Record<string, string> = {
+          username_taken: "That username is already taken — please choose another.",
+          invalid_body: "Some details are missing or invalid. Please review the highlighted fields and try again.",
+          registration_failed: "Sorry, something went wrong creating your account. Please try again in a moment.",
+        };
+        throw new Error(messages[json?.error] ?? "Could not create your account. Please check your details and try again.");
       }
       setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/creator/logged");

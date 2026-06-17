@@ -155,8 +155,8 @@ export default function CreatorPanel() {
       setMessage(null);
       return;
     }
-    if (!EMAIL_REGEX.test(username)) {
-      setError("Username must be a valid email address.");
+    if (username.length < 3) {
+      setError("Username is required (at least 3 characters).");
       setMessage(null);
       return;
     }
@@ -405,11 +405,11 @@ export default function CreatorPanel() {
           </Field>
           <Field label="USERNAME">
             <input
-              type="email"
+              type="text"
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={profile.username ?? ""}
               onChange={(e) => updateProfile("username", e.target.value)}
-              placeholder="username@email.com"
+              placeholder="your_username"
             />
           </Field>
           <Field label="AGE">

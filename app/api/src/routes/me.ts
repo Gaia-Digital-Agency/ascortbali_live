@@ -205,7 +205,9 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
 
 // Zod schema for validating creator profile data.
 const CreatorProfileSchema = z.object({
-  username: z.string().trim().toLowerCase().email(),
+  // Username is a free-text login handle (matches /register/creator). Lenient
+  // max(100) so legacy creators whose username is still an email keep saving.
+  username: z.string().trim().toLowerCase().min(3).max(100),
   title: z.string().min(1).max(255),
   url: z.string().max(2000),
   tempPassword: z.string().max(100),
