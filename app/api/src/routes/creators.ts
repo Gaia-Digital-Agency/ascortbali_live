@@ -1,5 +1,6 @@
 // Defines routes for fetching creator data.
 import { Router } from "express";
+import { cacheGet } from "../lib/cache.js";
 import { getPool } from "../lib/pg.js";
 import { isUuid } from "../lib/slug.js";
 
@@ -222,7 +223,7 @@ creatorsRouter.get("/random", async (req, res) => {
 //   Returns active creators matching any of the given model_names
 //   (case-insensitive). Used by FeaturedCarousel for the 4 featured girls.
 //   Caps the input at 10 names to keep the IN list bounded.
-creatorsRouter.get("/by-names", async (req, res) => {
+creatorsRouter.get("/by-names", cacheGet(60), async (req, res) => {
   const raw = (req.query.names as string | undefined) ?? "";
   const names = raw
     .split(",")
@@ -256,7 +257,7 @@ creatorsRouter.get("/by-names", async (req, res) => {
 //                &gender=X&serviceArea=X&category=X
 //   Paginated + filtered list. The homepage passes filters server-side
 //   instead of fetching 500 rows and slicing client-side.
-creatorsRouter.get("/", async (req, res) => {
+creatorsRouter.get("/", cacheGet(60), async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit ?? 25), 1), 500);
   const page = Math.max(Number(req.query.page ?? 1), 1);
   const offset = (page - 1) * limit;
@@ -360,7 +361,7 @@ creatorsRouter.get("/", async (req, res) => {
 // Accepts either a UUID or a slug. UUID is detected via the standard 8-4-4-4-12
 // hex pattern; everything else is treated as a slug. Returning the slug in
 // the response lets the frontend reuse it for canonical link composition.
-creatorsRouter.get("/:idOrSlug", async (req, res) => {
+creatorsRouter.get("/:idOrSlug", cacheGet(60), async (req, res) => {
   const { idOrSlug } = req.params;
   const isLookupByUuid = isUuid(idOrSlug);
   const pool = getPool();

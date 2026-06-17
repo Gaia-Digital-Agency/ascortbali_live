@@ -14,6 +14,7 @@
 // Posts are "published" when published_at IS NOT NULL AND <= NOW().
 
 import { Router } from "express";
+import { cacheGet } from "../lib/cache.js";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { getPool } from "../lib/pg.js";
@@ -51,7 +52,7 @@ function publicBlogShape(b: any) {
 
 // ─── Public ──────────────────────────────────────────────────────────────────
 
-blogsRouter.get("/", async (req, res) => {
+blogsRouter.get("/", cacheGet(60), async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const skip = (page - 1) * limit;
@@ -78,7 +79,7 @@ blogsRouter.get("/", async (req, res) => {
   }
 });
 
-blogsRouter.get("/:slug", async (req, res) => {
+blogsRouter.get("/:slug", cacheGet(60), async (req, res) => {
   const slug = String(req.params.slug || "").toLowerCase();
   if (!slug) return res.status(400).json({ error: "missing_slug" });
   try {

@@ -1,5 +1,6 @@
 // This module defines routes for managing services offered by creators.
 import { Router } from "express";
+import { cacheGet } from "../lib/cache.js";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
@@ -17,7 +18,7 @@ const ListQuery = z.object({
 });
 
 // GET route for listing services with filtering, pagination, and sorting.
-servicesRouter.get("/", async (req, res) => {
+servicesRouter.get("/", cacheGet(60), async (req, res) => {
   const parsed = ListQuery.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: "invalid_query", details: parsed.error.flatten() });
 
@@ -59,7 +60,7 @@ servicesRouter.get("/", async (req, res) => {
 });
 
 // GET route for fetching a single service by ID.
-servicesRouter.get("/:id", async (req, res) => {
+servicesRouter.get("/:id", cacheGet(60), async (req, res) => {
   const id = req.params.id;
   const service = await prisma.service.findUnique({
     where: { id },

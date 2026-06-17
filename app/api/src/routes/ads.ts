@@ -1,5 +1,6 @@
 // Routes for fetching advertising space data and public site settings.
 import { Router } from "express";
+import { cacheGet } from "../lib/cache.js";
 import { getPool } from "../lib/pg.js";
 import { prisma } from "../prisma.js";
 
@@ -16,7 +17,7 @@ const AD_SLOTS = [
 
 // Public route to get site settings (tagline, featured girls).
 // site_settings is raw-SQL-only (not in Prisma schema).
-adsRouter.get("/settings", async (_req, res) => {
+adsRouter.get("/settings", cacheGet(60), async (_req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(`SELECT key, value FROM site_settings ORDER BY key`);
@@ -29,7 +30,7 @@ adsRouter.get("/settings", async (_req, res) => {
 });
 
 // Route to fetch all active advertising spaces.
-adsRouter.get("/", async (_req, res) => {
+adsRouter.get("/", cacheGet(60), async (_req, res) => {
   try {
     const spaces = await prisma.advertisingSpace.findMany({
       where: { slot: { in: [...AD_SLOTS] } },
