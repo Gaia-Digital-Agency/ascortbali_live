@@ -131,8 +131,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   const [regFiles, setRegFiles] = useState<File[]>([]);
   const [regPreviews, setRegPreviews] = useState<string[]>([]);
   const regFileRef = useRef<HTMLInputElement>(null);
-  const [agreements, setAgreements] = useState({ policy: false, terms: false, privacy: false, noNude: false });
-  const allAgreed = agreements.policy && agreements.terms && agreements.privacy && agreements.noNude;
+  const [agreed, setAgreed] = useState(false);
+  const allAgreed = agreed;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // Per-field validation errors, rendered inline under each field.
@@ -196,7 +196,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     if (!profile.age || !AGE_OPTIONS.includes(Number(profile.age))) fe.age = "Please select your age.";
     if (!(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
     if (regFiles.length === 0) fe.photos = "Please add at least one profile photo.";
-    if (!allAgreed) fe.agreements = "Please confirm all agreements before registering.";
+    if (!allAgreed) fe.agreements = "Please confirm you have read and accepted the terms.";
     if (Object.keys(fe).length) { setFieldErrors(fe); return; }
     setFieldErrors({});
 
@@ -762,11 +762,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
 
       {isRegister ? (
         <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-          <div className="space-y-3 text-sm">
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.policy} onChange={(e) => setAgreements((a) => ({ ...a, policy: e.target.checked }))} /><span>I agree to the content &amp; conduct policy.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.terms} onChange={(e) => setAgreements((a) => ({ ...a, terms: e.target.checked }))} /><span>I have read and accept the <Link to="/terms" className="text-brand-gold underline">Terms</Link>.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.privacy} onChange={(e) => setAgreements((a) => ({ ...a, privacy: e.target.checked }))} /><span>I have read the <Link to="/privacy" className="text-brand-gold underline">Privacy Policy</Link>.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.noNude} onChange={(e) => setAgreements((a) => ({ ...a, noNude: e.target.checked }))} /><span>I confirm my photos contain no nudity.</span></label>
+          <div className="text-sm">
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /><span>I have read and accepted the terms, conduct and privacy policy of this site; and shall not post nudity.</span></label>
           </div>
           {FE("agreements")}
           <div className="mt-6">
@@ -774,10 +771,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               {savingProfile ? "CREATING PROFILE..." : "CREATE PROFILE"}
             </button>
           </div>
-          <div className="mt-4 text-center text-xs text-brand-muted">
-            Already have an account?{" "}
-            <Link to="/creator" className="text-brand-gold underline">Sign In</Link>
-          </div>
+
         </section>
       ) : (
       <div className="flex justify-end">

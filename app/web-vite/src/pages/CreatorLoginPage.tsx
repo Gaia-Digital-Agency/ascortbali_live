@@ -5,13 +5,10 @@ import { PageMeta } from "../components/PageMeta";
 
 export default function CreatorLoginPage() {
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
-  const [policyConfirmed, setPolicyConfirmed] = useState(false);
-  const [termsConfirmed, setTermsConfirmed] = useState(false);
-  const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
-  const [noNudeConfirmed, setNoNudeConfirmed] = useState(false);
+  const [tncConfirmed, setTncConfirmed] = useState(false);
   const [pendingResolve, setPendingResolve] = useState<((v: boolean) => void) | null>(null);
 
-  const hasAllConfirmations = policyConfirmed && termsConfirmed && privacyConfirmed && noNudeConfirmed;
+  const hasAllConfirmations = tncConfirmed;
 
   const beforeLogin = useCallback((): Promise<boolean> => {
     if (hasAllConfirmations) return Promise.resolve(true);
@@ -69,49 +66,18 @@ export default function CreatorLoginPage() {
             <div className="text-xs tracking-[0.22em] text-brand-muted">REGISTRATION CONFIRMATION</div>
             <h2 className="mt-2 font-display text-2xl">Confirm Before Signing</h2>
             <p className="mt-2 text-sm text-brand-muted">
-              To continue, confirm platform policy and agreements for Terms of Use, Privacy Statement, and no nude
-              photograph uploads.
+              Please confirm you have read and accepted the terms, conduct and privacy policy of this site.
             </p>
 
-            <div className="mt-5 space-y-3 text-sm">
+            <div className="mt-5 text-sm">
               <label className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={policyConfirmed}
-                  onChange={(e) => setPolicyConfirmed(e.target.checked)}
+                  checked={tncConfirmed}
+                  onChange={(e) => setTncConfirmed(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-brand-line"
                 />
-                <span>I confirm my registration/profile details follow platform policy.</span>
-              </label>
-
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={termsConfirmed}
-                  onChange={(e) => setTermsConfirmed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-brand-line"
-                />
-                <span>I agree to the Terms of Use.</span>
-              </label>
-
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={privacyConfirmed}
-                  onChange={(e) => setPrivacyConfirmed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-brand-line"
-                />
-                <span>I agree to the Privacy Statement.</span>
-              </label>
-
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={noNudeConfirmed}
-                  onChange={(e) => setNoNudeConfirmed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-brand-line"
-                />
-                <span>I confirm I will not upload nude photographs.</span>
+                <span>I have read and accepted the terms, conduct and privacy policy of this site; and shall not post nudity.</span>
               </label>
             </div>
 
