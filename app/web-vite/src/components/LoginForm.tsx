@@ -352,7 +352,7 @@ export default function LoginForm({
     };
     const waDigits = (waNumber || "+17407628065").replace(/\D/g, "");
     const waLink = `https://wa.me/${waDigits}?text=${encodeURIComponent(
-      `My Bali Girls verification code: ${twoFactorToken}`
+      `Your BG OTP: ${twoFactorToken} (send message as-is)`
     )}`;
     return (
       <div className="mx-auto max-w-md space-y-6">
