@@ -350,22 +350,26 @@ export default function CreatorPreviewPage() {
             <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-6">
               <div className="text-xs tracking-luxe text-brand-muted">DETAILS</div>
               <div className="mt-4 grid gap-3">
-                {profileFields.map(([label, value]) => (
+                {profileFields.filter(([, v]) => {
+                  const s = String(v ?? "").trim();
+                  return s !== "" && s !== "0";
+                }).map(([label, value]) => (
                   <div
                     key={label}
                     className="flex items-start justify-between gap-4 border-b border-brand-line/60 pb-2 text-sm"
                   >
                     <span className="shrink-0 text-brand-muted">{label}</span>
-                    <span className="min-w-0 break-words text-right text-brand-text">
-                      {value === null || value === undefined || value === "" ? "\u2014" : value}
-                    </span>
+                    <span className="min-w-0 break-words text-right text-brand-text">{value}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Visual separator + CONTACT sub-heading. mt-8 + a top border
-                  is the "slight separation" between profile info and the
-                  contact area. */}
+              {/* Visual separator + CONTACT sub-heading. Only shown if at least
+                  one contact channel has a value. */}
+              {contactFields.some(([, v]) => {
+                const s = String(v ?? "").trim();
+                return s !== "" && s !== "0";
+              }) ? (
               <div className="mt-8 border-t border-brand-line pt-5">
                 <div className="text-xs tracking-luxe text-brand-muted">CONTACT</div>
 
@@ -374,15 +378,16 @@ export default function CreatorPreviewPage() {
                 <div className="relative mt-4">
                   <div className={contactBlurInnerClass}>
                     <div className="grid gap-3">
-                      {contactFields.map(([label, value]) => (
+                      {contactFields.filter(([, v]) => {
+                        const s = String(v ?? "").trim();
+                        return s !== "" && s !== "0";
+                      }).map(([label, value]) => (
                         <div
                           key={label}
                           className="flex items-start justify-between gap-4 border-b border-brand-line/60 pb-2 text-sm"
                         >
                           <span className="shrink-0 text-brand-muted">{label}</span>
-                          <span className="min-w-0 break-words text-right text-brand-text">
-                            {value === null || value === undefined || value === "" ? "\u2014" : value}
-                          </span>
+                          <span className="min-w-0 break-words text-right text-brand-text">{value}</span>
                         </div>
                       ))}
                     </div>
@@ -405,19 +410,15 @@ export default function CreatorPreviewPage() {
                   ) : null}
                 </div>
               </div>
+            ) : null}
             </div>
           </section>
 
-          {/* Image gallery — chrome dropped (no card border, no label). The
-              grid now sits flush in the page, matching the bare feature
-              image above. Images themselves are public; contact gating is
-              handled in the DETAILS section above. */}
+          {/* Image gallery — only shown if the creator has images. */}
+          {data.images.length > 0 ? (
           <section>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {data.images.length === 0 ? (
-                <div className="text-sm text-brand-muted">No cleaned image files found.</div>
-              ) : (
-                data.images.map((img, idx) => (
+              {data.images.map((img, idx) => (
                   <button
                     key={img.id}
                     type="button"
@@ -442,10 +443,10 @@ export default function CreatorPreviewPage() {
                       )}
                     </div>
                   </button>
-                ))
-              )}
+                ))}
             </div>
           </section>
+          ) : null}
 
           {/* Explore Next Girl — 8 random images (no carousel), click → creator page */}
           <section>

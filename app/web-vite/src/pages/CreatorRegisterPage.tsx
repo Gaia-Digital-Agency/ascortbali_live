@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { API_BASE, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
@@ -7,6 +7,10 @@ import {
   CATEGORY_OPTIONS,
   ORIENTATION_OPTIONS,
   SERVICE_AREA_OPTIONS,
+  HAIR_LENGTH_OPTIONS,
+  BUST_TYPE_OPTIONS,
+  PUBIC_HAIR_OPTIONS,
+  SERVICES_OPTIONS,
 } from "../lib/creatorOptions";
 
 const NATIONALITIES = [
@@ -35,18 +39,11 @@ const AGES = Array.from({ length: 53 }, (_, i) => 18 + i); // 18–70
 // in <option> labels (browser CSS on <option> is unreliable).
 const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase());
 
-// Hair Length and Services are NOT collected at registration time. Both live
-// on the Creator Profile Management page where they're required, so the
-// signup flow stays minimal — creators only need to fill them in once they
-// land on the editor.
-
 export default function CreatorRegisterPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [modelName, setModelName] = useState("");
   const [gender, setGender] = useState("");
-  // Category is multi-select since 2026-05; default to a single-element list
-  // so the API still receives "escort" if nothing else is picked.
   const [form, setForm] = useState<string[]>([CATEGORY_OPTIONS[0]]);
   const toggleForm = (option: string) =>
     setForm((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
@@ -54,21 +51,35 @@ export default function CreatorRegisterPage() {
   const [age, setAge] = useState("");
   const [nationality, setNationality] = useState("");
   const [city, setCity] = useState<string>(SERVICE_AREA_OPTIONS[0]);
-  const [services, setServices] = useState<string[]>([]);
+  const [services, setServices] = useState<string[]>([SERVICES_OPTIONS[0]]);
+  const toggleService = (option: string) =>
+    setServices((prev) => (prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]));
+  const [hairLength, setHairLength] = useState("");
   const [bustType, setBustType] = useState<string>("Natural");
   const [pubicHair, setPubicHair] = useState<string>("Trimmed");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [wechatId, setWechatId] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [policyConfirmed, setPolicyConfirmed] = useState(false);
   const [termsConfirmed, setTermsConfirmed] = useState(false);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [noNudeConfirmed, setNoNudeConfirmed] = useState(false);
   const hasAllConfirmations = policyConfirmed && termsConfirmed && privacyConfirmed && noNudeConfirmed;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedFiles(files);
+    // Generate preview URLs
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setImagePreviews(previews);
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,23 +100,52 @@ export default function CreatorRegisterPage() {
       setError("Display name must be a single word — letters, numbers and hyphens only, no spaces.");
       return;
     }
-    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("Enter a valid email or leave it blank.");
       return;
     }
-    // Phone/SMS is optional; only validate the format if something was entered.
     if (normalizedPhone && !phoneRegex.test(normalizedPhone)) {
-      setError("Phone number must include country code, e.g. +6281234567");
+      setError("Phone number must include country code, e.g. +628****4567");
       return;
     }
     if (!normalizedWhatsapp || !phoneRegex.test(normalizedWhatsapp)) {
-      setError("WhatsApp number must include country code, e.g. +6281234567");
+      setError("WhatsApp number must include country code, e.g. +628****4567");
       return;
     }
-    // Services and Hair Length are not collected at registration — those
-    // live in the profile editor.
+    if (selectedFiles.length === 0) {
+      setError("Please select at least one profile photo.");
+      return;
+    }
+    if (!hairLength) {
+      setError("Please select your hair length.");
+      return;
+    }
+    if (services.length === 0) {
+      setError("Please select at least one service.");
+      return;
+    }
+
     setLoading(true);
     try {
+      // Step 1: Upload each image to GCS
+      const imageUrls: string[] = [];
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "uploads");
+        const uploadRes = await fetch(`${API_BASE}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text();
+          throw new Error(`Image upload failed: ${errText}`);
+        }
+        const uploadJson = await uploadRes.json();
+        imageUrls.push(uploadJson.url);
+      }
+
+      // Step 2: Submit registration with text fields + image URLs
       const res = await fetch(`${API_BASE}/auth/register/creator`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -124,8 +164,10 @@ export default function CreatorRegisterPage() {
           form,
           orientation,
           services,
+          hairLength,
           bustType,
           pubicHair,
+          imageFiles: imageUrls,
         }),
       });
       const json = await res.json();
@@ -159,7 +201,7 @@ export default function CreatorRegisterPage() {
       />
       <div className="text-center">
         <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
-        <h1 className="mt-2 font-display text-3xl">Girls Account</h1>
+        <h1 className="mt-2 font-display text-3xl">Create Your Profile</h1>
       </div>
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
@@ -249,14 +291,98 @@ export default function CreatorRegisterPage() {
             </select>
           </div>
 
+          <hr className="border-brand-line" />
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">SERVICES <span className="normal-case text-brand-muted/60">(select one or more)</span></label>
+            <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Services">
+              {SERVICES_OPTIONS.map((s) => {
+                const active = services.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleService(s)}
+                    className={`min-h-[44px] rounded-2xl border px-3 py-2 text-sm transition ${active
+                      ? "border-brand-gold/70 bg-brand-gold/15 text-brand-text"
+                      : "border-brand-line bg-brand-surface2/40 text-brand-muted hover:text-brand-text"}`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">HAIR LENGTH</label>
+              <select required className={sel} value={hairLength} onChange={(e) => setHairLength(e.target.value)} aria-label="Hair length">
+                <option value="" disabled>Select...</option>
+                {HAIR_LENGTH_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">BUST</label>
+              <select className={sel} value={bustType} onChange={(e) => setBustType(e.target.value)} aria-label="Bust type">
+                {BUST_TYPE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">PUBIC</label>
+              <select className={sel} value={pubicHair} onChange={(e) => setPubicHair(e.target.value)} aria-label="Pubic hair">
+                {PUBIC_HAIR_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <hr className="border-brand-line" />
+
+          <div>
+            <label className="text-xs tracking-[0.22em] text-brand-muted">PROFILE PHOTOS <span className="normal-case text-brand-muted/60">(at least 1 required)</span></label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className="mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-line bg-brand-surface2/20 p-4 transition hover:border-brand-gold/50"
+            >
+              {imagePreviews.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {imagePreviews.map((preview, i) => (
+                    <div key={i} className="aspect-[3/4] w-20 overflow-hidden rounded-lg border border-brand-line">
+                      <img src={preview} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-sm text-brand-muted">
+                  <div className="mb-1 text-lg">+</div>
+                  <div>Click to select photos</div>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+            />
+            {selectedFiles.length > 0 ? (
+              <div className="mt-1 text-xs text-brand-muted">{selectedFiles.length} photo(s) selected</div>
+            ) : null}
+          </div>
+
+          <hr className="border-brand-line" />
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE/SMS <span className="normal-case text-brand-muted/60">(optional)</span></label>
-              <input className={inp} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+6281234567890" aria-label="Phone / SMS" />
+              <input className={inp} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+628****7890" aria-label="Phone / SMS" />
             </div>
             <div>
               <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP <span className="normal-case text-brand-muted/60">(used for 2FA)</span></label>
-              <input required className={inp} value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+6281234567890" aria-label="WhatsApp number" />
+              <input required className={inp} value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+628****7890" aria-label="WhatsApp number" />
             </div>
           </div>
 
@@ -293,10 +419,10 @@ export default function CreatorRegisterPage() {
             </label>
           </div>
 
-          {error ? <div className="text-xs text-red-400">{error}</div> : null}
+          {error ? <div className="text-xs text-amber-400">{error}</div> : null}
 
-          <button disabled={loading || !hasAllConfirmations} className="btn btn-primary btn-block min-h-[44px] py-3">
-            {loading ? "CREATING ACCOUNT..." : "CREATE GIRLS ACCOUNT"}
+          <button disabled={loading || !hasAllConfirmations || selectedFiles.length === 0} className="btn btn-primary btn-block min-h-[44px] py-3">
+            {loading ? "CREATING PROFILE..." : "CREATE PROFILE"}
           </button>
 
           <div className="text-center text-xs text-brand-muted">

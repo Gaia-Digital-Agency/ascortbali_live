@@ -60,7 +60,6 @@ const toImageUrl = (file?: string | null) => {
   return `/api/clean-image/${encodeURIComponent(filename)}`;
 };
 
-const defaultSlots = Array.from({ length: 20 }, (_, i) => i + 1);
 const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
@@ -178,7 +177,6 @@ export default function CreatorPanel() {
       ["Languages", String(profile.languages ?? "").trim()],
       ["Eyes", String(profile.eyes ?? "").trim()],
       ["Hair Color", String(profile.hair_color ?? "").trim()],
-      ["Hair Length", String(profile.hair_length ?? "").trim()],
       ["Height", String(profile.height ?? "").trim()],
       ["Weight", String(profile.weight ?? "").trim()],
       ["Travel", String(profile.travel ?? "").trim()],
@@ -255,16 +253,16 @@ export default function CreatorPanel() {
     }
   };
 
-  const removeImage = async (sequenceNumber: number) => {
-    const target = images.find((img) => img.sequence_number === sequenceNumber);
+  const removeImage = async (imageId: string) => {
+    const target = images.find((img) => img.image_id === imageId);
     if (!target) return;
-    setSavingImageSlot(sequenceNumber);
+    setSavingImageSlot(target.sequence_number);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/me/creator-images/${target.image_id}`, { method: "DELETE" });
+      await apiFetch(`/me/creator-images/${target.image_id}`, { method: `DELETE` });
       setImages((prev) => prev.filter((img) => img.image_id !== target.image_id));
-      setMessage(`Image slot ${sequenceNumber} removed.`);
+      setMessage(`Photo removed.`);
     } catch (err: any) {
       setError(err.message ?? "Image delete failed");
     } finally {
@@ -593,21 +591,44 @@ export default function CreatorPanel() {
       )}
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-        <div className="text-xs tracking-luxe text-brand-muted">IMAGES (20 SLOTS: 1 MAIN + 19 OTHERS)</div>
+        <div className="text-xs tracking-luxe text-brand-muted">PHOTOS</div>
+        {images.length > 0 ? (
         <div className="mt-5 grid gap-5 md:grid-cols-3">
-          {defaultSlots.map((slot) => {
-            const existing = images.find((img) => img.sequence_number === slot);
-            return (
-              <ImageSlotEditor
-                key={slot}
-                slot={slot}
-                imageUrl={toImageUrl(existing?.image_file)}
-                busy={savingImageSlot === slot}
-                onDelete={() => removeImage(slot)}
-                onUpload={(file) => uploadImage(slot, file)}
-              />
-            );
-          })}
+          {images
+            .sort((a, b) => a.sequence_number - b.sequence_number)
+            .map((img) => (
+            <div key={img.image_id} className="space-y-3 rounded-2xl border border-brand-line bg-brand-surface2/40 p-4">
+              <div className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
+                <img src={toImageUrl(img.image_file)} alt={`Photo ${img.sequence_number}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => removeImage(img.image_id)} disabled={savingImageSlot === img.sequence_number} className="btn btn-outline px-3 py-2 text-xs">DELETE</button>
+                <button onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) uploadImage(img.sequence_number, f); }; input.click(); }} disabled={savingImageSlot === img.sequence_number} className="btn btn-outline px-3 py-2 text-xs">REPLACE</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        ) : (
+          <div className="mt-5 text-center text-sm text-brand-muted">No photos yet.</div>
+        )}
+        <div className="mt-5 flex justify-center">
+          <button
+            onClick={() => {
+              const nextSeq = images.length > 0 ? Math.max(...images.map((i) => i.sequence_number)) + 1 : 1;
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.onchange = (e) => {
+                const f = (e.target as HTMLInputElement).files?.[0];
+                if (f) uploadImage(nextSeq, f);
+              };
+              input.click();
+            }}
+            disabled={savingProfile}
+            className="btn btn-outline px-6 py-3 text-xs"
+          >
+            + ADD IMAGE
+          </button>
         </div>
       </section>
 
@@ -732,37 +753,3 @@ function MultiChoiceGroup({
   );
 }
 
-function ImageSlotEditor({
-  slot, imageUrl, busy, onDelete, onUpload,
-}: {
-  slot: number; imageUrl: string | null; busy: boolean; onDelete: () => void; onUpload: (file: File) => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className="space-y-3 rounded-2xl border border-brand-line bg-brand-surface2/40 p-4">
-      <div className="text-xs tracking-[0.22em] text-brand-muted">{slot === 1 ? "MAIN IMAGE" : `IMAGE ${slot}`}</div>
-      <div className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
-        {imageUrl ? (
-          <img src={imageUrl} alt={`Girl photo, slot ${slot}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-brand-muted">EMPTY</div>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onDelete} disabled={busy} className="btn btn-outline px-3 py-2 text-xs">DELETE</button>
-        <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn btn-outline px-3 py-2 text-xs">UPLOAD</button>
-      </div>
-      <input
-        ref={fileRef}
-        type="file"
-        className="hidden"
-        accept="image/*"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onUpload(file);
-        }}
-      />
-    </div>
-  );
-}

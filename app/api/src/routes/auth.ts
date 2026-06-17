@@ -563,7 +563,7 @@ authRouter.post("/refresh", authRateLimit, (_req, res) => {
 
 // Zod schema for user registration.
 const UserRegisterSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  username: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers and underscores"),
   fullName: z.string().min(1).max(120),
   gender: z.enum(["female", "male", "transgender"]),
   ageGroup: z.enum(["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]),
@@ -586,7 +586,7 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 
   const pool = getPool();
   const {
-    email,
+    username,
     fullName,
     gender,
     ageGroup,
@@ -600,8 +600,8 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
   } = parsed.data;
 
   try {
-    // Check email/username uniqueness.
-    const existing = await pool.query(`SELECT id FROM app_accounts WHERE LOWER(username) = $1 LIMIT 1`, [email]);
+    // Check username uniqueness.
+    const existing = await pool.query(`SELECT id FROM app_accounts WHERE LOWER(username) = $1 LIMIT 1`, [username]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: "username_taken" });
     }
@@ -616,7 +616,7 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     await pool.query(
       `INSERT INTO app_accounts (id, role, username, password, phone, whatsapp)
        VALUES ($1::uuid, 'user', $2, $3, $4, $5)`,
-      [accountId, email, hashedPw, phoneNumber || null, whatsapp || null]
+      [accountId, username, hashedPw, phoneNumber || null, whatsapp || null]
     );
 
     // Insert user_profiles row.
@@ -646,7 +646,7 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
 
     // Registration does NOT verify — only login requires WhatsApp verification.
     // Auto-log-in the new account.
-    const payload = { sub: accountId, role: "user", username: email };
+    const payload = { sub: accountId, role: "user", username };
     const accessToken = await signAccessToken(payload);
     return res.status(201).json({ accessToken });
   } catch {
@@ -688,11 +688,12 @@ const CreatorRegisterSchema = z.object({
   // Services and hair length are now optional at registration. Creators are
   // required to fill these in later from the profile editor (which still
   // enforces min length / non-empty via CreatorProfileSchema in me.ts).
-  services: z.array(z.string()).optional().default([]),
-  hairLength: z.string().max(30).optional().default(""),
+  services: z.array(z.string()).min(1),
+  hairLength: z.string().min(1).max(30),
   // Single-select dropdowns; defaults applied when omitted.
-  bustType: z.string().trim().max(20).optional().default("Natural"),
-  pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
+  bustType: z.string().trim().min(1).max(20),
+  pubicHair: z.string().trim().min(1).max(20),
+  imageFiles: z.array(z.string()).min(1),
 });
 
 // POST route to register a new creator account.
@@ -703,7 +704,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair } = parsed.data;
+  const { username, email, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, imageFiles } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -759,6 +760,16 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         email || null,
       ]
     );
+
+    // Insert images into provider_images.
+    for (const [idx, url] of imageFiles.entries()) {
+      const imageId = `REGISTER_${creatorId.slice(0, 8)}_${idx + 1}`;
+      await pool.query(
+        `INSERT INTO provider_images (image_id, provider_uuid, provider_id, image_file, sequence_number)
+         VALUES ($1, $2::uuid, $3, $4, $5)`,
+        [imageId, creatorId, providerId, url, idx + 1]
+      );
+    }
 
     const payload = { sub: creatorId, role: "creator", username };
     const accessToken = await signAccessToken(payload);

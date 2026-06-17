@@ -131,7 +131,7 @@ export default function LoginForm({
           window.location.href = withBasePath(redirectPath);
         } else if (json.status === "expired") {
           clearInterval(id);
-          setError("Verification timed out. Please sign in again.");
+          setError("The code expired — please sign in again");
           setTwoFactorToken(null);
         }
       } catch {
@@ -163,7 +163,7 @@ export default function LoginForm({
             navigate("/user/register");
             return;
           }
-          throw new Error("No account found for that WhatsApp number.");
+          throw new Error("No account found — check your number or register a new one");
         }
         // Admin (password) portal: distinguish unknown vs wrong password.
         if (portal === "user" && json?.error === "unknown_user") {
@@ -176,7 +176,7 @@ export default function LoginForm({
           setError("Incorrect password. Recover your account or set a new one below.");
           return;
         }
-        throw new Error(json?.error ?? "Login failed");
+        throw new Error(json?.error ?? "Couldn't sign in — please try again");
       }
 
       // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
@@ -197,7 +197,7 @@ export default function LoginForm({
       }
       window.location.href = withBasePath(redirectPath);
     } catch (err: any) {
-      setError(err.message ?? "Unable to sign in.");
+      setError(err.message ?? "Couldn't sign in — please try again");
     } finally {
       setLoading(false);
     }
@@ -217,12 +217,12 @@ export default function LoginForm({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(json?.error === "sms_unavailable" ? "SMS isn't available right now." : "Could not send the SMS code.");
+        throw new Error(json?.error === "sms_unavailable" ? "SMS isn't available right now" : "Couldn't send the code — try again");
       }
       setSmsMode(true);
       setOtpCode("");
     } catch (err: any) {
-      setError(err.message ?? "Unable to send SMS.");
+      setError(err.message ?? "Couldn't send the code — try again");
     } finally {
       setSmsSending(false);
     }
@@ -239,7 +239,7 @@ export default function LoginForm({
         body: JSON.stringify({ token: twoFactorToken, code: otpCode }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error === "invalid_otp" ? "Invalid or expired code. Please try again." : "Verification failed.");
+      if (!res.ok) throw new Error(json?.error === "invalid_otp" ? "That code didn't work — check and try again" : "Couldn't verify — try again");
 
       setTokens({ accessToken: json.accessToken });
 
@@ -250,7 +250,7 @@ export default function LoginForm({
       }
       window.location.href = withBasePath(redirectPath);
     } catch (err: any) {
-      setError(err.message ?? "Unable to verify code.");
+      setError(err.message ?? "Couldn't check your code — please try again");
     } finally {
       setOtpLoading(false);
     }
@@ -287,11 +287,11 @@ export default function LoginForm({
       setRecoverMessage("Verification successful. Set your new password.");
     } catch (err: any) {
       if (err?.message === "need_two_fields") {
-        setError("Provide at least 2 fields to verify identity.");
+        setError("Fill in at least 2 fields so we can identify you");
       } else if (err?.message === "invalid_recovery_data") {
-        setError("Recovery details do not match our records.");
+        setError("Those details don't match what we have — try different info");
       } else {
-        setError("Unable to verify recovery details.");
+        setError("Couldn't verify your info — please try again");
       }
     } finally {
       setRecoverLoading(false);
@@ -301,11 +301,11 @@ export default function LoginForm({
   const submitPasswordReset = async () => {
     const ok = /^[A-Za-z0-9]{8,}$/.test(newPassword);
     if (!ok) {
-      setError("New password must be at least 8 characters, letters/numbers only (no symbols).");
+      setError("Password needs at least 8 characters — letters and numbers only");
       return;
     }
     if (!resetToken) {
-      setError("Complete verification before resetting password.");
+      setError("Verify your identity first before resetting");
       return;
     }
     setRecoverLoading(true);
@@ -332,10 +332,10 @@ export default function LoginForm({
       if (err?.message === "invalid_new_password") {
         setError("New password must be at least 8 characters, letters/numbers only (no symbols).");
       } else if (err?.message === "invalid_reset_token") {
-        setError("Reset session expired. Verify your details again.");
+        setError("Your reset session expired — verify your details again");
         setResetToken(null);
       } else {
-        setError("Unable to reset password.");
+        setError("Couldn't reset your password — please try again");
       }
     } finally {
       setRecoverLoading(false);
@@ -382,7 +382,7 @@ export default function LoginForm({
               Waiting for WhatsApp verification…
             </p>
 
-            {error ? <div className="text-xs text-red-400">{error}</div> : null}
+            {error ? <div className="text-xs text-yellow-300">{error}</div> : null}
 
             <div className="flex items-center justify-center text-xs">
               <button

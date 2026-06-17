@@ -13,7 +13,6 @@ type UserProfile = {
   city: string;
   preferredContact: "whatsapp" | "telegram" | "wechat";
   relationshipStatus: "single" | "married" | "other";
-  phoneNumber: string;
   whatsapp: string;
 };
 
@@ -26,7 +25,6 @@ const defaultProfile: UserProfile = {
   city: "",
   preferredContact: "telegram",
   relationshipStatus: "single",
-  phoneNumber: "",
   whatsapp: "",
 };
 
@@ -79,9 +77,9 @@ export default function UserDashboard() {
       setMessage("Profile updated.");
     } catch (err: any) {
       if (err?.message === "email_taken") {
-        setError("This email is already in use by another account.");
+        setError("That email is linked to another account — try a different one");
       } else {
-        setError(err.message ?? "Save failed");
+        setError(err.message ?? "Couldn't save your changes — please try again");
       }
     } finally {
       setSaving(false);
@@ -105,7 +103,7 @@ export default function UserDashboard() {
       setPwMsg("Password updated.");
       setPwNew("");
     } catch (err: any) {
-      setError(err.message ?? "Password change failed");
+      setError(err.message ?? "Couldn't change your password — please try again");
     } finally {
       setPwSaving(false);
     }
@@ -131,7 +129,7 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div> : null}
+      {error ? <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">{error}</div> : null}
       {message ? <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{message}</div> : null}
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
@@ -149,10 +147,7 @@ export default function UserDashboard() {
           <Field label="CITY">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.city} onChange={(e) => update("city", e.target.value)} />
           </Field>
-          <Field label="PHONE NUMBER">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.phoneNumber} onChange={(e) => update("phoneNumber", e.target.value)} placeholder="+6281234567890" />
-          </Field>
-          <Field label="WHATSAPP (used for 2FA)">
+          <Field label="WHATSAPP NUMBER (used for 2FA and login)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} placeholder="+6281234567890" />
           </Field>
           <Field label="AGE GROUP">

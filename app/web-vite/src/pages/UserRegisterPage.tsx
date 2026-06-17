@@ -7,8 +7,7 @@ import { NATIONALITIES } from "../lib/nationalities";
 
 export default function UserRegisterPage() {
   const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState(searchParams.get("email") ?? "");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [username, setUsername] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [fullName, setFullName] = useState("");
@@ -27,12 +26,10 @@ export default function UserRegisterPage() {
     e.preventDefault();
     setError(null);
 
-    const normalizedPhone = phoneNumber.replace(/[\s-]/g, "");
     const normalizedWhatsapp = whatsappNumber.replace(/[\s-]/g, "");
-    if (!email.trim()) { setError("Email is required."); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError("Please provide a valid email."); return; }
-    if (!phoneRegex.test(normalizedPhone)) { setError("Phone number must include country code, e.g. +6281234567"); return; }
-    if (!phoneRegex.test(normalizedWhatsapp)) { setError("WhatsApp number must include country code, e.g. +6281234567"); return; }
+    if (!username.trim()) { setError("Please choose a username for your account"); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) { setError("Use only letters, numbers and underscores for your username"); return; }
+    if (username.trim().length < 3) { setError("Username needs at least 3 characters"); return; }
 
     setLoading(true);
     try {
@@ -40,7 +37,7 @@ export default function UserRegisterPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          email: email.trim(),
+          username: username.trim(),
           fullName: fullName.trim(),
           gender,
           ageGroup,
@@ -48,20 +45,19 @@ export default function UserRegisterPage() {
           city: city.trim(),
           preferredContact,
           relationshipStatus,
-          phoneNumber: normalizedPhone,
           whatsapp: normalizedWhatsapp,
           telegramId: telegramId.trim() || undefined,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json?.error === "username_taken") throw new Error("Email is already taken.");
-        throw new Error(json?.error ?? "Registration failed.");
+        if (json?.error === "username_taken") throw new Error("That username is taken — try a different one");
+        throw new Error(json?.error ?? "Something went wrong — please try again");
       }
       setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/");
     } catch (err: any) {
-      setError(err.message ?? "Unable to register.");
+      setError(err.message ?? "Couldn't create your account — please try again");
     } finally {
       setLoading(false);
     }
@@ -85,8 +81,9 @@ export default function UserRegisterPage() {
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="text-xs tracking-[0.22em] text-brand-muted">EMAIL <span className="normal-case text-brand-muted/60">(used as your login username)</span></label>
-            <input required className={fieldClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" type="email" aria-label="Email" />
+            <label className="text-xs tracking-[0.22em] text-brand-muted">USERNAME</label>
+            <input required className={fieldClass} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="your_username" type="text" aria-label="Username" />
+            <p className="mt-1 text-xs text-brand-muted">Letters, numbers and underscores only.</p>
           </div>
 
           <p className="text-xs text-brand-muted">
@@ -95,13 +92,11 @@ export default function UserRegisterPage() {
 
           <hr className="border-brand-line" />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">PHONE NUMBER</label>
-              <input required className={fieldClass} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+6281234567890" aria-label="Phone number" />
             </div>
             <div>
-              <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP <span className="normal-case text-brand-muted/60">(used for 2FA)</span></label>
+              <label className="text-xs tracking-[0.22em] text-brand-muted">WHATSAPP NUMBER <span className="normal-case text-brand-muted/60">(used for 2FA and login)</span></label>
               <input required className={fieldClass} value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+6281234567890" aria-label="WhatsApp number" />
             </div>
           </div>
@@ -182,7 +177,7 @@ export default function UserRegisterPage() {
             </div>
           </div>
 
-          {error ? <div className="text-xs text-red-400">{error}</div> : null}
+          {error ? <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">{error}</div> : null}
 
           <button disabled={loading} className="btn btn-primary btn-block min-h-[44px] py-3">
             {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}

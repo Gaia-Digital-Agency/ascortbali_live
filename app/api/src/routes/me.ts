@@ -223,7 +223,7 @@ const CreatorProfileSchema = z.object({
   location: z.string().max(100),
   eyes: z.string().min(1).max(20),
   hairColor: z.string().min(1).max(30),
-  hairLength: z.string().min(1).max(20),
+  hairLength: z.string().max(20).optional().default(""),
   travel: z.string().min(1).max(50),
   weight: z.string().min(1).max(30),
   height: z.string().min(1).max(30),
