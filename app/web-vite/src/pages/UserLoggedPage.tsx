@@ -45,6 +45,8 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Per-field validation errors, rendered inline under each field.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pwCurrent, setPwCurrent] = useState("User@123");
   const [pwNew, setPwNew] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
@@ -80,20 +82,24 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
     })();
   }, []);
 
-  const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) =>
+  const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => {
     setProfile((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => { if (!prev[key as string]) return prev; const n = { ...prev }; delete n[key as string]; return n; });
+  };
+  // Inline error rendered directly under a field.
+  const FE = (k: string) => fieldErrors[k] ? <p className="mt-1 text-xs text-yellow-300">{fieldErrors[k]}</p> : null;
 
   const save = async () => {
-    setSaving(true);
     setError(null);
     setMessage(null);
+    const fe: Record<string, string> = {};
+    if (!profile.fullName.trim()) fe.fullName = "Full name is required.";
+    if (!profile.nationality.trim()) fe.nationality = "Nationality is required.";
+    if (!profile.city.trim()) fe.city = "Current city is required.";
+    if (Object.keys(fe).length) { setFieldErrors(fe); return; }
+    setFieldErrors({});
+    setSaving(true);
     try {
-      if (!profile.email.trim()) {
-        throw new Error("Username is required.");
-      }
-      if (!profile.fullName.trim() || !profile.nationality.trim() || !profile.city.trim()) {
-        throw new Error("All fields are compulsory.");
-      }
       await apiFetch("/me/user-profile", { method: "PUT", body: JSON.stringify(profile) });
       setMessage("Profile updated.");
     } catch (err: any) {
@@ -109,18 +115,19 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
 
   // Register-mode submit: this same form creates a new user account.
   const registerUser = async () => {
-    setSaving(true);
     setError(null);
     setMessage(null);
+    const username = profile.email.trim();
+    const whatsapp = profile.whatsapp.replace(/[\s-]/g, "");
+    const fe: Record<string, string> = {};
+    if (!/^\+\d{1,4}\d{6,16}$/.test(whatsapp)) fe.whatsapp = "Include your WhatsApp number with country code, e.g. +628****4567.";
+    if (!profile.fullName.trim()) fe.fullName = "Full name is required.";
+    if (!profile.nationality.trim()) fe.nationality = "Nationality is required.";
+    if (!profile.city.trim()) fe.city = "Current city is required.";
+    if (Object.keys(fe).length) { setFieldErrors(fe); return; }
+    setFieldErrors({});
+    setSaving(true);
     try {
-      const username = profile.email.trim();
-      if (!username) throw new Error("Username is required.");
-      if (!/^[a-zA-Z0-9_]+$/.test(username)) throw new Error("Username: letters, numbers and underscores only.");
-      if (username.length < 3) throw new Error("Username needs at least 3 characters.");
-      const whatsapp = profile.whatsapp.replace(/[\s-]/g, "");
-      if (!/^\+\d{1,4}\d{6,16}$/.test(whatsapp)) throw new Error("Include your WhatsApp number with country code, e.g. +628****4567.");
-      if (!profile.fullName.trim() || !profile.nationality.trim() || !profile.city.trim()) throw new Error("All fields are compulsory.");
-      if (regPassword !== regConfirm) throw new Error("Password and confirm password do not match.");
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -231,15 +238,19 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
           ) : null}
           <Field label="FULL NAME (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.fullName} onChange={(e) => update("fullName", e.target.value)} />
+            {FE("fullName")}
           </Field>
           <Field label="NATIONALITY (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />
+            {FE("nationality")}
           </Field>
           <Field label="CURRENT CITY (required)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.city} onChange={(e) => update("city", e.target.value)} />
+            {FE("city")}
           </Field>
           <Field label="WHATSAPP NUMBER (used for 2FA and login)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} placeholder="+6281234567890" />
+            {FE("whatsapp")}
           </Field>
           <Field label="AGE GROUP (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ageGroup} onChange={(e) => update("ageGroup", e.target.value as UserProfile["ageGroup"])}>

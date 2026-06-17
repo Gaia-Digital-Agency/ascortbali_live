@@ -134,6 +134,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   const allAgreed = agreements.policy && agreements.terms && agreements.privacy && agreements.noNude;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Per-field validation errors, rendered inline under each field.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingImageSlot, setSavingImageSlot] = useState<number | null>(null);
   const [pwCurrent, setPwCurrent] = useState("");
@@ -165,8 +167,12 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     })();
   }, []);
 
-  const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) =>
+  const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) => {
     setProfile((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setFieldErrors((prev) => { if (!prev[key as string]) return prev; const n = { ...prev }; delete n[key as string]; return n; });
+  };
+  // Inline error rendered directly under a field.
+  const FE = (k: string) => fieldErrors[k] ? <p className="mt-1 text-xs text-red-400">{fieldErrors[k]}</p> : null;
 
   const handleRegFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -181,19 +187,16 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     setError(null);
     setMessage(null);
     const creatorName = (profile.model_name ?? "").trim();
-    if (!CREATOR_NAME_REGEX.test(creatorName)) {
-      setError("Display name must be one word (letters/numbers only), max 50 characters.");
-      return;
-    }
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const whatsapp = (profile.cell_phone ?? "").replace(/[\s-]/g, "");
-    if (!whatsapp || !phoneRegex.test(whatsapp)) {
-      setError("Include your WhatsApp number with country code, e.g. +628****4567.");
-      return;
-    }
-    if (!(profile.notes ?? "").trim()) { setError("About Me is required."); return; }
-    if (regFiles.length === 0) { setError("Please add at least one profile photo."); return; }
-    if (!allAgreed) { setError("Please confirm all agreements before registering."); return; }
+    const fe: Record<string, string> = {};
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Display name must be one word (letters/numbers only), max 50 characters.";
+    if (!whatsapp || !phoneRegex.test(whatsapp)) fe.cell_phone = "Include your WhatsApp number with country code, e.g. +628****4567.";
+    if (!(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
+    if (regFiles.length === 0) fe.photos = "Please add at least one profile photo.";
+    if (!allAgreed) fe.agreements = "Please confirm all agreements before registering.";
+    if (Object.keys(fe).length) { setFieldErrors(fe); return; }
+    setFieldErrors({});
 
     setSavingProfile(true);
     try {
@@ -265,27 +268,15 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     if (!profile) return;
     const creatorName = (profile.model_name ?? "").trim();
     const username = (profile.username ?? "").trim().toLowerCase();
-    if (!CREATOR_NAME_REGEX.test(creatorName)) {
-      setError("Girl name must be one word (letters/numbers only), max 50 characters.");
-      setMessage(null);
-      return;
-    }
-    const requiredText: Array<[string, string]> = [
-      ["Name", creatorName],
-      ["Phone/SMS", String(profile.phone_number ?? "").trim()],
-      ["WhatsApp", String(profile.cell_phone ?? "").trim()],
-      // Country dropped — replaced conceptually by the Service Area picker.
-      // Service Area is stored in the city column (comma-separated zones);
-      // require at least one selection.
-      ["Location", String(profile.city ?? "").trim()],
-      ["About Me", String(profile.notes ?? "").trim()],
-    ];
-    const missing = requiredText.find(([, v]) => !v);
-    if (missing) {
-      setError(`${missing[0]} is required.`);
-      setMessage(null);
-      return;
-    }
+    // Required fields, shown inline under each field. (phone_number is not a
+    // form field — it defaults to the WhatsApp number server-side.)
+    const fe: Record<string, string> = {};
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Girl name must be one word (letters/numbers only), max 50 characters.";
+    if (!String(profile.cell_phone ?? "").trim()) fe.cell_phone = "WhatsApp is required.";
+    if (!String(profile.city ?? "").trim()) fe.city = "Location is required.";
+    if (!String(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
+    if (Object.keys(fe).length) { setFieldErrors(fe); setMessage(null); return; }
+    setFieldErrors({});
 
     setSavingProfile(true);
     setError(null);
@@ -506,6 +497,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               spellCheck={false}
               placeholder="One word, letters/numbers only"
             />
+            {FE("model_name")}
           </Field>
           <Field label="AGE (required)">
             <select
@@ -538,9 +530,11 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               onChange={(next) => updateProfile("city", next.join(", "))}
               placeholder="Select areas..."
             />
+            {FE("city")}
           </Field>
           <Field label="WHATSAPP (used for 2FA)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.cell_phone ?? ""} onChange={(e) => updateProfile("cell_phone", e.target.value)} placeholder="+6281234567890" />
+            {FE("cell_phone")}
           </Field>
           <Field label="TELEGRAM (OPTIONAL)">
             <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.telegram_id ?? ""} onChange={(e) => updateProfile("telegram_id", e.target.value)} placeholder="@username" />
@@ -647,6 +641,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               onChange={(e) => updateProfile("notes", e.target.value)}
             />
             <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.notes ?? "").length}</p>
+            {FE("notes")}
           </Field>
         </div>
 
@@ -708,6 +703,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             ) : (
               <p className="text-sm text-brand-muted">Add at least one profile photo.</p>
             )}
+            {FE("photos")}
           </div>
         ) : (
         <>
@@ -761,6 +757,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.privacy} onChange={(e) => setAgreements((a) => ({ ...a, privacy: e.target.checked }))} /><span>I have read the <Link to="/privacy" className="text-brand-gold underline">Privacy Policy</Link>.</span></label>
             <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.noNude} onChange={(e) => setAgreements((a) => ({ ...a, noNude: e.target.checked }))} /><span>I confirm my photos contain no nudity.</span></label>
           </div>
+          {FE("agreements")}
           <div className="mt-6">
             <button onClick={registerProfile} disabled={savingProfile} className="btn btn-primary py-3">
               {savingProfile ? "CREATING PROFILE..." : "CREATE PROFILE"}
