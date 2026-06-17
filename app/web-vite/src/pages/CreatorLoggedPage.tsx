@@ -187,6 +187,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
       return;
     }
     if (!profile.gender) { setError("Please select a gender."); return; }
+    if (!(profile.notes ?? "").trim()) { setError("About Me is required."); return; }
     if (regFiles.length === 0) { setError("Please add at least one profile photo."); return; }
     if (!allAgreed) { setError("Please confirm all agreements before registering."); return; }
 
@@ -617,17 +618,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
           </div>
 
         <div className="mt-5">
-          {/* "ABOUT ME" — same DB column (`notes`) as before; only the user-
-              facing label changed. Creators write a free-form intro here. */}
-          <Field label="ABOUT ME">
-            <textarea className="min-h-[120px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.notes ?? ""} onChange={(e) => updateProfile("notes", e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="mt-5">
           {/* SERVICES — free text (max 150 chars), stored in providers.services.
-              Replaces the old fixed dropdown so creators can describe services
-              in their own words. Optional. */}
+              Shown above ABOUT ME. Optional. */}
           <Field label="SERVICES (optional)">
             <textarea
               className="min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
@@ -637,6 +629,20 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               placeholder="Describe the services you offer..."
             />
             <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.services ?? "").length}</p>
+          </Field>
+        </div>
+
+        <div className="mt-5">
+          {/* "ABOUT ME" — same DB column (`notes`) as before; only the user-
+              facing label changed. Creators write a free-form intro here. */}
+          <Field label="ABOUT ME (required)">
+            <textarea
+              className="min-h-[120px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
+              maxLength={150}
+              value={profile.notes ?? ""}
+              onChange={(e) => updateProfile("notes", e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.notes ?? "").length}</p>
           </Field>
         </div>
 
