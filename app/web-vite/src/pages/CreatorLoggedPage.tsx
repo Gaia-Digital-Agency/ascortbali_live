@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { apiFetch, clearTokens } from "../lib/api";
+import { Link } from "react-router-dom";
+import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
@@ -107,9 +108,29 @@ const HEIGHT_OPTIONS = (() => {
 const WEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => `${30 + i} kg`);
 const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 
-export default function CreatorPanel() {
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
+// Blank profile used when this same form is rendered as the REGISTRATION form
+// (mode="register"). One form serves both registration and profile editing.
+const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
+  username: "", email: null, title: "", url: "", temp_password: null,
+  telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
+  gender: "female", form: "escort", age: 18, location: "", eyes: "", hair_color: "",
+  hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
+  languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
+  city: "All Bali", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
+  services: "", meeting_with: "all", available_for: "both", bust_type: "Natural", pubic_hair: "Trimmed",
+};
+
+export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "register" }) {
+  const isRegister = mode === "register";
+  const [profile, setProfile] = useState<CreatorProfile | null>(isRegister ? { ...DEFAULT_CREATOR_PROFILE } : null);
   const [images, setImages] = useState<CreatorImage[]>([]);
+  // Register-mode photo staging: no provider exists yet, so collect File objects
+  // locally and upload them on submit (mirrors the old standalone register page).
+  const [regFiles, setRegFiles] = useState<File[]>([]);
+  const [regPreviews, setRegPreviews] = useState<string[]>([]);
+  const regFileRef = useRef<HTMLInputElement>(null);
+  const [agreements, setAgreements] = useState({ policy: false, terms: false, privacy: false, noNude: false });
+  const allAgreed = agreements.policy && agreements.terms && agreements.privacy && agreements.noNude;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -124,6 +145,7 @@ export default function CreatorPanel() {
   const [deactivateChecks, setDeactivateChecks] = useState<boolean[]>([false, false, false, false, false]);
 
   useEffect(() => {
+    if (isRegister) return; // registration starts from a blank profile, no auth fetch
     (async () => {
       try {
         const me = await apiFetch("/me");
@@ -147,6 +169,99 @@ export default function CreatorPanel() {
 
   const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) =>
     setProfile((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const handleRegFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setRegFiles(files);
+    setRegPreviews(files.map((f) => URL.createObjectURL(f)));
+  };
+
+  // Register-mode submit: this same form creates a new creator. Username/email
+  // are auto-generated server-side, so they aren't collected here.
+  const registerProfile = async () => {
+    if (!profile) return;
+    setError(null);
+    setMessage(null);
+    const creatorName = (profile.model_name ?? "").trim();
+    if (!CREATOR_NAME_REGEX.test(creatorName)) {
+      setError("Display name must be one word (letters/numbers only), max 50 characters.");
+      return;
+    }
+    const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
+    const whatsapp = (profile.cell_phone ?? "").replace(/[\s-]/g, "");
+    if (!whatsapp || !phoneRegex.test(whatsapp)) {
+      setError("Include your WhatsApp number with country code, e.g. +628****4567.");
+      return;
+    }
+    if (!profile.gender) { setError("Please select a gender."); return; }
+    if (regFiles.length === 0) { setError("Please add at least one profile photo."); return; }
+    if (!allAgreed) { setError("Please confirm all agreements before registering."); return; }
+
+    setSavingProfile(true);
+    try {
+      const imageUrls: string[] = [];
+      for (const file of regFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("folder", "uploads");
+        const up = await fetch(`${API_BASE}/upload`, { method: "POST", body: fd });
+        if (!up.ok) throw new Error(`Image upload failed: ${await up.text()}`);
+        imageUrls.push((await up.json()).url);
+      }
+      const res = await fetch(`${API_BASE}/auth/register/creator`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          modelName: creatorName,
+          gender: profile.gender,
+          age: Number(profile.age),
+          city: profile.city,
+          whatsapp,
+          telegramId: profile.telegram_id || undefined,
+          wechatId: profile.wechat_id || undefined,
+          form: profile.form,
+          orientation: profile.orientation,
+          hairLength: profile.hair_length || undefined,
+          services: (profile.services || "").trim() || undefined,
+          imageFiles: imageUrls,
+          languages: profile.languages || undefined,
+          eyes: profile.eyes || undefined,
+          hairColor: profile.hair_color || undefined,
+          ethnicity: profile.ethnicity || undefined,
+          nationality: profile.nationality || undefined,
+          height: profile.height || undefined,
+          weight: profile.weight || undefined,
+          meetingWith: profile.meeting_with || undefined,
+          availableFor: profile.available_for || undefined,
+          smoker: profile.smoker || undefined,
+          tattoo: profile.tattoo || undefined,
+          piercing: profile.piercing || undefined,
+          notes: profile.notes || undefined,
+          bustType: profile.bust_type || undefined,
+          pubicHair: profile.pubic_hair || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json?.error === "invalid_body" && json?.details) {
+          const fe = json.details.fieldErrors ?? {};
+          const parts = Object.entries(fe).map(([f, m]) => `${f}: ${(m as string[]).join(", ")}`);
+          throw new Error([...parts, ...(json.details.formErrors ?? [])].filter(Boolean).join("; ") || "Some details are invalid — please check the form.");
+        }
+        const msgs: Record<string, string> = {
+          username_taken: "That handle is already taken — try a different display name.",
+          registration_failed: "Something went wrong creating your account. Please try again.",
+        };
+        throw new Error(msgs[json?.error] ?? "Could not create your account. Please check your details and try again.");
+      }
+      setTokens({ accessToken: json.accessToken });
+      window.location.href = withBasePath("/creator/logged");
+    } catch (err: any) {
+      setError(err.message ?? "Unable to register.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -369,7 +484,10 @@ export default function CreatorPanel() {
       />
       <div>
         <div className="text-xs tracking-luxe text-brand-muted">GIRLS</div>
-        <h1 className="mt-2 font-display text-2xl md:text-3xl">Girls Profile Page</h1>
+        <h1 className="mt-2 font-display text-2xl md:text-3xl">{isRegister ? "Create Your Profile" : "Girls Profile Page"}</h1>
+        {isRegister ? (
+          <p className="mt-1 text-[11px] text-brand-muted">No password needed — you&apos;ll sign in with your WhatsApp number and verify on WhatsApp.</p>
+        ) : null}
       </div>
 
       {error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div> : null}
@@ -530,11 +648,13 @@ export default function CreatorPanel() {
           </Field>
         </div>
 
+        {!isRegister ? (
         <div className="mt-6">
           <button onClick={saveProfile} disabled={savingProfile} className="btn btn-primary py-3">
             {savingProfile ? "SAVING PROFILE..." : "SAVE PROFILE"}
           </button>
         </div>
+        ) : null}
       </section>
 
       {PASSWORD_CHANGE_ENABLED && (
@@ -571,6 +691,24 @@ export default function CreatorPanel() {
 
       <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
         <div className="text-xs tracking-luxe text-brand-muted">PHOTOS</div>
+        {isRegister ? (
+          <div className="mt-5 space-y-4">
+            <input ref={regFileRef} type="file" accept="image/*" multiple onChange={handleRegFileSelect} className="hidden" />
+            <button type="button" onClick={() => regFileRef.current?.click()} className="btn btn-outline px-6 py-3 text-xs">SELECT PHOTOS</button>
+            {regPreviews.length > 0 ? (
+              <div className="grid gap-5 md:grid-cols-3">
+                {regPreviews.map((src, i) => (
+                  <div key={i} className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
+                    <img src={src} alt={`Selected ${i + 1}`} className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-brand-muted">Add at least one profile photo.</p>
+            )}
+          </div>
+        ) : (
+        <>
         {images.length > 0 ? (
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           {images
@@ -609,8 +747,29 @@ export default function CreatorPanel() {
             + ADD IMAGE
           </button>
         </div>
+        </>
+        )}
       </section>
 
+      {isRegister ? (
+        <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
+          <div className="space-y-3 text-sm">
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.policy} onChange={(e) => setAgreements((a) => ({ ...a, policy: e.target.checked }))} /><span>I agree to the content &amp; conduct policy.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.terms} onChange={(e) => setAgreements((a) => ({ ...a, terms: e.target.checked }))} /><span>I have read and accept the <Link to="/terms" className="text-brand-gold underline">Terms</Link>.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.privacy} onChange={(e) => setAgreements((a) => ({ ...a, privacy: e.target.checked }))} /><span>I have read the <Link to="/privacy" className="text-brand-gold underline">Privacy Policy</Link>.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.noNude} onChange={(e) => setAgreements((a) => ({ ...a, noNude: e.target.checked }))} /><span>I confirm my photos contain no nudity.</span></label>
+          </div>
+          <div className="mt-6">
+            <button onClick={registerProfile} disabled={savingProfile} className="btn btn-primary py-3">
+              {savingProfile ? "CREATING PROFILE..." : "CREATE PROFILE"}
+            </button>
+          </div>
+          <div className="mt-4 text-center text-xs text-brand-muted">
+            Already have an account?{" "}
+            <Link to="/creator" className="text-brand-gold underline">Sign In</Link>
+          </div>
+        </section>
+      ) : (
       <div className="flex justify-end">
         <button
           onClick={() => {
@@ -626,6 +785,7 @@ export default function CreatorPanel() {
           {profile.is_active ? "Deactivate profile" : "Activate profile"}
         </button>
       </div>
+      )}
 
       {showDeactivateConfirm ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
