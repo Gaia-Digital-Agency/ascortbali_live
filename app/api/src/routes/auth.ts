@@ -759,6 +759,22 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       return res.status(409).json({ error: "creator_name_taken" });
     }
 
+    // WhatsApp number must be unique across creators (login matches on the last
+    // 8 digits, so a duplicate would make login ambiguous).
+    const waSig = whatsappFinal.replace(/\D/g, "").slice(-8);
+    if (waSig.length >= 8) {
+      const waExists = await pool.query(
+        `SELECT uuid FROM providers
+          WHERE right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1
+             OR right(regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g'), 8) = $1
+          LIMIT 1`,
+        [waSig]
+      );
+      if (waExists.rows.length > 0) {
+        return res.status(409).json({ error: "whatsapp_taken" });
+      }
+    }
+
     // Services is free text (max 150 chars). Accept a string or, from older
     // clients, an array that we join into CSV.
     const servicesText = (Array.isArray(services) ? services.join(", ") : services).slice(0, 150);

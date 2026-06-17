@@ -244,16 +244,21 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
       });
       const json = await res.json();
       if (!res.ok) {
+        // Map server errors to the specific field so the message shows inline.
+        if (json?.error === "creator_name_taken") { setFieldErrors({ model_name: "That display name is already taken — choose another." }); return; }
+        if (json?.error === "whatsapp_taken") { setFieldErrors({ cell_phone: "That WhatsApp number is already registered." }); return; }
+        if (json?.error === "username_taken") { setError("That handle is already taken — please try again."); return; }
         if (json?.error === "invalid_body" && json?.details) {
-          const fe = json.details.fieldErrors ?? {};
-          const parts = Object.entries(fe).map(([f, m]) => `${f}: ${(m as string[]).join(", ")}`);
-          throw new Error([...parts, ...(json.details.formErrors ?? [])].filter(Boolean).join("; ") || "Some details are invalid — please check the form.");
+          // Map backend field names to this form's field keys for inline display.
+          const keyMap: Record<string, string> = { modelName: "model_name", whatsapp: "cell_phone", notes: "notes", age: "age", city: "city", gender: "gender", services: "services" };
+          const fes = (json.details.fieldErrors ?? {}) as Record<string, string[]>;
+          const feMap: Record<string, string> = {};
+          for (const [f, msgs] of Object.entries(fes)) feMap[keyMap[f] ?? f] = msgs.join(", ");
+          if (Object.keys(feMap).length) { setFieldErrors(feMap); return; }
+          setError((json.details.formErrors ?? []).join("; ") || "Some details are invalid — please check the highlighted fields.");
+          return;
         }
-        const msgs: Record<string, string> = {
-          username_taken: "That handle is already taken — try a different display name.",
-          registration_failed: "Something went wrong creating your account. Please try again.",
-        };
-        throw new Error(msgs[json?.error] ?? "Could not create your account. Please check your details and try again.");
+        throw new Error("Something went wrong creating your account. Please try again.");
       }
       setTokens({ accessToken: json.accessToken });
       window.location.href = withBasePath("/creator/logged");
