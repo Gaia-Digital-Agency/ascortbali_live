@@ -348,12 +348,12 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
            ${PRIMARY_IMAGE_LATERAL}
           WHERE ${whereClause}
           ORDER BY
-                   (CASE WHEN (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text) > 0 THEN 0 ELSE 1 END) ASC,
+                   (CASE WHEN (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text AND (pi.image_file IS NOT NULL AND pi.image_file NOT LIKE '%avatar-default%')) > 0 THEN 0 ELSE 1 END) ASC,
                    LEAST(
                      CASE p.face_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END,
                      CASE p.body_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END
                    ) ASC,
-                   (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text) DESC
+                   (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text AND (pi.image_file IS NOT NULL AND pi.image_file NOT LIKE '%avatar-default%')) DESC
           LIMIT ${limitPlaceholder}
          OFFSET ${offsetPlaceholder}`,
         rowsParams
