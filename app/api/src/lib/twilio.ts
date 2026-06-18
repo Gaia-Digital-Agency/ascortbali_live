@@ -70,8 +70,20 @@ export async function sendOnboardingInvite(phone: string, _tempPassword?: string
     to,
     from,
     body:
-      `Welcome to Bali Girls! Log in at ${url} using your WhatsApp number — ` +
-      `we'll verify it on WhatsApp. No password needed.`,
+      `You are beautiful and in another life I would be lucky to be with you. In this life I have found someone special.
+
+Free listing.
+${url}
+
+I've matched with many beautiful and interesting people that I had my advertising agency build a website for Bali escorts, freelancers, and sugar babies.
+
+I will send FREE registration to my database of 45,000 male friends and clients as well as advertise the site.
+
+They'll all love you and be excited to meet you for your amazing beauty, services and sugar.
+
+Please sign in with your WhatsApp number through the "Girls Zone" to check your profile and add pictures and more profile details
+
+${url}`,
   });
 }
 
