@@ -889,21 +889,16 @@ const [savingReorder, setSavingReorder] = useState(false);
   );
 }
 
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="text-xs tracking-[0.22em] text-brand-muted">{label}</div>
       <div className="mt-2">{children}</div>
-      {cropUrl && cropCallback ? (
-        <ImageCropModal
-          image={cropUrl}
-          onCropDone={(blob) => cropCallback(blob)}
-          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
-        />
-      ) : null}
     </div>
   );
 }
+
 
 function ChoiceGroup({
   label, value, options, onChange,
@@ -921,13 +916,6 @@ function ChoiceGroup({
           </label>
         ))}
       </div>
-      {cropUrl && cropCallback ? (
-        <ImageCropModal
-          image={cropUrl}
-          onCropDone={(blob) => cropCallback(blob)}
-          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -960,13 +948,6 @@ function MultiChoiceGroup({
           </label>
         ))}
       </div>
-      {cropUrl && cropCallback ? (
-        <ImageCropModal
-          image={cropUrl}
-          onCropDone={(blob) => cropCallback(blob)}
-          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
-        />
-      ) : null}
     </div>
   );
 }
