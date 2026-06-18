@@ -106,9 +106,7 @@ model ProviderProfile {
 
   displayName String
   bio         String?
-  country     String?
   city        String?
-  location    String?
   telegramId  String?
 
   createdAt   DateTime @default(now())

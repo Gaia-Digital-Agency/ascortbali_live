@@ -22,11 +22,9 @@ type CreatorProfile = {
   gender: "female" | "male" | "transgender";
   form: string;
   age: number;
-  location: string;
   eyes: string;
   hair_color: string;
   hair_length: string;
-  travel: string;
   weight: string;
   height: string;
   ethnicity: string;
@@ -35,7 +33,6 @@ type CreatorProfile = {
   phone_number: string;
   cell_phone: string;
   wechat_id: string;
-  country: string;
   city: string;
   orientation: string;
   smoker: "yes" | "no";
@@ -114,9 +111,9 @@ const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   username: "", email: null, title: "", url: "", temp_password: null,
   telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
-  gender: "female", form: "escort", age: "", location: "", eyes: "", hair_color: "",
-  hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
-  languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
+  gender: "female", form: "escort", age: "", eyes: "", hair_color: "",
+  hair_length: "", weight: "", height: "", ethnicity: "", nationality: "",
+  languages: "", phone_number: "", cell_phone: "", wechat_id: "",
   city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
   services: "", meeting_with: "men", available_for: "both", bust_type: "Natural", pubic_hair: "Trimmed",
 };
@@ -319,15 +316,11 @@ const [savingReorder, setSavingReorder] = useState(false);
         gender: profile.gender,
         form: profile.form ?? "freelance",
         age: Number(profile.age),
-        location: profile.location ?? "",
         eyes: profile.eyes ?? "",
         hairColor: profile.hair_color ?? "",
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        
-        // so new / unmigrated creators have a sensible pre-selected option.
-        travel: profile.travel || "",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
         ethnicity: profile.ethnicity ?? "",
@@ -336,7 +329,6 @@ const [savingReorder, setSavingReorder] = useState(false);
         phoneNumber: profile.phone_number ?? "",
         cellPhone: profile.cell_phone ?? "",
         wechatId: profile.wechat_id ?? "",
-        country: profile.country,
         city: profile.city,
         orientation: profile.orientation,
         smoker: profile.smoker,
@@ -444,15 +436,11 @@ const [savingReorder, setSavingReorder] = useState(false);
         gender: profile.gender,
         form: profile.form ?? "freelance",
         age: Number(profile.age),
-        location: profile.location ?? "",
         eyes: profile.eyes ?? "",
         hairColor: profile.hair_color ?? "",
         hairLength: profile.hair_length ?? "",
         bustType: profile.bust_type ?? "Natural",
         pubicHair: profile.pubic_hair ?? "Trimmed",
-        
-        // so new / unmigrated creators have a sensible pre-selected option.
-        travel: profile.travel || "",
         weight: profile.weight ?? "",
         height: profile.height ?? "",
         ethnicity: profile.ethnicity ?? "",
@@ -461,7 +449,6 @@ const [savingReorder, setSavingReorder] = useState(false);
         phoneNumber: profile.phone_number ?? "",
         cellPhone: profile.cell_phone ?? "",
         wechatId: profile.wechat_id ?? "",
-        country: profile.country,
         city: profile.city,
         orientation: profile.orientation,
         smoker: profile.smoker,

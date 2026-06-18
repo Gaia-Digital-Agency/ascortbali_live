@@ -1,6 +1,5 @@
 // Static config + small helpers shared by the admin tabs.
 import {
-  TRAVEL_OPTIONS,
   HAIR_LENGTH_OPTIONS,
   BUST_TYPE_OPTIONS,
   PUBIC_HAIR_OPTIONS,
@@ -79,7 +78,6 @@ export const FIELD_OPTIONS: Record<string, string[]> = {
   pubic_hair:    PUBIC_HAIR_OPTIONS,
   ethnicity:     ["Asian", "West European", "Eastern European", "African", "Australian", "North American", "South American", "Black", "Caucasian", "Middle Eastern", "Hispanic", "Latin", "Pacific Islander", "Mixed", "Other"],
   city:          SERVICE_AREA_OPTIONS,
-  travel:        TRAVEL_OPTIONS,
   // user fields
   age_group:           ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
   relationship_status: ["single", "married", "other"],

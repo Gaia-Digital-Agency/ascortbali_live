@@ -85,7 +85,7 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
       `SELECT uuid::text AS id, username, COALESCE(temp_password, '') AS password, COALESCE(temp_password, '') AS confirm_password,
               model_name, age, nationality, ethnicity, city,
               cell_phone, phone_number, telegram_id, wechat_id, languages,
-              eyes, hair_color, hair_length, height, weight, travel, last_seen,
+              eyes, hair_color, hair_length, height, weight, last_seen,
               gender, escort_type, orientation, available_for, meeting_with, smoker, tattoo, piercing,
               services, notes,
               body_rating, face_rating, COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified,
@@ -189,7 +189,6 @@ const UpdateCreatorSchema = z.object({
   age: z.coerce.number().int().min(18).max(99).optional(),
   nationality: z.string().max(50).optional(),
   city: z.string().max(50).optional(),
-  country: z.string().max(50).optional(),
   phone_number: z.string().max(50).optional(),
   cell_phone: z.string().max(50).optional(),
   telegram_id: z.string().max(100).optional(),
@@ -200,7 +199,6 @@ const UpdateCreatorSchema = z.object({
   hair_length: z.string().max(30).optional(),
   height: z.string().max(20).optional(),
   weight: z.string().max(20).optional(),
-  travel: z.string().max(50).optional(),
   orientation: z.string().max(20).optional(),
   smoker: z.string().max(5).optional(),
   tattoo: z.string().max(5).optional(),
@@ -247,7 +245,6 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     if (p.age !== undefined) add("age", p.age);
     if (p.nationality !== undefined) add("nationality", p.nationality);
     if (p.city !== undefined) add("city", p.city);
-    if (p.country !== undefined) add("country", p.country);
     if (p.phone_number !== undefined) add("phone_number", p.phone_number);
     if (p.cell_phone !== undefined) add("cell_phone", p.cell_phone);
     if (p.telegram_id !== undefined) add("telegram_id", p.telegram_id);
@@ -258,7 +255,6 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     if (p.hair_length !== undefined) add("hair_length", p.hair_length);
     if (p.height !== undefined) add("height", p.height);
     if (p.weight !== undefined) add("weight", p.weight);
-    if (p.travel !== undefined) add("travel", p.travel);
     if (p.orientation !== undefined) add("orientation", p.orientation);
     if (p.smoker !== undefined) add("smoker", p.smoker);
     if (p.tattoo !== undefined) add("tattoo", p.tattoo);

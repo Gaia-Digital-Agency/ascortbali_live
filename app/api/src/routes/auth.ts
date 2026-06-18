@@ -721,8 +721,6 @@ const CreatorRegisterSchema = z.object({
   // Single-select dropdowns; defaults applied when omitted.
   bustType: z.string().trim().max(20).optional().default("Natural"),
   pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
-  // New optional fields for detailed creator profile info.
-  travel: z.string().max(50).optional().default(""),
   eyes: z.string().max(30).optional().default(""),
   hairColor: z.string().max(30).optional().default(""),
   ethnicity: z.string().max(50).optional().default(""),
@@ -746,7 +744,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, email, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, travel, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
+  const { username, email, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
   // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
   // the other. Frontend already enforces both as required at register, but
   // belt-and-braces.
@@ -807,8 +805,8 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
     const pwPlain = password || Array.from({ length: 8 }, () => pwChars[Math.floor(Math.random() * pwChars.length)]).join("");
     const hashedPw = await hashPassword(pwPlain);
     await pool.query(
-      `INSERT INTO providers (uuid, provider_id, username, password, temp_password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email, travel, eyes, hair_color, ethnicity, languages, height, weight, meeting_with, available_for, smoker, tattoo, piercing, notes)
-       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)`,
+      `INSERT INTO providers (uuid, provider_id, username, password, temp_password, model_name, gender, age, nationality, city, phone_number, cell_phone, telegram_id, wechat_id, services, hair_length, url, slug, escort_type, orientation, bust_type, pubic_hair, email, eyes, hair_color, ethnicity, languages, height, weight, meeting_with, available_for, smoker, tattoo, piercing, notes)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)`,
       [
         creatorId,
         providerId,
@@ -833,7 +831,6 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         bustType || "Natural",
         pubicHair || "Trimmed",
         email || null,
-        travel || null,
         eyes || null,
         hairColor || null,
         ethnicity || null,
