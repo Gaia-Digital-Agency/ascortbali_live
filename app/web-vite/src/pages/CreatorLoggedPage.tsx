@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
@@ -6,6 +6,7 @@ import { PasswordInput } from "../components/LoginForm";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
 import { NATIONALITIES } from "../lib/nationalities";
 import { PageMeta } from "../components/PageMeta";
+import ImageCropModal from "../components/ImageCropModal";
 
 type CreatorProfile = {
   username: string;
@@ -128,6 +129,9 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   // locally and upload them on submit (mirrors the old standalone register page).
   const [regFiles, setRegFiles] = useState<File[]>([]);
   const [regPreviews, setRegPreviews] = useState<string[]>([]);
+const [cropUrl, setCropUrl] = useState<string | null>(null);
+const [cropCallback, setCropCallback] = useState<((blob: Blob) => void) | null>(null);
+const [savingReorder, setSavingReorder] = useState(false);
   const regFileRef = useRef<HTMLInputElement>(null);
   const [agreed, setAgreed] = useState(false);
   const allAgreed = agreed;
@@ -707,7 +711,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
         <div className="text-xs tracking-luxe text-brand-muted">PHOTOS</div>
         {isRegister ? (
           <div className="mt-5 space-y-4">
-            <input ref={regFileRef} type="file" accept="image/*" multiple onChange={handleRegFileSelect} className="hidden" />
+            <input ref={regFileRef} type="file" accept="image/*" onChange={handleRegFileSelect} className="hidden" />
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => regFileRef.current?.click()} className="btn btn-outline px-6 py-3 text-xs">ADD PHOTOS</button>
               {regPreviews.length > 0 ? <span className="text-xs text-brand-muted">{regPreviews.length} selected</span> : null}
@@ -725,6 +729,14 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
                     >
                       ✕
                     </button>
+                    <div className="absolute bottom-1.5 left-1.5 flex gap-1">
+                      {i > 0 ? (
+                        <button type="button" onClick={() => { setRegFiles((p) => { const a = [...p]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a; }); setRegPreviews((p) => { const a = [...p]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a; }); }} className="flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white transition hover:bg-black">&#9650;</button>
+                      ) : null}
+                      {i < regPreviews.length - 1 ? (
+                        <button type="button" onClick={() => { setRegFiles((p) => { const a = [...p]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a; }); setRegPreviews((p) => { const a = [...p]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a; }); }} className="flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white transition hover:bg-black">&#9660;</button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -739,14 +751,22 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           {images
             .sort((a, b) => a.sequence_number - b.sequence_number)
-            .map((img) => (
+            .map((img, imgIdx) => (
             <div key={img.image_id} className="space-y-3 rounded-2xl border border-brand-line bg-brand-surface2/40 p-4">
               <div className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
                 <img src={toImageUrl(img.image_file)} alt={`Photo ${img.sequence_number}`} width={360} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => removeImage(img.image_id)} disabled={savingImageSlot === img.sequence_number} className="btn btn-outline px-3 py-2 text-xs">DELETE</button>
-                <button onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) uploadImage(img.sequence_number, f); }; input.click(); }} disabled={savingImageSlot === img.sequence_number} className="btn btn-outline px-3 py-2 text-xs">REPLACE</button>
+                <button onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { const url = URL.createObjectURL(f); setCropUrl(url); setCropCallback(() => (blob: Blob) => { const cropped = new File([blob], f.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }); uploadImage(img.sequence_number, cropped); URL.revokeObjectURL(url); setCropUrl(null); setCropCallback(null); }); } }; input.click(); }} disabled={savingImageSlot === img.sequence_number} className="btn btn-outline px-3 py-2 text-xs">REPLACE</button>
+                <div className="flex gap-1">
+                  {imgIdx > 0 ? (
+                    <button onClick={async () => { setSavingReorder(true); const sorted = [...images].sort((a, b) => a.sequence_number - b.sequence_number); [sorted[imgIdx - 1], sorted[imgIdx]] = [sorted[imgIdx], sorted[imgIdx - 1]]; const order = sorted.map((x) => x.image_id); await fetch(API_BASE + '/me/reorder-images', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ order }) }); setImages(sorted); setSavingReorder(false); }} disabled={savingReorder} className="btn btn-outline px-2 py-1 text-xs">&#9650;</button>
+                  ) : null}
+                  {imgIdx < images.length - 1 ? (
+                    <button onClick={async () => { setSavingReorder(true); const sorted = [...images].sort((a, b) => a.sequence_number - b.sequence_number); [sorted[imgIdx], sorted[imgIdx + 1]] = [sorted[imgIdx + 1], sorted[imgIdx]]; const order = sorted.map((x) => x.image_id); await fetch(API_BASE + '/me/reorder-images', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ order }) }); setImages(sorted); setSavingReorder(false); }} disabled={savingReorder} className="btn btn-outline px-2 py-1 text-xs">&#9660;</button>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}
@@ -763,7 +783,17 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               input.accept = 'image/*';
               input.onchange = (e) => {
                 const f = (e.target as HTMLInputElement).files?.[0];
-                if (f) uploadImage(nextSeq, f);
+                if (f) {
+                  const url = URL.createObjectURL(f);
+                  setCropUrl(url);
+                  setCropCallback(() => (blob: Blob) => {
+                    const cropped = new File([blob], f.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+                    uploadImage(nextSeq, cropped);
+                    URL.revokeObjectURL(url);
+                    setCropUrl(null);
+                    setCropCallback(null);
+                  });
+                }
               };
               input.click();
             }}
@@ -848,6 +878,13 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
           </div>
         </div>
       ) : null}
+      {cropUrl && cropCallback ? (
+        <ImageCropModal
+          image={cropUrl}
+          onCropDone={(blob) => cropCallback(blob)}
+          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -857,6 +894,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div className="text-xs tracking-[0.22em] text-brand-muted">{label}</div>
       <div className="mt-2">{children}</div>
+      {cropUrl && cropCallback ? (
+        <ImageCropModal
+          image={cropUrl}
+          onCropDone={(blob) => cropCallback(blob)}
+          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -877,6 +921,13 @@ function ChoiceGroup({
           </label>
         ))}
       </div>
+      {cropUrl && cropCallback ? (
+        <ImageCropModal
+          image={cropUrl}
+          onCropDone={(blob) => cropCallback(blob)}
+          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -909,6 +960,13 @@ function MultiChoiceGroup({
           </label>
         ))}
       </div>
+      {cropUrl && cropCallback ? (
+        <ImageCropModal
+          image={cropUrl}
+          onCropDone={(blob) => cropCallback(blob)}
+          onCancel={() => { URL.revokeObjectURL(cropUrl); setCropUrl(null); setCropCallback(null); }}
+        />
+      ) : null}
     </div>
   );
 }
