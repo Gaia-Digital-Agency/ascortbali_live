@@ -347,7 +347,12 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
            FROM providers p
            ${PRIMARY_IMAGE_LATERAL}
           WHERE ${whereClause}
-          ORDER BY (img.image_file IS NULL) ASC, p.created_at DESC
+          ORDER BY
+                   LEAST(
+                     CASE p.face_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END,
+                     CASE p.body_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END
+                   ) ASC,
+                   (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text) DESC
           LIMIT ${limitPlaceholder}
          OFFSET ${offsetPlaceholder}`,
         rowsParams

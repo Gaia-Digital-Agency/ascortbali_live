@@ -4,6 +4,7 @@ import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
+import { NATIONALITIES } from "../lib/nationalities";
 import { PageMeta } from "../components/PageMeta";
 
 type CreatorProfile = {
@@ -61,12 +62,11 @@ const toImageUrl = (file?: string | null) => {
   return `/api/clean-image/${encodeURIComponent(filename)}`;
 };
 
-const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
+const CREATOR_NAME_REGEX = /^[A-Za-z]{1,50}$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
-const COUNTRY_OPTIONS = ["Indonesia", "Singapore", "Malaysia", "Thailand", "Vietnam", "Philippines", "Australia", "United Kingdom", "United States"];
-const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish"];
+const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish", "Others"];
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
 const ETHNICITY_OPTIONS = [
@@ -77,7 +77,6 @@ const ETHNICITY_OPTIONS = [
 // Field options moved to src/lib/creatorOptions.ts so the registration page,
 // profile editor, and public preview all use the same lists.
 import {
-  TRAVEL_OPTIONS,
   HAIR_LENGTH_OPTIONS,
   SERVICE_AREA_OPTIONS,
   CATEGORY_OPTIONS,
@@ -114,7 +113,7 @@ const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   username: "", email: null, title: "", url: "", temp_password: null,
   telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
-  gender: "female", form: "escort", age: 18, location: "", eyes: "", hair_color: "",
+  gender: "female", form: "escort", age: "", location: "", eyes: "", hair_color: "",
   hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
   languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
   city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
@@ -130,8 +129,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   const [regFiles, setRegFiles] = useState<File[]>([]);
   const [regPreviews, setRegPreviews] = useState<string[]>([]);
   const regFileRef = useRef<HTMLInputElement>(null);
-  const [agreements, setAgreements] = useState({ policy: false, terms: false, privacy: false, noNude: false });
-  const allAgreed = agreements.policy && agreements.terms && agreements.privacy && agreements.noNude;
+  const [agreed, setAgreed] = useState(false);
+  const allAgreed = agreed;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // Per-field validation errors, rendered inline under each field.
@@ -204,11 +203,12 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const whatsapp = (profile.cell_phone ?? "").replace(/[\s-]/g, "");
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Display name must be one word (letters/numbers only), max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
     if (!whatsapp || !phoneRegex.test(whatsapp)) fe.cell_phone = "Include your WhatsApp number with country code, e.g. +628****4567.";
+    if (!profile.age || !AGE_OPTIONS.includes(Number(profile.age))) fe.age = "Please select your age.";
     if (!(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
     if (regFiles.length === 0) fe.photos = "Please add at least one profile photo.";
-    if (!allAgreed) fe.agreements = "Please confirm all agreements before registering.";
+    if (!allAgreed) fe.agreements = "Please confirm you have read and accepted the terms.";
     if (Object.keys(fe).length) { setFieldErrors(fe); return; }
     setFieldErrors({});
 
@@ -290,7 +290,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     // Required fields, shown inline under each field. (phone_number is not a
     // form field — it defaults to the WhatsApp number server-side.)
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Girl name must be one word (letters/numbers only), max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
     if (!String(profile.cell_phone ?? "").trim()) fe.cell_phone = "WhatsApp is required.";
     if (!String(profile.city ?? "").trim()) fe.city = "Location is required.";
     if (!String(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
@@ -350,7 +350,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
       if (err?.message === "creator_name_taken") {
         setError("Girl name is already in use. Please choose another one.");
       } else if (err?.message === "invalid_creator_name") {
-        setError("Girl name must be one word (letters/numbers only), max 50 characters.");
+        setError("Name must be letters only, max 50 characters.");
       } else if (err?.message === "username_taken") {
         setError("Username is already in use.");
       } else {
@@ -508,29 +508,33 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             <input
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={profile.model_name ?? ""}
-              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 50))}
+              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 50))}
               maxLength={50}
               inputMode="text"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
-              placeholder="One word, letters/numbers only"
+              placeholder="Enter Name"
             />
             {FE("model_name")}
           </Field>
           <Field label="AGE (required)">
             <select
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={String(profile.age ?? 18)}
-              onChange={(e) => updateProfile("age", Number(e.target.value))}
+              value={profile.age ? String(profile.age) : ""}
+              onChange={(e) => updateProfile("age", e.target.value ? Number(e.target.value) : "")}
             >
+              <option value="" disabled>Select Age</option>
               {AGE_OPTIONS.map((age) => (
                 <option key={age} value={age}>{age}</option>
               ))}
             </select>
           </Field>
           <Field label="NATIONALITY">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} placeholder="Type nationality" />
+            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)}>
+              <option value="" disabled>Select A Country</option>
+              {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
           </Field>
           <Field label="ETHNICITY (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile("ethnicity", e.target.value)}>
@@ -597,12 +601,6 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.weight ?? ""} onChange={(e) => updateProfile("weight", e.target.value)}>
               <option value="">Select weight</option>
               {WEIGHT_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </Field>
-          <Field label="TRAVEL">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.travel ?? ""} onChange={(e) => updateProfile("travel", e.target.value)}>
-              <option value="">Select travel preference</option>
-              {TRAVEL_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
           <Field label="LAST SEEN ONLINE (view only)">
@@ -781,11 +779,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
 
       {isRegister ? (
         <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-          <div className="space-y-3 text-sm">
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.policy} onChange={(e) => setAgreements((a) => ({ ...a, policy: e.target.checked }))} /><span>I agree to the content &amp; conduct policy.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.terms} onChange={(e) => setAgreements((a) => ({ ...a, terms: e.target.checked }))} /><span>I have read and accept the <Link to="/terms" className="text-brand-gold underline">Terms</Link>.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.privacy} onChange={(e) => setAgreements((a) => ({ ...a, privacy: e.target.checked }))} /><span>I have read the <Link to="/privacy" className="text-brand-gold underline">Privacy Policy</Link>.</span></label>
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.noNude} onChange={(e) => setAgreements((a) => ({ ...a, noNude: e.target.checked }))} /><span>I confirm my photos contain no nudity.</span></label>
+          <div className="text-sm">
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /><span>I have read and accepted the terms, conduct and privacy policy of this site; and shall not post nudity.</span></label>
           </div>
           {FE("agreements")}
           <div className="mt-6">
@@ -793,10 +788,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               {savingProfile ? "CREATING PROFILE..." : "CREATE PROFILE"}
             </button>
           </div>
-          <div className="mt-4 text-center text-xs text-brand-muted">
-            Already have an account?{" "}
-            <Link to="/creator" className="text-brand-gold underline">Sign In</Link>
-          </div>
+
         </section>
       ) : (
       <div className="flex justify-end">

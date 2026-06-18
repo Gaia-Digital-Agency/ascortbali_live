@@ -1,23 +1,23 @@
-import { Routes, Route } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
-import Layout from './components/Layout'
-import HomePage from './pages/HomePage'
-import { AdsProvider } from './components/AdvertisingSpaces'
+import { Routes, Route, useLocation } from "react-router-dom"
+import { lazy, Suspense, useEffect } from "react"
+import Layout from "./components/Layout"
+import HomePage from "./pages/HomePage"
+import { AdsProvider } from "./components/AdvertisingSpaces"
 
 // Lazy-load everything except the homepage for faster initial load
-const CreatorLoginPage = lazy(() => import('./pages/CreatorLoginPage'))
-const CreatorLoggedPage = lazy(() => import('./pages/CreatorLoggedPage'))
-const CreatorPreviewPage = lazy(() => import('./pages/CreatorPreviewPage'))
-const UserLoginPage = lazy(() => import('./pages/UserLoginPage'))
-const UserLoggedPage = lazy(() => import('./pages/UserLoggedPage'))
-const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
-const AdminLoggedPage = lazy(() => import('./pages/AdminLoggedPage'))
-const InfoPage = lazy(() => import('./pages/InfoPage'))
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
-const TermsPage = lazy(() => import('./pages/TermsPage'))
-const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'))
-const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'))
-const AdminBlogsPage = lazy(() => import('./pages/AdminBlogsPage'))
+const CreatorLoginPage = lazy(() => import("./pages/CreatorLoginPage"))
+const CreatorLoggedPage = lazy(() => import("./pages/CreatorLoggedPage"))
+const CreatorPreviewPage = lazy(() => import("./pages/CreatorPreviewPage"))
+const UserLoginPage = lazy(() => import("./pages/UserLoginPage"))
+const UserLoggedPage = lazy(() => import("./pages/UserLoggedPage"))
+const AdminLoginPage = lazy(() => import("./pages/AdminLoginPage"))
+const AdminLoggedPage = lazy(() => import("./pages/AdminLoggedPage"))
+const InfoPage = lazy(() => import("./pages/InfoPage"))
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"))
+const TermsPage = lazy(() => import("./pages/TermsPage"))
+const BlogIndexPage = lazy(() => import("./pages/BlogIndexPage"))
+const BlogDetailPage = lazy(() => import("./pages/BlogDetailPage"))
+const AdminBlogsPage = lazy(() => import("./pages/AdminBlogsPage"))
 
 const PageLoader = () => (
   <div className="space-y-4 py-10">
@@ -29,6 +29,18 @@ const PageLoader = () => (
 )
 
 export default function App() {
+  const location = useLocation()
+
+  // Track SPA page views via Google Tag Manager
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).dataLayer) {
+      (window as any).dataLayer.push({
+        event: "page_view",
+        page: location.pathname + location.search,
+      })
+    }
+  }, [location])
+
   return (
     <AdsProvider>
       <Routes>
