@@ -1,6 +1,7 @@
 // Twilio messaging for 2FA OTP delivery (Twilio Verify, or WhatsApp fallback).
 import Twilio from "twilio";
 import { env } from "./env.js";
+import { getPool } from "./pg.js";
 
 /** Normalise a stored phone to bare E.164 (strip any "whatsapp:" prefix). */
 function toE164(phone: string): string {
@@ -50,25 +51,35 @@ export function isWhatsAppConfigured(): boolean {
  * template is used; otherwise a freeform body is sent (24h window).
  * Template variable: {{1}} = login URL.
  */
-export async function sendOnboardingInvite(phone: string, _tempPassword?: string): Promise<void> {
+export async function sendOnboardingInvite(phone: string, _tempPassword?: string, creatorId?: string): Promise<void> {
   const tw = getClient();
   const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
   const from = env.TWILIO_WHATSAPP_FROM!;
   const url = `${env.PUBLIC_SITE_URL.replace(/\/+$/, "")}/creator`;
+  const statusCallback = `${env.PUBLIC_SITE_URL.replace(/\/+$/, "")}/auth/twilio/invite-status`;
 
   if (env.TWILIO_ONBOARDING_CONTENT_SID) {
-    await tw.messages.create({
+    const msg = await tw.messages.create({
       to,
       from,
       contentSid: env.TWILIO_ONBOARDING_CONTENT_SID,
       contentVariables: JSON.stringify({ "1": url }),
+      statusCallback,
     });
+    if (creatorId && msg.sid) {
+      const pool = getPool();
+      await pool.query(
+        `INSERT INTO invite_tracking (creator_uuid, message_sid, status) VALUES ($1::uuid, $2, $3)`,
+        [creatorId, msg.sid, msg.status || "queued"]
+      );
+    }
     return;
   }
 
-  await tw.messages.create({
+  const msg = await tw.messages.create({
     to,
     from,
+    statusCallback,
     body:
       `You are beautiful and in another life I would be lucky to be with you. In this life I have found someone special.
 
@@ -85,6 +96,13 @@ Please sign in with your WhatsApp number through the "Girls Zone" to check your 
 
 ${url}`,
   });
+  if (creatorId && msg.sid) {
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO invite_tracking (creator_uuid, message_sid, status) VALUES ($1::uuid, $2, $3)`,
+      [creatorId, msg.sid, msg.status || "queued"]
+    );
+  }
 }
 
 /**

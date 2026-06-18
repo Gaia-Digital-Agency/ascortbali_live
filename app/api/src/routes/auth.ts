@@ -280,6 +280,24 @@ authRouter.post("/wa/inbound", urlencoded({ extended: false }), async (req, res)
   return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${reply}</Message></Response>`);
 });
 
+// POST /twilio/invite-status — Twilio status callback for onboarding invites
+authRouter.post("/twilio/invite-status", urlencoded({ extended: false }), async (req, res) => {
+  const messageSid = req.body.MessageSid;
+  const messageStatus = req.body.MessageStatus;
+  const errorCode = req.body.ErrorCode;
+  const errorMessage = req.body.ErrorMessage;
+  if (!messageSid) { res.status(200).send(); return; }
+  try {
+    const pool = getPool();
+    await pool.query(
+      `UPDATE invite_tracking SET status = $1, error_code = $2, error_message = $3, updated_at = now() WHERE message_sid = $4`,
+      [messageStatus, errorCode || null, errorMessage || null, messageSid]
+    );
+  } catch (_e) { /* Twilio retries on failure */ }
+  res.status(200).send();
+});
+
+
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(6).max(200),

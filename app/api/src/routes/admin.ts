@@ -328,7 +328,7 @@ async function sendOnboardingToCreator(
   // (we don't hold the plaintext), so skip them.
   if (/^\$2[aby]?\$/.test(temp)) return { ok: false, skip: true, reason: "temp_password_hashed" };
   try {
-    await sendOnboardingInvite(phone, temp);
+    await sendOnboardingInvite(phone, temp, c.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, skip: false, reason: e instanceof Error ? e.message : "send_failed" };
@@ -391,6 +391,29 @@ adminRouter.post("/creators/send-onboarding-bulk", async (_req, res) => {
     return res.json({ total: rows.length, sent, failed, skipped, results });
   } catch {
     return res.status(500).json({ error: "bulk_send_failed" });
+  }
+});
+
+// GET /admin/creators/invite-status — latest delivery status per creator
+adminRouter.get("/creators/invite-status", async (_req, res) => {
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (it.creator_uuid)
+              it.creator_uuid::text AS creator_id,
+              p.model_name,
+              p.username,
+              p.cell_phone,
+              it.status,
+              it.error_message,
+              it.updated_at
+         FROM invite_tracking it
+         JOIN providers p ON p.uuid = it.creator_uuid
+        ORDER BY it.creator_uuid, it.updated_at DESC`
+    );
+    return res.json(rows);
+  } catch {
+    return res.json([]);
   }
 });
 

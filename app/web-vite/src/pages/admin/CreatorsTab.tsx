@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { CreatorAccount, Rating } from "./types";
 
 const RATING_OPTIONS: Rating[] = ["A", "B", "C", "D", "E", "F"];
@@ -16,6 +17,18 @@ export function CreatorsTab({
   onSendOnboardingBulk: () => void;
   onboardingBusy: boolean;
 }) {
+  const [inviteStatuses, setInviteStatuses] = useState<Record<string, { status: string; updated_at: string }>>({});
+  useEffect(() => {
+    fetch("/api/admin/creators/invite-status")
+      .then((r) => r.json())
+      .then((rows: any[]) => {
+        const map: Record<string, { status: string; updated_at: string }> = {};
+        for (const r of rows) { map[r.creator_id] = { status: r.status, updated_at: r.updated_at }; }
+        setInviteStatuses(map);
+      })
+      .catch(() => {});
+  }, []);
+
   const q = search.trim().toLowerCase();
   const matches = (c: CreatorAccount) =>
     !q || (c.username || "").toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
@@ -24,6 +37,25 @@ export function CreatorsTab({
   const activeTotal = creators.filter((c) => c.is_active).length;
   const inactiveTotal = creators.filter((c) => !c.is_active).length;
 
+  const inviteStatusColor: Record<string, string> = {
+    delivered: "text-emerald-400",
+    sent: "text-amber-400",
+    queued: "text-brand-muted",
+    failed: "text-red-400",
+    read: "text-sky-400",
+  };
+  const renderInviteStatus = (id: string) => {
+    const s = inviteStatuses[id];
+    if (!s) return <span className="text-xs text-brand-muted/50">—</span>;
+    const color = inviteStatusColor[s.status] || "text-brand-muted";
+    return (
+      <span className={`inline-flex items-center gap-1 text-xs ${color}`}>
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${color.replace("text-", "bg-")}`} />
+        {s.status.toUpperCase()}
+      </span>
+    );
+  };
+  
   const renderTable = (list: CreatorAccount[], emptyMsg: string) => (
     <div className="mt-5 overflow-x-auto">
       <table className="w-full text-sm">
@@ -35,12 +67,13 @@ export function CreatorsTab({
             <th className="pb-3 pr-4 font-normal">FACE</th>
             <th className="pb-3 pr-4 font-normal">VERIFIED</th>
             <th className="pb-3 pr-4 font-normal">LAST SEEN</th>
+            <th className="pb-3 pr-4 font-normal">STATUS</th>
             <th className="pb-3 font-normal">ACTIONS</th>
           </tr>
         </thead>
         <tbody>
           {list.length === 0 ? (
-            <tr><td colSpan={7} className="py-4 text-xs text-brand-muted">{emptyMsg}</td></tr>
+            <tr><td colSpan={8} className="py-4 text-xs text-brand-muted">{emptyMsg}</td></tr>
           ) : list.map((c) => (
             <tr key={c.id} className="border-b border-brand-line/40 last:border-0">
               <td className="py-3 pr-4 font-mono text-xs">{c.username || "—"}</td>
@@ -69,6 +102,7 @@ export function CreatorsTab({
                 />
               </td>
               <td className="py-3 pr-4 text-xs text-brand-muted">{c.last_seen || "—"}</td>
+              <td className="py-3 pr-4 whitespace-nowrap">{renderInviteStatus(c.id)}</td>
               <td className="py-3">
                 <div className="flex items-center gap-2">
                   <button onClick={() => onView(c.id)} className="btn btn-outline px-3 py-1.5 text-xs">VIEW</button>
