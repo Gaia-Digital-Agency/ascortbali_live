@@ -23,6 +23,8 @@ const CARD_COLUMNS = `p.uuid,
        p.country,
        p.url,
        p.username,
+       p.face_rating,
+       p.body_rating,
        p.escort_type,
        img.image_file`;
 
