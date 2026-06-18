@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PasswordInput } from "../components/LoginForm";
-import { NATIONALITIES } from "../lib/nationalities";
 import { ChecklistDropdown } from "../components/ChecklistDropdown";
 import { PageMeta } from "../components/PageMeta";
 
@@ -62,12 +61,12 @@ const toImageUrl = (file?: string | null) => {
   return `/api/clean-image/${encodeURIComponent(filename)}`;
 };
 
-const CREATOR_NAME_REGEX = /^[A-Za-z]{1,50}$/;
+const CREATOR_NAME_REGEX = /^[A-Za-z0-9-]{1,50}$/;
 // Password change is RETAINED AS A BACKUP ONLY. Creators log in passwordless
 // via WhatsApp, so this section is hidden. Flip to true to re-enable it.
 const PASSWORD_CHANGE_ENABLED = false;
 const COUNTRY_OPTIONS = ["Indonesia", "Singapore", "Malaysia", "Thailand", "Vietnam", "Philippines", "Australia", "United Kingdom", "United States"];
-const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish", "Others"];
+const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese", "Korean", "Thai", "Vietnamese", "Malay", "Russian", "Ukrainian", "French", "Spanish"];
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
 const ETHNICITY_OPTIONS = [
@@ -115,7 +114,7 @@ const AGE_OPTIONS = Array.from({ length: 43 }, (_, i) => 18 + i);
 const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   username: "", email: null, title: "", url: "", temp_password: null,
   telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
-  gender: "female", form: "escort", age: "", location: "", eyes: "", hair_color: "",
+  gender: "female", form: "escort", age: 18, location: "", eyes: "", hair_color: "",
   hair_length: "", travel: "", weight: "", height: "", ethnicity: "", nationality: "",
   languages: "", phone_number: "", cell_phone: "", wechat_id: "", country: "",
   city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
@@ -131,8 +130,8 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   const [regFiles, setRegFiles] = useState<File[]>([]);
   const [regPreviews, setRegPreviews] = useState<string[]>([]);
   const regFileRef = useRef<HTMLInputElement>(null);
-  const [agreed, setAgreed] = useState(false);
-  const allAgreed = agreed;
+  const [agreements, setAgreements] = useState({ policy: false, terms: false, privacy: false, noNude: false });
+  const allAgreed = agreements.policy && agreements.terms && agreements.privacy && agreements.noNude;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // Per-field validation errors, rendered inline under each field.
@@ -175,10 +174,24 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
   // Inline error rendered directly under a field.
   const FE = (k: string) => fieldErrors[k] ? <p className="mt-1 text-xs text-red-400">{fieldErrors[k]}</p> : null;
 
+  // Accumulate selected photos (append, dedupe) so the creator builds up the
+  // full set and can remove individual ones before saving.
   const handleRegFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setRegFiles(files);
-    setRegPreviews(files.map((f) => URL.createObjectURL(f)));
+    const picked = Array.from(e.target.files || []);
+    const key = (f: File) => `${f.name}_${f.size}_${f.lastModified}`;
+    const existing = new Set(regFiles.map(key));
+    const added = picked.filter((f) => !existing.has(key(f)));
+    if (added.length) {
+      setRegFiles((prev) => [...prev, ...added]);
+      setRegPreviews((prev) => [...prev, ...added.map((f) => URL.createObjectURL(f))]);
+      setFieldErrors((prev) => { if (!prev.photos) return prev; const n = { ...prev }; delete n.photos; return n; });
+    }
+    e.target.value = ""; // let the same file be re-picked later
+  };
+
+  const removeRegFile = (index: number) => {
+    setRegPreviews((prev) => { const url = prev[index]; if (url) URL.revokeObjectURL(url); return prev.filter((_, i) => i !== index); });
+    setRegFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Register-mode submit: this same form creates a new creator. Username/email
@@ -191,12 +204,11 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     const phoneRegex = /^\+\d{1,4}\d{6,16}$/;
     const whatsapp = (profile.cell_phone ?? "").replace(/[\s-]/g, "");
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Display name must be one word (letters/numbers only), max 50 characters.";
     if (!whatsapp || !phoneRegex.test(whatsapp)) fe.cell_phone = "Include your WhatsApp number with country code, e.g. +628****4567.";
-    if (!profile.age || !AGE_OPTIONS.includes(Number(profile.age))) fe.age = "Please select your age.";
     if (!(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
     if (regFiles.length === 0) fe.photos = "Please add at least one profile photo.";
-    if (!allAgreed) fe.agreements = "Please confirm you have read and accepted the terms.";
+    if (!allAgreed) fe.agreements = "Please confirm all agreements before registering.";
     if (Object.keys(fe).length) { setFieldErrors(fe); return; }
     setFieldErrors({});
 
@@ -278,7 +290,7 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
     // Required fields, shown inline under each field. (phone_number is not a
     // form field — it defaults to the WhatsApp number server-side.)
     const fe: Record<string, string> = {};
-    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Name must be letters only, max 50 characters.";
+    if (!CREATOR_NAME_REGEX.test(creatorName)) fe.model_name = "Girl name must be one word (letters/numbers only), max 50 characters.";
     if (!String(profile.cell_phone ?? "").trim()) fe.cell_phone = "WhatsApp is required.";
     if (!String(profile.city ?? "").trim()) fe.city = "Location is required.";
     if (!String(profile.notes ?? "").trim()) fe.notes = "About Me is required.";
@@ -496,33 +508,29 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
             <input
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
               value={profile.model_name ?? ""}
-              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 50))}
+              onChange={(e) => updateProfile("model_name", e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 50))}
               maxLength={50}
               inputMode="text"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
-              placeholder="Enter Name"
+              placeholder="One word, letters/numbers only"
             />
             {FE("model_name")}
           </Field>
           <Field label="AGE (required)">
             <select
               className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              value={profile.age ? String(profile.age) : ""}
-              onChange={(e) => updateProfile("age", e.target.value ? Number(e.target.value) : "")}
+              value={String(profile.age ?? 18)}
+              onChange={(e) => updateProfile("age", Number(e.target.value))}
             >
-              <option value="" disabled>Select Age</option>
               {AGE_OPTIONS.map((age) => (
                 <option key={age} value={age}>{age}</option>
               ))}
             </select>
           </Field>
           <Field label="NATIONALITY">
-            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)}>
-              <option value="" disabled>Select A Country</option>
-              {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality ?? ""} onChange={(e) => updateProfile("nationality", e.target.value)} placeholder="Type nationality" />
           </Field>
           <Field label="ETHNICITY (required)">
             <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile("ethnicity", e.target.value)}>
@@ -702,12 +710,23 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
         {isRegister ? (
           <div className="mt-5 space-y-4">
             <input ref={regFileRef} type="file" accept="image/*" multiple onChange={handleRegFileSelect} className="hidden" />
-            <button type="button" onClick={() => regFileRef.current?.click()} className="btn btn-outline px-6 py-3 text-xs">SELECT PHOTOS</button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => regFileRef.current?.click()} className="btn btn-outline px-6 py-3 text-xs">ADD PHOTOS</button>
+              {regPreviews.length > 0 ? <span className="text-xs text-brand-muted">{regPreviews.length} selected</span> : null}
+            </div>
             {regPreviews.length > 0 ? (
               <div className="grid gap-5 md:grid-cols-3">
                 {regPreviews.map((src, i) => (
-                  <div key={i} className="aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
+                  <div key={i} className="relative aspect-[3/4] overflow-hidden rounded-xl border border-brand-line">
                     <img src={src} alt={`Selected ${i + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeRegFile(i)}
+                      aria-label={`Remove photo ${i + 1}`}
+                      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-sm text-white transition hover:bg-black"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
@@ -762,8 +781,11 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
 
       {isRegister ? (
         <section className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7">
-          <div className="text-sm">
-            <label className="flex items-start gap-2"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /><span>I have read and accepted the terms, conduct and privacy policy of this site; and shall not post nudity.</span></label>
+          <div className="space-y-3 text-sm">
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.policy} onChange={(e) => setAgreements((a) => ({ ...a, policy: e.target.checked }))} /><span>I agree to the content &amp; conduct policy.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.terms} onChange={(e) => setAgreements((a) => ({ ...a, terms: e.target.checked }))} /><span>I have read and accept the <Link to="/terms" className="text-brand-gold underline">Terms</Link>.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.privacy} onChange={(e) => setAgreements((a) => ({ ...a, privacy: e.target.checked }))} /><span>I have read the <Link to="/privacy" className="text-brand-gold underline">Privacy Policy</Link>.</span></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={agreements.noNude} onChange={(e) => setAgreements((a) => ({ ...a, noNude: e.target.checked }))} /><span>I confirm my photos contain no nudity.</span></label>
           </div>
           {FE("agreements")}
           <div className="mt-6">
@@ -771,7 +793,10 @@ export default function CreatorPanel({ mode = "edit" }: { mode?: "edit" | "regis
               {savingProfile ? "CREATING PROFILE..." : "CREATE PROFILE"}
             </button>
           </div>
-
+          <div className="mt-4 text-center text-xs text-brand-muted">
+            Already have an account?{" "}
+            <Link to="/creator" className="text-brand-gold underline">Sign In</Link>
+          </div>
         </section>
       ) : (
       <div className="flex justify-end">
