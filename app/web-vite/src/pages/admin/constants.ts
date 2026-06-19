@@ -76,7 +76,7 @@ export const FIELD_OPTIONS: Record<string, string[]> = {
   hair_length:   HAIR_LENGTH_OPTIONS,
   bust_type:     BUST_TYPE_OPTIONS,
   pubic_hair:    PUBIC_HAIR_OPTIONS,
-  ethnicity:     ["Asian", "West European", "Eastern European", "African", "Australian", "North American", "South American", "Black", "Caucasian", "Middle Eastern", "Hispanic", "Latin", "Pacific Islander", "Mixed", "Other"],
+  ethnicity:     ["Arabian", "Asian", "Ebony", "Caucasian", "Hispanic", "Indian", "Latin", "Mixed"],
   city:          SERVICE_AREA_OPTIONS,
   // user fields
   age_group:           ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],

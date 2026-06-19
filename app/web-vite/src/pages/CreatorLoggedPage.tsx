@@ -68,9 +68,7 @@ const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Mandarin", "Japanese",
 const EYES_OPTIONS = ["Brown", "Dark Brown", "Black", "Hazel", "Blue", "Green", "Gray"];
 const HAIR_COLOR_OPTIONS = ["Black", "Dark Brown", "Brown", "Light Brown", "Blonde", "Red", "Auburn"];
 const ETHNICITY_OPTIONS = [
-  "Asian", "West European", "Eastern European", "African", "Australian",
-  "North American", "South American", "Black", "Caucasian",
-  "Middle Eastern", "Hispanic", "Latin", "Pacific Islander", "Mixed", "Other",
+  "Arabian", "Asian", "Ebony", "Caucasian", "Hispanic", "Indian", "Latin", "Mixed",
 ];
 // Field options moved to src/lib/creatorOptions.ts so the registration page,
 // profile editor, and public preview all use the same lists.

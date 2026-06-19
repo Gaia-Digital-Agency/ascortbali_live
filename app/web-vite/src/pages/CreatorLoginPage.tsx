@@ -39,7 +39,7 @@ export default function CreatorLoginPage() {
       />
       <LoginForm
         portal="creator"
-        label="GIRLS"
+        label="GIRLS LOGIN"
         defaultEmail="callista@email.com"
         defaultPassword="Admin@123"
         emailLabel="USER ID"

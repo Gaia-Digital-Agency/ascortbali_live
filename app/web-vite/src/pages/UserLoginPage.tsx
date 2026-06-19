@@ -12,7 +12,7 @@ export default function UserLoginPage() {
       />
       <LoginForm
         portal="user"
-        label="MENS ZONE"
+        label="LOGIN"
         defaultEmail="user@email.com"
         defaultPassword="User@123"
         emailLabel="USER ID"
