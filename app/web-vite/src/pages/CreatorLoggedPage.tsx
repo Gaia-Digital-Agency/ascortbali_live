@@ -134,6 +134,7 @@ const [savingReorder, setSavingReorder] = useState(false);
   const allAgreed = agreed;
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
   // Per-field validation errors, rendered inline under each field.
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [savingProfile, setSavingProfile] = useState(false);
@@ -169,6 +170,7 @@ const [savingReorder, setSavingReorder] = useState(false);
 
   const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) => {
     setProfile((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setProfileSaved(false);
     setFieldErrors((prev) => { if (!prev[key as string]) return prev; const n = { ...prev }; delete n[key as string]; return n; });
   };
   // Inline error rendered directly under a field.
@@ -342,6 +344,7 @@ const [savingReorder, setSavingReorder] = useState(false);
       await apiFetch("/me/creator-profile", { method: "PUT", body: JSON.stringify(payload) });
       setProfile((prev) => (prev ? { ...prev, last_seen: autoLastSeen } : prev));
       setMessage("Girl profile updated.");
+      setProfileSaved(true);
     } catch (err: any) {
       if (err?.message === "creator_name_taken") {
         setError("Girl name is already in use. Please choose another one.");
@@ -655,10 +658,15 @@ const [savingReorder, setSavingReorder] = useState(false);
         </div>
 
         {!isRegister ? (
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           <button onClick={saveProfile} disabled={savingProfile} className="btn btn-primary py-3">
             {savingProfile ? "SAVING PROFILE..." : "SAVE PROFILE"}
           </button>
+          {profileSaved && profile?.url ? (
+            <a href={profile.url} target="_blank" rel="noopener noreferrer" className="btn btn-outline py-3">
+              GO TO PROFILE
+            </a>
+          ) : null}
         </div>
         ) : null}
       </section>
