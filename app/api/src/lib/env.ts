@@ -56,6 +56,16 @@ const EnvSchema = z.object({
   // WhatsApp" flow. This is the real connected sender (not the sandbox). The
   // login response hands it to the browser to build the wa.me deep link.
   WHATSAPP_INBOUND_NUMBER: z.string().default("+17407628065"),
+  // OpenClaw WhatsApp OTP (replaces Twilio for OTP delivery, avoids Meta WABA).
+  // When enabled, OTP codes are sent via the OpenClaw gateway instead of Twilio.
+  OPENCLAW_OTP_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (v == null) return false;
+      const s = v.trim().toLowerCase();
+      return s === "true" || s === "1" || s === "yes" || s === "on";
+    }),
 
   // Public site origin used to build links in outbound messages (no trailing slash).
   PUBLIC_SITE_URL: z.string().default("https://bali-girls.com"),

@@ -1,6 +1,8 @@
 // Twilio messaging for 2FA OTP delivery (Twilio Verify, or WhatsApp fallback).
 import Twilio from "twilio";
 import { env } from "./env.js";
+import { sendWhatsApp } from "./openclaw.js";
+import { createOtp, verifyOtp } from "./otp.js";
 import { getPool } from "./pg.js";
 
 /** Normalise a stored phone to bare E.164 (strip any "whatsapp:" prefix). */
@@ -32,6 +34,10 @@ export function isVerifyConfigured(): boolean {
 }
 
 /** Check if 2FA is enabled and a delivery mechanism (Verify or WhatsApp) is configured. */
+export function isOpenClawConfigured(): boolean {
+  return env.OPENCLAW_OTP_ENABLED === true;
+}
+
 export function is2FAEnabled(): boolean {
   if (env.WHATSAPP_2FA_ENABLED !== true) return false;
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return false;
@@ -171,6 +177,21 @@ export async function checkVerification(phone: string, code: string): Promise<bo
  * self-managed WhatsApp message using the provided code.
  */
 export async function deliverOtp(phone: string, legacyCode: string): Promise<void> {
+  // OpenClaw path: send via OpenClaw WhatsApp gateway (avoids Meta WABA)
+  if (isOpenClawConfigured()) {
+    const { sessionId, code } = createOtp(
+      { sub: "pending", role: "user", username: "" },
+      phone
+    );
+    const msg = `Bali Girls - Your OTP code is: ${code}. It expires in 5 minutes. Do not share this code with anyone.`;
+    const result = sendWhatsApp(phone, msg);
+    if (!result.ok) {
+      console.error("[openclaw] deliverOtp failed:", result.error);
+      // Fall through to Twilio path
+    } else {
+      return;
+    }
+  }
   if (isVerifyConfigured()) {
     await startVerification(phone);
     return;
