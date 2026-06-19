@@ -25,7 +25,7 @@ function LoginDropdown() {
         LOGIN ▾
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-brand-line bg-brand-surface shadow-luxe">
+        <div className="absolute right-0 top-full z-50 mt-0.5 w-48 overflow-hidden rounded-xl border-2 border-brand-gold/30 bg-brand-surface/95 shadow-2xl shadow-brand-gold/10 backdrop-blur-sm">
           <Link
             to="/user"
             onClick={() => setOpen(false)}
