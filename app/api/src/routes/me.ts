@@ -238,7 +238,7 @@ const CreatorProfileSchema = z.object({
   smoker: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
   tattoo: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
   piercing: z.preprocess(normalizeYesNo, z.enum(["yes", "no"])).optional().default(""),
-  services: z.string().max(150).optional().default(""),
+  services: z.string().max(300).optional().default(""),
   bustType: z.string().trim().max(20).optional().default("Natural"),
   pubicHair: z.string().trim().max(20).optional().default("Trimmed"),
   meetingWith: z.preprocess(normalizeMeetingWith, z.enum(["men", "women", "couples", "all"])).optional().default(""),

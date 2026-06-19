@@ -624,17 +624,17 @@ const [savingReorder, setSavingReorder] = useState(false);
           </div>
 
         <div className="mt-5">
-          {/* SERVICES — free text (max 150 chars), stored in providers.services.
+          {/* SERVICES — free text (max 300 chars), stored in providers.services.
               Shown above ABOUT ME. Optional. */}
           <Field label="SERVICES (optional)">
             <textarea
               className="min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              maxLength={150}
+              maxLength={300}
               value={profile.services ?? ""}
               onChange={(e) => updateProfile("services", e.target.value)}
-              placeholder="Describe the services you offer..."
+              placeholder="Write the type of services you provide"
             />
-            <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.services ?? "").length}</p>
+            <p className="mt-1 text-[11px] text-brand-muted">Limit 300 characters — currently {(profile.services ?? "").length}</p>
           </Field>
         </div>
 
@@ -644,11 +644,12 @@ const [savingReorder, setSavingReorder] = useState(false);
           <Field label="ABOUT ME (required)">
             <textarea
               className="min-h-[80px] w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-              maxLength={150}
+              maxLength={300}
               value={profile.notes ?? ""}
               onChange={(e) => updateProfile("notes", e.target.value)}
+              placeholder="Tell us about yourself"
             />
-            <p className="mt-1 text-[11px] text-brand-muted">Limit 150 characters — currently {(profile.notes ?? "").length}</p>
+            <p className="mt-1 text-[11px] text-brand-muted">Limit 300 characters — currently {(profile.notes ?? "").length}</p>
             {FE("notes")}
           </Field>
         </div>
