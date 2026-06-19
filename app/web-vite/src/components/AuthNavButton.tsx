@@ -1,7 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, clearTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
+
+
+function LoginDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="btn btn-outline min-h-[44px] px-4 py-2.5 text-xs tracking-[0.14em]"
+      >
+        LOGIN ▾
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-brand-line bg-brand-surface shadow-luxe">
+          <Link
+            to="/user"
+            onClick={() => setOpen(false)}
+            className="block px-5 py-3.5 text-xs tracking-[0.14em] hover:bg-brand-gold/10 hover:text-brand-gold transition-colors"
+          >
+            USER LOGIN
+          </Link>
+          <Link
+            to="/creator"
+            onClick={() => setOpen(false)}
+            className="block px-5 py-3.5 text-xs tracking-[0.14em] hover:bg-brand-gold/10 hover:text-brand-gold transition-colors border-t border-brand-line/50"
+          >
+            GIRLS LOGIN
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AuthNavButton() {
   const [role, setRole] = useState<string | null>(null);
@@ -38,13 +81,7 @@ export function AuthNavButton() {
   }, []);
 
   if (!loggedIn) {
-    return (
-      <div className="flex min-w-0 items-center gap-1 whitespace-nowrap">
-        <Link className="btn btn-outline min-h-[44px] px-3 py-2.5 text-xs tracking-[0.14em]" to="/user">
-          LOGIN
-        </Link>
-      </div>
-    );
+    return <LoginDropdown />;
   }
 
   const profileHref =

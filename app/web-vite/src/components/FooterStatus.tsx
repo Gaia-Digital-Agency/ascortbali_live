@@ -22,12 +22,7 @@ export function FooterStatus() {
         >
           Blog
         </Link>
-        <Link
-          to="/creator"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-brand-gold px-6 py-2 font-semibold text-brand-bg shadow-luxe transition hover:bg-brand-gold/90"
-        >
-          GIRLS LOGIN
-        </Link>
+
       </div>
 
       {/* Legal disclaimer — discreet, centered at the very bottom */}
