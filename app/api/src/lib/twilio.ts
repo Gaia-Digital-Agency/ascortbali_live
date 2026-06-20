@@ -184,7 +184,7 @@ export async function deliverOtp(phone: string, legacyCode: string): Promise<voi
       phone
     );
     const msg = `Bali Girls - Your OTP code is: ${code}. It expires in 5 minutes. Do not share this code with anyone.`;
-    const result = sendWhatsApp(phone, msg);
+    const result = await sendWhatsApp(phone, msg);
     if (!result.ok) {
       console.error("[openclaw] deliverOtp failed:", result.error);
       // Fall through to Twilio path

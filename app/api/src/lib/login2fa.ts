@@ -10,7 +10,7 @@
 //
 // Using the DB (not in-memory) is required because pm2 runs multiple workers,
 // and the inbound webhook / poll / login can each land on a different worker.
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import { getPool } from "./pg.js";
 import { signAccessToken } from "./jwt.js";
 import { findInboundToken } from "./twilio.js";
@@ -24,6 +24,16 @@ function newToken(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+/**
+ * Crypto-strong 6-digit OTP code. Used by the OpenClaw (Charles) push path: the
+ * App generates this code, sends it to the user's WhatsApp, and the user keys it
+ * back. Unlike `token` (the browser-held session id), this code is the SECRET —
+ * it is never returned to the browser, only delivered over WhatsApp.
+ */
+function newCode(): string {
+  return String(randomInt(100000, 1000000));
+}
+
 /** Last 8 significant digits, for tolerant cross-format phone matching. */
 function phoneSig(phone: string): string {
   return (phone || "").replace(/\D/g, "").slice(-8);
@@ -34,24 +44,34 @@ type SessionRow = {
   payload: LoginPayload;
   phone: string;
   status: string; // pending | verified | consumed
+  code: string | null;
+  attempts: number;
   expires_at: string | Date;
   created_at: string | Date;
 };
 
-/** Create a pending 2FA session and return its token. */
-export async function createLoginSession(payload: LoginPayload, phone: string): Promise<string> {
+/**
+ * Create a pending 2FA session. Returns the `token` (the session id the browser
+ * holds) and the secret `code` (delivered to the user over WhatsApp on the
+ * OpenClaw/Charles path; never returned to the browser).
+ */
+export async function createLoginSession(
+  payload: LoginPayload,
+  phone: string
+): Promise<{ token: string; code: string }> {
   const token = newToken();
+  const code = newCode();
   await getPool().query(
-    `INSERT INTO login_2fa_sessions (token, payload, phone, status, expires_at)
-     VALUES ($1, $2::jsonb, $3, 'pending', NOW() + INTERVAL '${TTL_MS} milliseconds')`,
-    [token, JSON.stringify(payload), phone]
+    `INSERT INTO login_2fa_sessions (token, payload, phone, status, code, attempts, expires_at)
+     VALUES ($1, $2::jsonb, $3, 'pending', $4, 0, NOW() + INTERVAL '${TTL_MS} milliseconds')`,
+    [token, JSON.stringify(payload), phone, code]
   );
-  return token;
+  return { token, code };
 }
 
 async function loadSession(token: string): Promise<SessionRow | null> {
   const { rows } = await getPool().query(
-    `SELECT token, payload, phone, status, expires_at, created_at FROM login_2fa_sessions WHERE token = $1`,
+    `SELECT token, payload, phone, status, code, attempts, expires_at, created_at FROM login_2fa_sessions WHERE token = $1`,
     [token]
   );
   const r = rows[0];
@@ -138,6 +158,44 @@ export async function completeSession(token: string): Promise<string | null> {
   if (!rowCount) return null;
   await markIdentityVerified(s.payload);
   return signAccessToken(s.payload);
+}
+
+/**
+ * Verify a pushed OTP code (OpenClaw/Charles path): compare the keyed code to the
+ * session's secret `code`, enforcing 5-min expiry and a 5-attempt cap. On success
+ * the session is consumed once and a fresh access token is returned. The session
+ * `token` (id) and the `code` (secret) are independent, so knowing the browser's
+ * token does not let an attacker complete login without the WhatsApp-delivered code.
+ */
+export async function verifyOtpCode(
+  token: string,
+  code: string
+): Promise<{ ok: boolean; accessToken?: string; reason?: string }> {
+  const s = await loadSession(token);
+  if (!s) return { ok: false, reason: "expired" };
+  if (s.status !== "pending") return { ok: false, reason: "used" };
+
+  // Count this attempt atomically; cap at 5.
+  const { rows } = await getPool().query(
+    `UPDATE login_2fa_sessions SET attempts = COALESCE(attempts, 0) + 1 WHERE token = $1 RETURNING attempts, code`,
+    [token]
+  );
+  const attempts: number = rows[0]?.attempts ?? 99;
+  const stored: string | null = rows[0]?.code ?? null;
+  if (attempts > 5) {
+    await getPool().query(`DELETE FROM login_2fa_sessions WHERE token = $1`, [token]);
+    return { ok: false, reason: "too_many" };
+  }
+  if (!stored || stored !== code) return { ok: false, reason: "invalid" };
+
+  // Correct code — consume the row exactly once and complete.
+  const { rowCount } = await getPool().query(
+    `UPDATE login_2fa_sessions SET status = 'consumed' WHERE token = $1 AND status = 'pending'`,
+    [token]
+  );
+  if (!rowCount) return { ok: false, reason: "used" };
+  await markIdentityVerified(s.payload);
+  return { ok: true, accessToken: await signAccessToken(s.payload) };
 }
 
 /** Flip the per-account `verified` flag so 2FA isn't prompted again. Non-fatal. */

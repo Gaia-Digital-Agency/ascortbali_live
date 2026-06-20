@@ -97,6 +97,7 @@ export default function LoginForm({
   const [waNumber, setWaNumber] = useState<string>("");
 
   const [smsMode, setSmsMode] = useState(false);
+  const [codeMode, setCodeMode] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -107,7 +108,7 @@ export default function LoginForm({
   // flips it to "verified" once the user messages us from their registered
   // number; we then receive a one-time access token and finish sign-in.
   useEffect(() => {
-    if (!twoFactorToken || smsMode) return;
+    if (!twoFactorToken || smsMode || codeMode) return;
     let active = true;
     const id = setInterval(async () => {
       try {
@@ -143,7 +144,7 @@ export default function LoginForm({
       clearInterval(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [twoFactorToken, smsMode]);
+  }, [twoFactorToken, smsMode, codeMode]);
 
   const doLogin = async () => {
     setLoading(true);
@@ -182,9 +183,15 @@ export default function LoginForm({
       // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
       if (json.twoFactorRequired) {
         setTwoFactorToken(json.token);
-        setWaNumber(json.waNumber || "+17407628065");
         setSmsMode(false);
         setOtpCode("");
+        if (json.otpMethod === "whatsapp-code") {
+          // OpenClaw (Charles) push path: a 6-digit code was sent to their WhatsApp.
+          setCodeMode(true);
+        } else {
+          setCodeMode(false);
+          setWaNumber(json.waNumber || "+17407628065");
+        }
         return;
       }
 
@@ -233,7 +240,7 @@ export default function LoginForm({
     setOtpLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/2fa/wa/check`, {
+      const res = await fetch(`${API_BASE}${codeMode ? "/auth/2fa/code/check" : "/auth/2fa/wa/check"}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token: twoFactorToken, code: otpCode }),
@@ -347,9 +354,63 @@ export default function LoginForm({
     const resetTwoFactor = () => {
       setTwoFactorToken(null);
       setSmsMode(false);
+      setCodeMode(false);
       setOtpCode("");
       setError(null);
     };
+
+    // OpenClaw (Charles) push path: the App already sent a 6-digit code to the
+    // user's WhatsApp; show a code-entry screen (no auto-login — they must key it).
+    if (codeMode) {
+      return (
+        <div className="mx-auto max-w-md space-y-6">
+          <div className="text-center">
+            <div className="text-xs tracking-luxe text-brand-muted">{label}</div>
+            <h1 className="mt-2 font-display text-3xl">Verify Identity</h1>
+          </div>
+
+          <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
+            <div className="space-y-4">
+              <p className="text-sm text-brand-muted">
+                Enter the 6-digit code we sent to your WhatsApp. It expires in 5 minutes.
+              </p>
+
+              <input
+                className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-center text-lg tracking-[0.4em] outline-none focus:border-brand-gold/60"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="••••••"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                aria-label="6-digit code"
+              />
+
+              {error ? <div className="text-xs text-yellow-300">{error}</div> : null}
+
+              <button
+                type="button"
+                disabled={otpLoading || otpCode.length !== 6}
+                onClick={verifyOtp}
+                className="btn btn-primary btn-block min-h-[44px] py-3"
+              >
+                {otpLoading ? "VERIFYING..." : "VERIFY & SIGN IN"}
+              </button>
+
+              <div className="flex items-center justify-center text-xs">
+                <button
+                  type="button"
+                  onClick={resetTwoFactor}
+                  className="min-h-[44px] text-brand-muted hover:text-brand-text"
+                >
+                  Back to login
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     const waDigits = (waNumber || "+17407628065").replace(/\D/g, "");
     const waLink = `https://wa.me/${waDigits}?text=${encodeURIComponent(
       `Your BG OTP: ${twoFactorToken} (send this message as-is and you will be logged in automatically)`

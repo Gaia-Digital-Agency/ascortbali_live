@@ -13,7 +13,8 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification } from "../lib/twilio.js";
+import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, isOpenClawConfigured } from "../lib/twilio.js";
+import { sendWhatsApp } from "../lib/openclaw.js";
 import {
   createLoginSession,
   getSessionPhone,
@@ -21,6 +22,7 @@ import {
   pollVerify,
   completeSession,
   completeIfVerified,
+  verifyOtpCode,
 } from "../lib/login2fa.js";
 import { uniqueCreatorSlug, uniqueProviderUsername } from "../lib/slug.js";
 
@@ -158,7 +160,12 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       if (!creator) return res.status(401).json({ error: "unknown_user" });
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
-      const token = await createLoginSession(payload, phone);
+      const { token, code } = await createLoginSession(payload, phone);
+      if (isOpenClawConfigured()) {
+        const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+        if (sent.ok) return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
+        // Charles send failed — fall back to the click-to-WhatsApp flow.
+      }
       return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
     }
 
@@ -180,7 +187,12 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     if (!account) return res.status(401).json({ error: "unknown_user" });
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
-    const token = await createLoginSession(payload, phone);
+    const { token, code } = await createLoginSession(payload, phone);
+    if (isOpenClawConfigured()) {
+      const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+      if (sent.ok) return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
+      // Charles send failed — fall back to the click-to-WhatsApp flow.
+    }
     return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
   } catch {
     return res.status(500).json({ error: "login_failed" });
@@ -251,6 +263,21 @@ authRouter.post("/2fa/wa/check", authRateLimit, async (req, res) => {
   const result = await completeIfVerified(parsed.data.token);
   if (result.status !== "verified" || !result.accessToken) {
     return res.status(401).json({ error: "not_verified" });
+  }
+  return res.json({ accessToken: result.accessToken });
+});
+
+const CodeCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
+
+// POST /auth/2fa/code/check — OpenClaw (Charles) push path: verify the 6-digit
+// code we sent to the user's WhatsApp and complete login. No auto-login — the
+// user must key the code back, which doubles as a human + WhatsApp-validity check.
+authRouter.post("/2fa/code/check", authRateLimit, async (req, res) => {
+  const parsed = CodeCheckSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const result = await verifyOtpCode(parsed.data.token, parsed.data.code);
+  if (!result.ok || !result.accessToken) {
+    return res.status(401).json({ error: result.reason === "invalid" ? "invalid_otp" : "session_expired" });
   }
   return res.json({ accessToken: result.accessToken });
 });

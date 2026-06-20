@@ -1,79 +1,68 @@
 /**
  * OpenClaw WhatsApp client for the baligirls app.
- * Sends WhatsApp messages through the OpenClaw gateway on gda-ai01
- * via SSH, avoiding Meta WABA entirely.
+ *
+ * Sends WhatsApp messages through Charles (the chs OpenClaw instance on gda-ai01)
+ * via the warm "bg-otp-relay" service over the private VPC — NOT by cold-starting
+ * the `openclaw` CLI (which takes ~31s per call). The relay holds OpenClaw's gateway
+ * RPC runtime warm and sends in ~1.7s. See /opt/.openclaw-chs/otp-relay on gda-ai01.
  */
-import { execSync } from "child_process";
-import { env } from "./env.js";
-
-const SSH_CMD = "ssh gda-ai01";
-const STATE_DIR = "/opt/.openclaw-baligirls";
-const CLAW_CMD = `/home/azlan/.npm-global/bin/openclaw message send`;
+const RELAY_URL = process.env.OTP_RELAY_URL || "http://10.148.0.7:19500/otp/send";
+const RELAY_TOKEN = process.env.OTP_RELAY_TOKEN || "";
+const RELAY_TIMEOUT_MS = Number(process.env.OTP_RELAY_TIMEOUT_MS || 35000);
 
 function log(...args: unknown[]) {
   console.log("[openclaw]", ...args);
 }
-
 function logErr(...args: unknown[]) {
   console.error("[openclaw]", ...args);
 }
 
 /**
- * Send a WhatsApp message through the OpenClaw gateway.
- * @param to - Phone number in E.164 format (e.g. +628****7890)
- * @param text - Message text to send
- * @param accountId - WhatsApp account ID (default: "main")
+ * Send a WhatsApp message via the bg-otp-relay. Phone must be E.164 (e.g. "+628…").
+ * Returns {ok} so callers can fall back to Twilio on failure.
  */
-export function sendWhatsApp(
+export async function sendWhatsApp(
   to: string,
   text: string,
-  accountId = "main"
-): { ok: boolean; error?: string; result?: Record<string, unknown> } {
+  _accountId = "main"
+): Promise<{ ok: boolean; error?: string; result?: Record<string, unknown> }> {
   const toClean = to.replace(/^whatsapp:/, "").trim();
   const phone = toClean.startsWith("+") ? toClean : `+${toClean}`;
+  if (!RELAY_TOKEN) return { ok: false, error: "OTP relay token not configured" };
 
-  const cmd = [
-    SSH_CMD,
-    `OPENCLAW_STATE_DIR=${STATE_DIR}`,
-    CLAW_CMD,
-    `--channel whatsapp`,
-    `--account ${accountId}`,
-    `--target "${phone}"`,
-    `--message ${JSON.stringify(text)}`,
-    `--json`,
-  ].join(" ");
-
-  log(`sending WhatsApp to ${phone}`);
-
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), RELAY_TIMEOUT_MS);
   try {
-    const output = execSync(cmd, {
-      timeout: 30_000,
-      encoding: "utf-8",
-      maxBuffer: 1024 * 10,
+    log(`sending WhatsApp to ${phone} via relay`);
+    const r = await fetch(RELAY_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${RELAY_TOKEN}` },
+      body: JSON.stringify({ to: phone, message: text }),
+      signal: ctrl.signal,
     });
-    const result = JSON.parse(output.trim());
-    log("send success:", result);
-    return { ok: true, result };
+    const json = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!r.ok || !json.ok) {
+      logErr("relay send failed:", r.status, json?.error);
+      return { ok: false, error: String(json?.error || `relay_${r.status}`) };
+    }
+    log("send success:", json.messageId);
+    return { ok: true, result: json };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logErr("send failed:", msg);
     return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-/**
- * Check if the OpenClaw gateway is reachable on gda-ai01.
- */
-export function checkHealth(): { ok: boolean; error?: string } {
+/** Check that the bg-otp-relay is reachable. */
+export async function checkHealth(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const output = execSync(
-      `${SSH_CMD} 'OPENCLAW_STATE_DIR=${STATE_DIR} ${CLAW_CMD} --channel whatsapp --account main --target "+628****0000" --message "health check" --json --dry-run'`,
-      { timeout: 10_000, encoding: "utf-8", maxBuffer: 1024 * 10 }
-    );
-    JSON.parse(output.trim());
-    return { ok: true };
+    const healthUrl = RELAY_URL.replace(/\/otp\/send$/, "/health");
+    const r = await fetch(healthUrl, { signal: AbortSignal.timeout(8000) });
+    return { ok: r.ok };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
