@@ -9,7 +9,7 @@
 
 ## Overview
 
-Baligirls is a multi-role web application served from the domain root in production. It is an online marketplace connecting creators (service providers) with users, featuring admin CMS management, image uploads, and WhatsApp-based two-factor authentication.
+Baligirls is a multi-role web application served from the domain root in production. It is an online marketplace connecting creators (service providers) with users, featuring admin CMS management, image uploads, and passwordless **WhatsApp OTP login** (delivered via the "Charles" relay — see the Authentication section in [CLAUDE.md](CLAUDE.md)).
 
 Primary stack:
 
@@ -19,7 +19,7 @@ Primary stack:
 - Express API in `app/api` (port 8001) — uses Prisma client (raw `$queryRawUnsafe` for the legacy `providers/app_accounts/…` tables; typed Prisma for newer tables like `Service`)
 - PostgreSQL 18.3 (PG16 rollback cluster preserved on port 5433)
 - Google Cloud Storage for media — authenticated via a service-account JSON key (`/etc/gda-credentials/gda-viceroy-17373de6d690.json`, mode 600). The VM's default compute service account is read-only-scoped, so a key file with `storage.objectAdmin` on the bucket is required for uploads/deletes.
-- Twilio for WhatsApp 2FA — **currently disabled** in production (`WHATSAPP_2FA_ENABLED=false`)
+- **WhatsApp OTP login via "Charles"** (OpenClaw `chs` instance on gda-ai01, line +62 817-6917-122) over a warm `bg-otp-relay` on the private VPC — **live** (`WHATSAPP_2FA_ENABLED=true`, `OPENCLAW_OTP_ENABLED=true`). Twilio Verify SMS + click-to-WhatsApp remain coded fallbacks. See Authentication in [CLAUDE.md](CLAUDE.md).
 - nginx serves `/assets/*` (Vite-hashed, immutable, 1-year cache) directly from `dist/client/assets/` and proxies the rest to the Node processes
 - PM2 + nginx on the production VM (`gda-pn01`)
 - pnpm monorepo (single workspace glob: `app/*`)
@@ -34,7 +34,7 @@ The app moved from `gda-ce01` (`baligirls.gaiada1.online`) to `gda-pn01` (`balig
 - New host: `gda-pn01` (GCE, external `34.2.143.47`, internal `10.148.0.9`).
 - Dedicated nginx vhost at `/etc/nginx/sites-enabled/baligirls` with its own Let's Encrypt cert.
 - GCS auth switched from default-compute-SA (read-only) to a service-account JSON key (`/etc/gda-credentials/gda-viceroy-17373de6d690.json`) — uploads + deletes now work end-to-end.
-- 2FA env-parser bug fixed: `WHATSAPP_2FA_ENABLED=false` was being silently flipped to `true` by `z.coerce.boolean()`. Replaced with an explicit string-match parser; 2FA is now off in production.
+- 2FA env-parser bug fixed: `WHATSAPP_2FA_ENABLED=false` was being silently flipped to `true` by `z.coerce.boolean()`. Replaced with an explicit string-match parser. *(Update 2026-06-20: 2FA is now ON — login OTP is delivered by Charles; see Authentication in [CLAUDE.md](CLAUDE.md).)*
 - Sitemap, robots.txt, and `index.html` (`og:url`, `canonical`) now point to `baligirls.gaiada2.online` (`PUBLIC_SITE_URL` overrideable via env).
 
 **UX / product**
@@ -106,7 +106,7 @@ app/
 └── api/                   ← Express API (port 8001)
     └── src/
         ├── routes/        ← auth, admin, creators, ads, me, services, analytics, blogs, orders
-        ├── lib/           ← pg, jwt, twilio, otp, env
+        ├── lib/           ← pg, jwt, twilio, openclaw (OTP relay client), otp, login2fa, env
         └── middleware/    ← auth, rateLimit
 ```
 
