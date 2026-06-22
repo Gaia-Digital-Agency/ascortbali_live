@@ -354,7 +354,8 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
                      CASE p.face_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END,
                      CASE p.body_rating WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 WHEN 'F' THEN 6 ELSE 7 END
                    ) ASC,
-                   (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text AND (pi.image_file IS NOT NULL AND pi.image_file NOT LIKE '%avatar-default%')) DESC
+                   (SELECT COUNT(*) FROM provider_images pi WHERE pi.provider_uuid::text = p.uuid::text AND (pi.image_file IS NOT NULL AND pi.image_file NOT LIKE '%avatar-default%')) DESC,
+                   p.provider_id ASC
           LIMIT ${limitPlaceholder}
          OFFSET ${offsetPlaceholder}`,
         rowsParams

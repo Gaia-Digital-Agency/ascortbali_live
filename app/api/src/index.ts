@@ -8,6 +8,7 @@ import { pinoHttp } from "pino-http";
 import crypto from "crypto";
 import { createRouter } from "./router.js";
 import { ensureAnalyticsTable } from "./routes/analytics.js";
+import { warmCache } from "./lib/cache.js";
 
 // Initialize the Express application and apply middleware.
 const app = express();
@@ -107,6 +108,11 @@ ensureAnalyticsTable().catch((err) => {
   console.warn("[boot] ensureAnalyticsTable failed (analytics will retry on first hit):", err?.message || err);
   // Non-fatal: analytics is best-effort; the route itself wraps inserts in try/catch.
 });
+
+// Warm the Redis cache connection at boot so the first post-restart
+// requests don't race the lazy connect (avoids "Stream isn't writeable"
+// log spam). Fail-open: warmCache logs internally and never throws here.
+warmCache().catch(() => {});
 
 app.listen(port, host, () => {
   console.log(`API listening on http://${host}:${port}`);

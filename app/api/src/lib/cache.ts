@@ -88,3 +88,21 @@ export function cacheGet(ttlSeconds: number) {
     next();
   };
 }
+
+/**
+ * Open the Redis connection at boot. With `lazyConnect` the client otherwise
+ * dials on the first command, so the first requests after a restart race the
+ * handshake and fail-open with noisy "Stream isn't writeable" errors. Warming
+ * the connection once at startup removes that race. Fail-open: if Redis is
+ * down we log and the lazy client keeps retrying on later commands — the API
+ * still serves from Postgres.
+ */
+export async function warmCache(): Promise<void> {
+  const r = getRedis();
+  if (!r) return;
+  try {
+    if (r.status === "wait") await r.connect();
+  } catch (err) {
+    console.error("[cache] warm-up connect failed:", (err as Error)?.message || err);
+  }
+}
