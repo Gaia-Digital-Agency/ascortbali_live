@@ -29,6 +29,8 @@ export type CreatorAccount = {
   // that used to drive the body/face badge on CreatorPreviewPage.
   body_rating: Rating | null;
   face_rating: Rating | null;
+  // Count of real uploaded images (excludes default-avatar placeholders).
+  image_count: number;
 };
 
 export type Rating = "A" | "B" | "C" | "D" | "E" | "F";

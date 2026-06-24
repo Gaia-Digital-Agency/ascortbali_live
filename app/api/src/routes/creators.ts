@@ -102,7 +102,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
       pool.query(
         `SELECT DISTINCT BTRIM(nationality) AS v
            FROM providers
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND nationality IS NOT NULL
             AND BTRIM(nationality) <> ''
           ORDER BY v ASC`
@@ -114,7 +114,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
         `SELECT DISTINCT
                 CAST(substring(BTRIM(height) from '^([0-9]+)') AS INT) AS cm
            FROM providers
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND height IS NOT NULL
             AND BTRIM(height) <> ''
             AND substring(BTRIM(height) from '^([0-9]+)') IS NOT NULL
@@ -125,7 +125,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
       pool.query(
         `SELECT DISTINCT LOWER(BTRIM(gender)) AS v
            FROM providers
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND gender IS NOT NULL
             AND BTRIM(gender) <> ''
           ORDER BY v ASC`
@@ -137,7 +137,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
         `SELECT DISTINCT BTRIM(zone) AS v
            FROM providers,
                 LATERAL unnest(string_to_array(city, ',')) AS zone
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND city IS NOT NULL
             AND BTRIM(city) <> ''
             AND BTRIM(zone) <> ''
@@ -151,7 +151,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
       pool.query(
         `SELECT DISTINCT BTRIM(LOWER(token)) AS v
            FROM providers, unnest(string_to_array(escort_type, ',')) AS token
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND escort_type IS NOT NULL
             AND BTRIM(escort_type) <> ''
             AND BTRIM(token) <> ''
@@ -162,7 +162,7 @@ creatorsRouter.get("/filter-options", async (_req, res) => {
       pool.query(
         `SELECT DISTINCT BTRIM(model_name) AS v
            FROM providers
-          WHERE is_active IS TRUE
+          WHERE is_active IS TRUE AND verified IS TRUE
             AND model_name IS NOT NULL
             AND BTRIM(model_name) <> ''
           ORDER BY v ASC`
@@ -210,7 +210,7 @@ creatorsRouter.get("/random", async (req, res) => {
   const pool = getPool();
   try {
     const params: Array<number | string> = [n];
-    let where = "WHERE p.is_active IS TRUE AND img.image_file IS NOT NULL";
+    let where = "WHERE p.is_active IS TRUE AND p.verified IS TRUE AND img.image_file IS NOT NULL";
     if (excludeUuid) {
       params.push(excludeUuid);
       where += ` AND p.uuid <> $${params.length}::uuid`;
@@ -255,6 +255,7 @@ creatorsRouter.get("/by-names", cacheGet(60), async (req, res) => {
          FROM providers p
          ${PRIMARY_IMAGE_LATERAL}
         WHERE p.is_active IS TRUE
+          AND p.verified IS TRUE
           AND LOWER(BTRIM(p.model_name)) = ANY($1::text[])`,
       [lower]
     );
@@ -282,7 +283,7 @@ creatorsRouter.get("/", cacheGet(60), async (req, res) => {
   const category = (req.query.category as string | undefined)?.trim() || null;
   const pool = getPool();
   try {
-    const conds: string[] = ["p.is_active IS TRUE"];
+    const conds: string[] = ["p.is_active IS TRUE", "p.verified IS TRUE"];
     const filterParams: Array<string | number> = [];
     if (nationality) {
       filterParams.push(nationality.toLowerCase());
@@ -425,7 +426,8 @@ creatorsRouter.get("/:idOrSlug", cacheGet(60), async (req, res) => {
               p.escort_type AS form
          FROM providers p
         WHERE ${isLookupByUuid ? "p.uuid = $1::uuid" : "p.slug = $1"}
-          AND p.is_active IS TRUE`,
+          AND p.is_active IS TRUE
+          AND p.verified IS TRUE`,
       [idOrSlug]
     );
     if (creatorRes.rows.length === 0) {

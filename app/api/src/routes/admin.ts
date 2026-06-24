@@ -34,7 +34,12 @@ adminRouter.get("/accounts", async (req, res) => {
       pool.query(
         `SELECT uuid::text AS id, username, model_name, password, temp_password, last_seen, created_at, updated_at,
                 COALESCE(is_active, false) AS is_active, COALESCE(verified, false) AS verified,
-                body_rating, face_rating
+                body_rating, face_rating,
+                (SELECT COUNT(*)::int FROM provider_images pi
+                  WHERE pi.provider_uuid = providers.uuid
+                    AND pi.image_file IS NOT NULL
+                    AND BTRIM(pi.image_file) <> ''
+                    AND pi.image_file NOT LIKE '%avatar-default%') AS image_count
            FROM providers
           ORDER BY is_active DESC NULLS LAST, created_at DESC
           LIMIT $1 OFFSET $2`,
