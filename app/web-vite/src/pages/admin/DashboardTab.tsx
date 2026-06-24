@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { apiFetch } from "../../lib/api";
 import { PasswordInput } from "../../components/LoginForm";
 import type { AdminStats } from "./types";
@@ -113,22 +114,18 @@ export function DashboardTab({
 
       <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
         <div className="text-xs tracking-[0.22em] text-brand-muted">FEATURED GIRLS (CAROUSEL)</div>
-        <p className="mt-2 text-xs text-brand-muted">Select 4 active creators for the featured girls carousel on the homepage.</p>
+        <p className="mt-2 text-xs text-brand-muted">Type to search and pick 4 active creators for the featured girls carousel on the homepage.</p>
         <div className="mt-4 grid gap-3 grid-cols-2 md:grid-cols-4">
           {([0, 1, 2, 3] as const).map((idx) => (
-            <div key={idx}>
-              <div className="text-[10px] tracking-[0.18em] text-brand-muted">GIRL {idx + 1}</div>
-              <select
-                className="mt-1 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60"
-                value={featuredGirls[idx]}
-                onChange={(e) => setFeaturedGirls((prev) => { const next = [...prev] as string[]; next[idx] = e.target.value; return next; })}
-              >
-                <option value="">— None —</option>
-                {creatorNames.map((c) => (
-                  <option key={c.id} value={c.model_name}>{c.model_name}</option>
-                ))}
-              </select>
-            </div>
+            <FeaturedAutocomplete
+              key={idx}
+              label={`GIRL ${idx + 1}`}
+              value={featuredGirls[idx] || ""}
+              options={creatorNames}
+              onChange={(v) =>
+                setFeaturedGirls((prev) => { const next = [...prev] as string[]; next[idx] = v; return next; })
+              }
+            />
           ))}
         </div>
         <div className="mt-4 flex items-center gap-3">
@@ -155,5 +152,86 @@ export function DashboardTab({
         {pwMsg ? <div className="mt-4 text-xs text-emerald-400">{pwMsg}</div> : null}
       </div>
     </>
+  );
+}
+
+// Autocomplete picker for a single featured-girl slot. Suggestions are drawn
+// only from `options` (the active-creators list from /admin/creator-names), and
+// a value is only committed when it exactly matches an active creator — typed
+// text that doesn't match an active girl is reverted on blur. This enforces
+// "active girls only" while replacing the old long dropdown with a typeahead.
+function FeaturedAutocomplete({
+  label, value, options, onChange,
+}: {
+  label: string;
+  value: string;
+  options: { id: string; model_name: string }[];
+  onChange: (v: string) => void;
+}) {
+  // query === null → input shows the committed value; otherwise it shows what
+  // the user is typing.
+  const [query, setQuery] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const text = query ?? value;
+  const q = text.trim().toLowerCase();
+  const matches = (q
+    ? options.filter((o) => o.model_name.toLowerCase().includes(q))
+    : options
+  ).slice(0, 8);
+
+  const commit = (name: string) => { onChange(name); setQuery(null); setOpen(false); };
+
+  return (
+    <div className="relative">
+      <div className="text-[10px] tracking-[0.18em] text-brand-muted">{label}</div>
+      <input
+        className="mt-1 w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 pr-8 text-sm outline-none focus:border-brand-gold/60"
+        value={text}
+        placeholder="Type a name…"
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          // Delay so an onMouseDown on a suggestion commits first.
+          setTimeout(() => {
+            if (query !== null) {
+              const typed = query.trim();
+              if (typed === "") commit("");
+              else {
+                const m = options.find((o) => o.model_name.toLowerCase() === typed.toLowerCase());
+                if (m) commit(m.model_name);
+                else setQuery(null); // not an active girl → revert to last valid value
+              }
+            }
+            setOpen(false);
+          }, 150);
+        }}
+      />
+      {value && query === null && (
+        <button
+          type="button"
+          aria-label="Clear"
+          onMouseDown={(e) => { e.preventDefault(); commit(""); }}
+          className="absolute right-3 top-[34px] text-xs text-brand-muted hover:text-brand-text"
+        >
+          ×
+        </button>
+      )}
+      {open && matches.length > 0 && (
+        <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-brand-line bg-brand-surface shadow-luxe">
+          {matches.map((o) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(o.model_name); }}
+                className="block w-full px-4 py-2 text-left text-sm hover:bg-brand-surface2/60"
+              >
+                {o.model_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
