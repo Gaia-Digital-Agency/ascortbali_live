@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch, clearTokens, setTokens, API_BASE } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 import { PageMeta } from "../components/PageMeta";
+import { NATIONALITIES } from "../lib/nationalities";
 
 type UserProfile = {
   email: string;
@@ -241,7 +242,10 @@ export default function UserDashboard({ mode = "edit" }: { mode?: "edit" | "regi
             {FE("fullName")}
           </Field>
           <Field label="NATIONALITY (required)">
-            <input className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)} />
+            <select className="w-full rounded-2xl border border-brand-line bg-brand-surface2/40 px-4 py-3 text-sm outline-none focus:border-brand-gold/60" value={profile.nationality} onChange={(e) => update("nationality", e.target.value)}>
+              <option value="" disabled>Select A Country</option>
+              {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
             {FE("nationality")}
           </Field>
           <Field label="CURRENT CITY (required)">
