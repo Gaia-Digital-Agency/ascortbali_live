@@ -686,12 +686,18 @@ adminRouter.get("/metrics", async (_req, res) => {
       visitors_by_window: Object.fromEntries(visitorWindows.rows.map(r => [r.window, Number(r.visitors)])),
       page_views_by_window: Object.fromEntries(pageViewWindows.rows.map(r => [r.window, Number(r.views)])),
       regions: regionRows.rows.map(r => ({ region: r.region, visitors: Number(r.visitors) })),
-      top_creators_7d: topCreators.rows,
-      devices: deviceSplit.rows,
-      new_vs_returning: newVsReturning.rows,
-      bounce: bounce.rows,
-      voting: votingAgg.rows[0] ?? null,
-      heatmap: hourlyHeat.rows,
+      top_creators_7d: topCreators.rows.map(r => ({ ...r, views: Number(r.views) })),
+      devices: deviceSplit.rows.map(r => ({ ...r, n: Number(r.n) })),
+      new_vs_returning: newVsReturning.rows.map(r => ({ ...r, n: Number(r.n) })),
+      bounce: bounce.rows.map(r => ({ ...r, n: Number(r.n) })),
+      voting: votingAgg.rows[0]
+        ? {
+            body_total: Number(votingAgg.rows[0].body_total),
+            face_total: Number(votingAgg.rows[0].face_total),
+            voters: Number(votingAgg.rows[0].voters),
+          }
+        : null,
+      heatmap: hourlyHeat.rows.map(r => ({ dow: Number(r.dow), hour: Number(r.hour), n: Number(r.n) })),
       service_splits: serviceSplits.rows,
       all_regions: ALL_REGIONS,
     });
