@@ -7,6 +7,10 @@
 //     the specific public GETs we want cached; everything else is untouched.
 //   * Shared across processes/restarts (unlike the per-process in-memory
 //     caches already used in a few routes).
+//
+// IMPORTANT: This module MUST handle disconnection gracefully. If Redis is
+// temporarily unavailable, commands queue during reconnection (fail-open via
+// try/catch in the middleware). Never hang or crash the API.
 import type { Request, Response, NextFunction } from "express";
 import { Redis } from "ioredis";
 
@@ -19,12 +23,13 @@ let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (!redis) {
     redis = new Redis(process.env.REDIS_URL || "redis://127.0.0.1:6379", {
-      lazyConnect: true, // connect on first command, not at import time
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false, // don't buffer commands while disconnected
+      lazyConnect: true,
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      retryStrategy: (times: number) => Math.min(times * 500, 5000),
+      commandTimeout: 3000,
     });
     redis.on("error", (err: Error) => {
-      // Best-effort cache: log and keep serving from Postgres.
       console.error("[cache] redis error:", err?.message || err);
     });
   }
@@ -60,26 +65,22 @@ export function cacheGet(ttlSeconds: number) {
         return;
       }
     } catch (err) {
-      // Redis unreachable/slow — fall through to the handler (fail-open).
       console.error("[cache] get failed:", (err as Error)?.message || err);
       return next();
     }
 
-    // Miss: wrap res.json so we capture the payload the handler produces.
     res.setHeader("X-Cache", "MISS");
     const originalJson = res.json.bind(res);
     res.json = ((body: unknown) => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         try {
           const payload = JSON.stringify(body);
-          // Fire-and-forget: never block the client on the cache write.
           void r
             .set(key, payload, "EX", ttlSeconds)
             .catch((err: Error) =>
               console.error("[cache] set failed:", err?.message || err),
             );
         } catch {
-          // Non-serialisable body — skip caching, still send the response.
         }
       }
       return originalJson(body);
@@ -92,10 +93,7 @@ export function cacheGet(ttlSeconds: number) {
 /**
  * Open the Redis connection at boot. With `lazyConnect` the client otherwise
  * dials on the first command, so the first requests after a restart race the
- * handshake and fail-open with noisy "Stream isn't writeable" errors. Warming
- * the connection once at startup removes that race. Fail-open: if Redis is
- * down we log and the lazy client keeps retrying on later commands — the API
- * still serves from Postgres.
+ * handshake and fail-open with noisy "Stream isn't writeable" errors.
  */
 export async function warmCache(): Promise<void> {
   const r = getRedis();
