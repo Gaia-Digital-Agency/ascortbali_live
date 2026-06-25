@@ -459,6 +459,26 @@ export function AdSlot({
       ? "overflow-hidden rounded-2xl bg-brand-surface/30"
       : "overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/50";
 
+  // Generic "Advertise With Us" house card. These slots always render the
+  // placement card (non-clickable), sized to their own aspect box, ignoring
+  // any configured/fallback ad image (e.g. home-2 no longer shows Humanspedia).
+  const GENERIC_ADVERTISE_SLOTS = ["home-2", "home-11", "home-15", "home-18"];
+  if (GENERIC_ADVERTISE_SLOTS.includes(slot)) {
+    const boxClass = aspectClass || "aspect-[9/16]";
+    // Mirror the creator / in-grid ad card: a visual area on top plus the same
+    // black bottom strip (h-14, bg-black/40, border-t) the other cards use.
+    return (
+      <div className={`${boxClass} w-full flex flex-col overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/40 ${className}`}>
+        <div className="flex-1 flex items-center justify-center overflow-hidden px-3 text-center">
+          <span className="font-display text-sm sm:text-base text-brand-gold">Advertise With Us</span>
+        </div>
+        <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight text-brand-muted">
+          Advertise
+        </div>
+      </div>
+    );
+  }
+
   if (!ad) {
     // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
     // needs some height before the image arrives.
