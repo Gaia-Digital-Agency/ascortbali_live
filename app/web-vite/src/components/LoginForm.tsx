@@ -94,7 +94,6 @@ export default function LoginForm({
 
   // 2FA state (WhatsApp-primary, SMS fallback)
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
-  const [waNumber, setWaNumber] = useState<string>("");
 
   const [smsMode, setSmsMode] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
@@ -177,6 +176,9 @@ export default function LoginForm({
           setError("Incorrect password. Recover your account or set a new one below.");
           return;
         }
+        if (json?.error === "otp_send_failed") {
+          throw new Error("System Issue, please try again later");
+        }
         throw new Error(json?.error ?? "Couldn't sign in — please try again");
       }
 
@@ -185,13 +187,7 @@ export default function LoginForm({
         setTwoFactorToken(json.token);
         setSmsMode(false);
         setOtpCode("");
-        if (json.otpMethod === "whatsapp-code") {
-          // OpenClaw (Charles) push path: a 6-digit code was sent to their WhatsApp.
-          setCodeMode(true);
-        } else {
-          setCodeMode(false);
-          setWaNumber(json.waNumber || "+17407628065");
-        }
+        setCodeMode(true);
         return;
       }
 
@@ -240,7 +236,7 @@ export default function LoginForm({
     setOtpLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}${codeMode ? "/auth/2fa/code/check" : "/auth/2fa/wa/check"}`, {
+      const res = await fetch(`${API_BASE}/auth/2fa/code/check`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token: twoFactorToken, code: otpCode }),
@@ -411,53 +407,6 @@ export default function LoginForm({
         </div>
       );
     }
-    const waDigits = (waNumber || "+17407628065").replace(/\D/g, "");
-    const waLink = `https://wa.me/${waDigits}?text=${encodeURIComponent(
-      `Your BG OTP: ${twoFactorToken} (send this message as-is and you will be logged in automatically)`
-    )}`;
-    return (
-      <div className="mx-auto max-w-md space-y-6">
-        <div className="text-center">
-          <div className="text-xs tracking-luxe text-brand-muted">{label}</div>
-          <h1 className="mt-2 font-display text-3xl">Verify Identity</h1>
-        </div>
-
-        <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
-          <div className="space-y-4">
-            <p className="text-sm text-brand-muted">
-              Tap below to open WhatsApp and send us the pre-filled message from
-              your registered number. We&apos;ll confirm it&apos;s you and sign you
-              in automatically — no code to type.
-            </p>
-
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary btn-block min-h-[44px] py-3 flex items-center justify-center"
-            >
-              Verify on WhatsApp
-            </a>
-
-            <p className="text-center text-xs text-brand-muted">
-              Waiting for WhatsApp verification…
-            </p>
-
-            {error ? <div className="text-xs text-yellow-300">{error}</div> : null}
-
-            <div className="flex items-center justify-center text-xs">
-              <button
-                type="button"
-                onClick={resetTwoFactor}
-                className="min-h-[44px] text-brand-muted hover:text-brand-text"
-              >
-                Back to login
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (

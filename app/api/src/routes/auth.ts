@@ -161,12 +161,9 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const { token, code } = await createLoginSession(payload, phone);
-      if (isOpenClawConfigured()) {
-        const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
-        if (sent.ok) return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
-        // Charles send failed — fall back to the click-to-WhatsApp flow.
-      }
-      return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
+      const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+      if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
+      return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
     }
 
     // user portal
@@ -188,12 +185,9 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const { token, code } = await createLoginSession(payload, phone);
-    if (isOpenClawConfigured()) {
-      const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
-      if (sent.ok) return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
-      // Charles send failed — fall back to the click-to-WhatsApp flow.
-    }
-    return res.json({ twoFactorRequired: true, token, waNumber: env.WHATSAPP_INBOUND_NUMBER });
+    const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+    if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
+    return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
@@ -206,47 +200,13 @@ const TokenSchema = z.object({ token: z.string().min(4).max(64) });
 // GET /auth/2fa/wa/poll?token=… — browser polls while the user verifies on
 // WhatsApp. Returns {status:"pending"} until the inbound webhook flips the
 // session to verified, then {status:"verified", accessToken} exactly once.
-authRouter.get("/2fa/wa/poll", authRateLimit, async (req, res) => {
-  const token = typeof req.query.token === "string" ? req.query.token : "";
-  if (!token) return res.status(400).json({ error: "invalid_body" });
-  try {
-    const result = await pollVerify(token);
-    return res.json(result);
-  } catch {
-    return res.status(500).json({ error: "poll_failed" });
-  }
-});
 
 // POST /auth/2fa/sms/send — fallback: send the OTP code via Twilio Verify (SMS)
 // to the session's registered number.
-authRouter.post("/2fa/sms/send", authRateLimit, async (req, res) => {
-  const parsed = TokenSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
-  if (!isVerifyConfigured()) return res.status(503).json({ error: "sms_unavailable" });
-  const phone = await getSessionPhone(parsed.data.token);
-  if (!phone) return res.status(401).json({ error: "session_expired" });
-  try {
-    await startVerification(phone);
-    return res.json({ ok: true });
-  } catch {
-    return res.status(500).json({ error: "send_failed" });
-  }
-});
 
 const SmsCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
 
 // POST /auth/2fa/sms/check — fallback: verify the SMS code and complete login.
-authRouter.post("/2fa/sms/check", authRateLimit, async (req, res) => {
-  const parsed = SmsCheckSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
-  const phone = await getSessionPhone(parsed.data.token);
-  if (!phone) return res.status(401).json({ error: "session_expired" });
-  const ok = await checkVerification(phone, parsed.data.code);
-  if (!ok) return res.status(401).json({ error: "invalid_otp" });
-  const accessToken = await completeSession(parsed.data.token);
-  if (!accessToken) return res.status(401).json({ error: "session_expired" });
-  return res.json({ accessToken });
-});
 
 
 const WaCheckSchema = z.object({ token: z.string().min(4).max(64) });
@@ -257,15 +217,6 @@ const WaCheckSchema = z.object({ token: z.string().min(4).max(64) });
 // anyone holding a session token for a phone could log in without proving
 // control of the number). The browser normally completes via /2fa/wa/poll;
 // this endpoint is a manual fallback and is held to the same verified gate.
-authRouter.post("/2fa/wa/check", authRateLimit, async (req, res) => {
-  const parsed = WaCheckSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
-  const result = await completeIfVerified(parsed.data.token);
-  if (result.status !== "verified" || !result.accessToken) {
-    return res.status(401).json({ error: "not_verified" });
-  }
-  return res.json({ accessToken: result.accessToken });
-});
 
 const CodeCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
 
@@ -287,25 +238,6 @@ authRouter.post("/2fa/code/check", authRateLimit, async (req, res) => {
 // we match the 6-digit code in their message AND require the sender's number to be
 // the account's registered number, then mark the session verified. Replies with
 // TwiML so the user gets immediate feedback in WhatsApp.
-authRouter.post("/wa/inbound", urlencoded({ extended: false }), async (req, res) => {
-  const from = String(req.body?.From || "");
-  const body = String(req.body?.Body || "");
-  let reply = "Sorry, we couldn't match this to a login. Please start again from the website.";
-  try {
-    const outcome = await verifyInbound(body, from);
-    if (outcome === "verified") {
-      reply = "✅ Verified — you're now signed in. You can return to the Bali Girls website.";
-    } else if (outcome === "wrong_number") {
-      reply = "This number doesn't match the account you're signing into. Please use the phone registered to your account.";
-    } else if (outcome === "already_done") {
-      reply = "This verification was already completed or has expired. Start again from the website if needed.";
-    }
-  } catch {
-    /* fall through with default reply */
-  }
-  res.set("Content-Type", "text/xml");
-  return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${reply}</Message></Response>`);
-});
 
 // POST /twilio/invite-status — Twilio status callback for onboarding invites
 authRouter.post("/twilio/invite-status", urlencoded({ extended: false }), async (req, res) => {
