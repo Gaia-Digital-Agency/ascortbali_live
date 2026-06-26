@@ -430,7 +430,11 @@ export function AdSlot({
   bare?: boolean;
 }) {
   const ads = useAdSpaces();
-  const ad = ads?.find((a) => a.slot === slot);
+  // These four slots' own ads are Humanspedia; show another active advertiser's
+  // creative of the SAME size instead. Rendered in the slot's own aspect box.
+  const AD_SLOT_ALIAS: Record<string, string> = { "home-2": "home-4", "home-15": "home-3", "home-11": "home-10", "home-18": "home-12" };
+  const lookupSlot = AD_SLOT_ALIAS[slot] || slot;
+  const ad = ads?.find((a) => a.slot === lookupSlot);
   const aspectClass =
     aspect === "16/9" ? "aspect-[16/9]"
     : aspect === "4/1" ? "aspect-[4/1]"
@@ -462,23 +466,6 @@ export function AdSlot({
   // Generic "Advertise With Us" house card. These slots always render the
   // placement card (non-clickable), sized to their own aspect box, ignoring
   // any configured/fallback ad image (e.g. home-2 no longer shows Humanspedia).
-  const GENERIC_ADVERTISE_SLOTS = ["home-2", "home-11", "home-15", "home-18"];
-  if (GENERIC_ADVERTISE_SLOTS.includes(slot)) {
-    const boxClass = aspectClass || "aspect-[9/16]";
-    // Mirror the creator / in-grid ad card: a visual area on top plus the same
-    // black bottom strip (h-14, bg-black/40, border-t) the other cards use.
-    return (
-      <div className={`${boxClass} w-full flex flex-col overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/40 ${className}`}>
-        <div className="flex-1 flex items-center justify-center overflow-hidden px-3 text-center">
-          <span className="font-display text-sm sm:text-base text-brand-gold">Advertise With Us</span>
-        </div>
-        <div className="flex h-14 shrink-0 items-center justify-center border-t border-brand-line bg-black/40 px-2 text-center text-[11px] uppercase tracking-[0.14em] leading-tight text-brand-muted">
-          Advertise
-        </div>
-      </div>
-    );
-  }
-
   if (!ad) {
     // Fall back to a 9:16 box when aspect="auto" — the loading skeleton
     // needs some height before the image arrives.
@@ -527,7 +514,7 @@ export function AdSlot({
       {...(priority ? ({ fetchPriority: "high" } as ImgHTMLAttributes<HTMLImageElement>) : {})}
       className={isAuto ? "block h-auto w-full" : "h-full w-full object-cover"}
       onError={(e) => {
-        const fb = fallbackImageBySlot[slot as keyof typeof fallbackImageBySlot];
+        const fb = fallbackImageBySlot[lookupSlot as keyof typeof fallbackImageBySlot];
         if (!fb) return;
         if ((e.currentTarget as HTMLImageElement).src.endsWith(fb)) return;
         (e.currentTarget as HTMLImageElement).src = fb;
