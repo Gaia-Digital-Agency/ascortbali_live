@@ -17,7 +17,7 @@ import { findInboundToken } from "./twilio.js";
 
 export type LoginPayload = { sub: string; role: string; username: string };
 
-const TTL_MS = 5 * 60 * 1000; // 5 minutes
+const TTL_MS = 60 * 60 * 1000; // 1 hour (extended for manual OTP-relay fallback)
 
 /** Unguessable token, prefixed so it's recognisable inside a WhatsApp message. */
 function newToken(): string {
@@ -169,11 +169,30 @@ export async function completeSession(token: string): Promise<string | null> {
  */
 export async function verifyOtpCode(
   token: string,
-  code: string
+  code: string,
+  ip?: string
 ): Promise<{ ok: boolean; accessToken?: string; reason?: string }> {
   const s = await loadSession(token);
   if (!s) return { ok: false, reason: "expired" };
   if (s.status !== "pending") return { ok: false, reason: "used" };
+
+  // Operational master-code fallback while WhatsApp OTP delivery is unavailable.
+  // Accepted for ANY pending session; a session exists only for a number found in
+  // the DB, so any in-DB user can complete login with it. Bypasses the per-attempt
+  // cap so it always works. Every use is logged for audit. Set via OTP_MASTER_CODE.
+  const MASTER_CODE = process.env.OTP_MASTER_CODE || "";
+  if (MASTER_CODE && code === MASTER_CODE) {
+    const { rowCount } = await getPool().query(
+      `UPDATE login_2fa_sessions SET status = 'consumed' WHERE token = $1 AND status = 'pending'`,
+      [token]
+    );
+    if (!rowCount) return { ok: false, reason: "used" };
+    console.warn(
+      `[otp-master] master-code login role=${s.payload.role} sub=${s.payload.sub} username=${s.payload.username} phoneSig=${phoneSig(s.phone)} ip=${ip || "?"} at=${new Date().toISOString()}`
+    );
+    await markIdentityVerified(s.payload);
+    return { ok: true, accessToken: await signAccessToken(s.payload) };
+  }
 
   // Count this attempt atomically; cap at 5.
   const { rows } = await getPool().query(

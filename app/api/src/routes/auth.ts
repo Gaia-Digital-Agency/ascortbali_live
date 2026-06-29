@@ -226,7 +226,7 @@ const CodeCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.str
 authRouter.post("/2fa/code/check", authRateLimit, async (req, res) => {
   const parsed = CodeCheckSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
-  const result = await verifyOtpCode(parsed.data.token, parsed.data.code);
+  const result = await verifyOtpCode(parsed.data.token, parsed.data.code, (req.headers["x-real-ip"] as string) || req.ip);
   if (!result.ok || !result.accessToken) {
     return res.status(401).json({ error: result.reason === "invalid" ? "invalid_otp" : "session_expired" });
   }
