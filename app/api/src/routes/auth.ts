@@ -13,17 +13,8 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, isOpenClawConfigured, sendWhatsAppOtpTemplate } from "../lib/twilio.js";
-import { sendWhatsApp } from "../lib/openclaw.js";
-import {
-  createLoginSession,
-  getSessionPhone,
-  verifyInbound,
-  pollVerify,
-  completeSession,
-  completeIfVerified,
-  verifyOtpCode,
-} from "../lib/login2fa.js";
+import { is2FAEnabled, sendOtpWaThenSms } from "../lib/twilio.js";
+import { createLoginSession, verifyOtpCode } from "../lib/login2fa.js";
 import { uniqueCreatorSlug, uniqueProviderUsername } from "../lib/slug.js";
 
 export const authRouter = Router();
@@ -161,9 +152,9 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const { token, code } = await createLoginSession(payload, phone);
-      const sent = await sendWhatsAppOtpTemplate(phone, code);
+      const sent = await sendOtpWaThenSms(phone, code);
       if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
-      return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
+      return res.json({ twoFactorRequired: true, token, otpMethod: sent.method });
     }
 
     // user portal
@@ -185,44 +176,21 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const { token, code } = await createLoginSession(payload, phone);
-    const sent = await sendWhatsAppOtpTemplate(phone, code);
+    const sent = await sendOtpWaThenSms(phone, code);
     if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
-    return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
+    return res.json({ twoFactorRequired: true, token, otpMethod: sent.method });
   } catch {
     return res.status(500).json({ error: "login_failed" });
   }
 });
 
-// ── WhatsApp 2FA verification ──────────────────────────────────────────
-
-const TokenSchema = z.object({ token: z.string().min(4).max(64) });
-
-// GET /auth/2fa/wa/poll?token=… — browser polls while the user verifies on
-// WhatsApp. Returns {status:"pending"} until the inbound webhook flips the
-// session to verified, then {status:"verified", accessToken} exactly once.
-
-// POST /auth/2fa/sms/send — fallback: send the OTP code via Twilio Verify (SMS)
-// to the session's registered number.
-
-const SmsCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
-
-// POST /auth/2fa/sms/check — fallback: verify the SMS code and complete login.
-
-
-const WaCheckSchema = z.object({ token: z.string().min(4).max(64) });
-
-// POST /auth/2fa/wa/check — complete login ONLY if the session was already
-// verified by an inbound WhatsApp from the account's registered number. This
-// must NOT complete a still-`pending` session (doing so was an auth bypass:
-// anyone holding a session token for a phone could log in without proving
-// control of the number). The browser normally completes via /2fa/wa/poll;
-// this endpoint is a manual fallback and is held to the same verified gate.
+// ── 2FA OTP verification ─────────────────────────────
 
 const CodeCheckSchema = z.object({ token: z.string().min(4).max(64), code: z.string().length(6) });
 
-// POST /auth/2fa/code/check — OpenClaw (Charles) push path: verify the 6-digit
-// code we sent to the user's WhatsApp and complete login. No auto-login — the
-// user must key the code back, which doubles as a human + WhatsApp-validity check.
+// POST /auth/2fa/code/check — verify the 6-digit code we sent to the user's
+// WhatsApp (or SMS fallback) and complete login. No auto-login — the user must
+// key the code back, doubling as a human + number-validity check.
 authRouter.post("/2fa/code/check", authRateLimit, async (req, res) => {
   const parsed = CodeCheckSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
@@ -232,12 +200,6 @@ authRouter.post("/2fa/code/check", authRateLimit, async (req, res) => {
   }
   return res.json({ accessToken: result.accessToken });
 });
-
-// POST /auth/wa/inbound — Twilio inbound-message webhook for the WhatsApp
-// "click to verify" flow. The user opens a 24h session by messaging our number;
-// we match the 6-digit code in their message AND require the sender's number to be
-// the account's registered number, then mark the session verified. Replies with
-// TwiML so the user gets immediate feedback in WhatsApp.
 
 // POST /twilio/invite-status — Twilio status callback for onboarding invites
 authRouter.post("/twilio/invite-status", urlencoded({ extended: false }), async (req, res) => {

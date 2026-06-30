@@ -1,14 +1,7 @@
 // Twilio messaging for 2FA OTP delivery (Twilio Verify, or WhatsApp fallback).
 import Twilio from "twilio";
 import { env } from "./env.js";
-import { sendWhatsApp } from "./openclaw.js";
-import { createOtp, verifyOtp } from "./otp.js";
 import { getPool } from "./pg.js";
-
-/** Normalise a stored phone to bare E.164 (strip any "whatsapp:" prefix). */
-function toE164(phone: string): string {
-  return phone.replace(/^whatsapp:/, "").trim();
-}
 
 let client: ReturnType<typeof Twilio> | null = null;
 
@@ -50,8 +43,8 @@ export function isWhatsAppOtpConfigured(): boolean {
 /**
  * Send a login OTP over WhatsApp using the approved authentication template.
  * `code` is the 6-digit code the app generated (and will verify); it is passed
- * as template variable {{1}}. Returns {ok} mirroring sendWhatsApp's shape so the
- * login route treats a failure as otp_send_failed.
+ * as template variable {{1}}. Returns {ok} so the caller can fall back to SMS
+ * on failure.
  */
 export async function sendWhatsAppOtpTemplate(
   phone: string,
@@ -73,25 +66,48 @@ export async function sendWhatsAppOtpTemplate(
 }
 
 /**
- * Whether Twilio Verify is configured. This is the preferred OTP path: Twilio
- * owns code generation, delivery, and checking, using its own pre-approved
- * templates — so it needs no WhatsApp Business template or WABA of our own.
+ * Fallback: deliver the same OTP code over plain SMS from the OTP subaccount's
+ * number (the WhatsApp sender number is SMS-capable). Used when the WhatsApp
+ * template send fails (e.g. the recipient can't receive WhatsApp).
  */
-export function isVerifyConfigured(): boolean {
-  return (
-    !!env.TWILIO_ACCOUNT_SID && !!env.TWILIO_AUTH_TOKEN && !!env.TWILIO_VERIFY_SERVICE_SID
-  );
+export async function sendSmsOtp(
+  phone: string,
+  code: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const from = (env.TWILIO_OTP_WHATSAPP_FROM || "").replace(/^whatsapp:/, "").trim();
+    if (!from) return { ok: false, error: "SMS sender not configured" };
+    const tw = getOtpClient();
+    await tw.messages.create({
+      from,
+      to: phone.replace(/^whatsapp:/, "").trim(),
+      body: `Your Bali Girls verification code is ${code}. It is valid for 5 minutes. Do not share it with anyone.`,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
-/** Check if 2FA is enabled and a delivery mechanism (Verify or WhatsApp) is configured. */
-export function isOpenClawConfigured(): boolean {
-  return env.OPENCLAW_OTP_ENABLED === true;
+/**
+ * Deliver the login OTP: WhatsApp template first, falling back to SMS if the
+ * WhatsApp send fails. Returns which method actually delivered (for UI copy).
+ */
+export async function sendOtpWaThenSms(
+  phone: string,
+  code: string
+): Promise<{ ok: boolean; method: "whatsapp" | "sms"; error?: string }> {
+  const wa = await sendWhatsAppOtpTemplate(phone, code);
+  if (wa.ok) return { ok: true, method: "whatsapp" };
+  console.warn(`[otp] WhatsApp send failed (${wa.error}); falling back to SMS`);
+  const sms = await sendSmsOtp(phone, code);
+  if (sms.ok) return { ok: true, method: "sms" };
+  return { ok: false, method: "sms", error: sms.error || wa.error };
 }
 
+/** Whether 2FA login is enabled and the OTP delivery path is configured. */
 export function is2FAEnabled(): boolean {
-  if (env.WHATSAPP_2FA_ENABLED !== true) return false;
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return false;
-  return isVerifyConfigured() || !!env.TWILIO_WHATSAPP_FROM;
+  return env.WHATSAPP_2FA_ENABLED === true && isWhatsAppOtpConfigured();
 }
 
 /** Whether WhatsApp sending is configured (creds + sender), regardless of the 2FA toggle. */
@@ -158,123 +174,5 @@ ${url}`,
       `INSERT INTO invite_tracking (creator_uuid, message_sid, status) VALUES ($1::uuid, $2, $3)`,
       [creatorId, msg.sid, msg.status || "queued"]
     );
-  }
-}
-
-/**
- * Send a WhatsApp OTP message. Phone must include country code (e.g. "+628123456789").
- * If TWILIO_OTP_CONTENT_SID is set, sends the approved authentication template
- * (required for production business-initiated messages); otherwise sends a
- * freeform body (sandbox / 24h window only). Template variable: {{1}} = code.
- */
-export async function sendWhatsAppOtp(phone: string, code: string): Promise<void> {
-  const tw = getClient();
-  const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
-  const from = env.TWILIO_WHATSAPP_FROM!;
-
-  if (env.TWILIO_OTP_CONTENT_SID) {
-    await tw.messages.create({
-      to,
-      from,
-      contentSid: env.TWILIO_OTP_CONTENT_SID,
-      contentVariables: JSON.stringify({ "1": code }),
-    });
-    return;
-  }
-
-  await tw.messages.create({
-    to,
-    from,
-    body: `Code expires in 5 minutes and do not share code with anyone. Your BG OTP is: ${code}`,
-  });
-}
-
-/**
- * Start an OTP verification via Twilio Verify. Twilio generates and sends the
- * code itself (no code argument). Channel defaults to SMS, which works
- * regardless of WhatsApp/WABA status; set TWILIO_VERIFY_CHANNEL=whatsapp to use
- * WhatsApp once a healthy sender is connected.
- */
-export async function startVerification(phone: string): Promise<void> {
-  const tw = getClient();
-  const channel = (env.TWILIO_VERIFY_CHANNEL || "sms").toLowerCase();
-  await tw.verify.v2
-    .services(env.TWILIO_VERIFY_SERVICE_SID!)
-    .verifications.create({ to: toE164(phone), channel });
-}
-
-/**
- * Check an OTP code against Twilio Verify. Returns true only when Twilio reports
- * the verification as "approved". Swallows Twilio errors (e.g. expired / no
- * pending verification / 404) and returns false so callers treat them as a
- * failed attempt.
- */
-export async function checkVerification(phone: string, code: string): Promise<boolean> {
-  const tw = getClient();
-  try {
-    const check = await tw.verify.v2
-      .services(env.TWILIO_VERIFY_SERVICE_SID!)
-      .verificationChecks.create({ to: toE164(phone), code });
-    return check.status === "approved";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Deliver an OTP using the configured mechanism: Twilio Verify when configured
- * (preferred — ignores `legacyCode`, Twilio sends its own), else the
- * self-managed WhatsApp message using the provided code.
- */
-export async function deliverOtp(phone: string, legacyCode: string): Promise<void> {
-  // OpenClaw path: send via OpenClaw WhatsApp gateway (avoids Meta WABA)
-  if (isOpenClawConfigured()) {
-    const { sessionId, code } = createOtp(
-      { sub: "pending", role: "user", username: "" },
-      phone
-    );
-    const msg = `Bali Girls - Your OTP code is: ${code}. It expires in 5 minutes. Do not share this code with anyone.`;
-    const result = await sendWhatsApp(phone, msg);
-    if (!result.ok) {
-      console.error("[openclaw] deliverOtp failed:", result.error);
-      // Fall through to Twilio path
-    } else {
-      return;
-    }
-  }
-  if (isVerifyConfigured()) {
-    await startVerification(phone);
-    return;
-  }
-  await sendWhatsAppOtp(phone, legacyCode);
-}
-
-/**
- * Poll Twilio's message log for an inbound WhatsApp message to our number, from
- * `fromPhone`, sent after `sinceMs`, whose body contains `token`. Used by the
- * "click to WhatsApp" login flow instead of relying on inbound webhook routing
- * (which is environment-dependent). Phone match is tolerant (last 8 digits).
- */
-export async function findInboundToken(fromPhone: string, token: string, sinceMs: number): Promise<boolean> {
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return false;
-  const tw = getClient();
-  const to = `whatsapp:${env.WHATSAPP_INBOUND_NUMBER}`;
-  const sig = fromPhone.replace(/\D/g, "").slice(-8);
-  const needle = token.toUpperCase();
-  // The token is unique + unguessable, so token+sender match is sufficient; the
-  // time window is only to bound the query. Use a generous floor (15 min, or
-  // session-creation minus skew) to tolerate clock differences.
-  const floor = Math.min(sinceMs - 60_000, Date.now() - 15 * 60_000);
-  try {
-    const msgs = await tw.messages.list({ to, dateSentAfter: new Date(floor), limit: 30 });
-    return msgs.some(
-      (m) =>
-        (m.direction || "").startsWith("inbound") &&
-        (m.from || "").replace(/\D/g, "").slice(-8) === sig &&
-        sig.length === 8 &&
-        (m.body || "").toUpperCase().includes(needle)
-    );
-  } catch {
-    return false;
   }
 }

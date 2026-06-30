@@ -10,10 +10,9 @@
 //
 // Using the DB (not in-memory) is required because pm2 runs multiple workers,
 // and the inbound webhook / poll / login can each land on a different worker.
-import { randomBytes, randomInt } from "crypto";
+import { randomInt } from "crypto";
 import { getPool } from "./pg.js";
 import { signAccessToken } from "./jwt.js";
-import { findInboundToken } from "./twilio.js";
 
 export type LoginPayload = { sub: string; role: string; username: string };
 
@@ -81,83 +80,6 @@ async function loadSession(token: string): Promise<SessionRow | null> {
     return null;
   }
   return r as SessionRow;
-}
-
-/** Registered phone for a still-pending session (used to send the SMS code). */
-export async function getSessionPhone(token: string): Promise<string | null> {
-  const s = await loadSession(token);
-  return s && s.status === "pending" ? s.phone : null;
-}
-
-/**
- * Verify from an inbound WhatsApp message: parse the 6-digit code from the body and
- * require the sender's number to match the session's registered number. Returns
- * a human-readable outcome for the auto-reply.
- */
-export async function verifyInbound(
-  body: string,
-  fromPhone: string
-): Promise<"verified" | "wrong_number" | "no_match" | "already_done"> {
-  const m = (body || "").match(/\b(\d{6})\b/);
-  if (!m) return "no_match";
-  const s = await loadSession(m[0]);
-  if (!s) return "no_match";
-  if (s.status !== "pending") return "already_done";
-  const sig = phoneSig(s.phone);
-  if (sig.length < 8 || phoneSig(fromPhone) !== sig) return "wrong_number";
-  await getPool().query(`UPDATE login_2fa_sessions SET status = 'verified' WHERE token = $1`, [m[0]]);
-  return "verified";
-}
-
-/**
- * Browser-poll handler for the WhatsApp path. If the session is still pending,
- * actively check Twilio's message log for the matching inbound (this avoids
- * depending on inbound webhook routing, which is environment-specific). If
- * found, flip to verified. Then complete if verified.
- */
-export async function pollVerify(token: string): Promise<{ status: string; accessToken?: string }> {
-  const s = await loadSession(token);
-  if (!s) return { status: "expired" };
-  if (s.status === "pending") {
-    const created = new Date(s.created_at).getTime();
-    if (await findInboundToken(s.phone, token, created)) {
-      await getPool().query(
-        `UPDATE login_2fa_sessions SET status = 'verified' WHERE token = $1 AND status = 'pending'`,
-        [token]
-      );
-    }
-  }
-  return completeIfVerified(token);
-}
-
-/**
- * Poll completion for the WhatsApp path: if verified, consume the row once,
- * flip the account's `verified` flag, and return a fresh access token.
- */
-export async function completeIfVerified(token: string): Promise<{ status: string; accessToken?: string }> {
-  const s = await loadSession(token);
-  if (!s) return { status: "expired" };
-  if (s.status !== "verified") return { status: s.status };
-  const { rowCount } = await getPool().query(
-    `UPDATE login_2fa_sessions SET status = 'consumed' WHERE token = $1 AND status = 'verified'`,
-    [token]
-  );
-  if (!rowCount) return { status: "consumed" };
-  await markIdentityVerified(s.payload);
-  return { status: "verified", accessToken: await signAccessToken(s.payload) };
-}
-
-/** Complete a session that was just verified by an SMS code check. */
-export async function completeSession(token: string): Promise<string | null> {
-  const s = await loadSession(token);
-  if (!s) return null;
-  const { rowCount } = await getPool().query(
-    `UPDATE login_2fa_sessions SET status = 'consumed' WHERE token = $1 AND status IN ('pending','verified')`,
-    [token]
-  );
-  if (!rowCount) return null;
-  await markIdentityVerified(s.payload);
-  return signAccessToken(s.payload);
 }
 
 /**

@@ -1,3 +1,5 @@
+> **⚠️ SUPERSEDED (2026-07-01).** Describes the older OpenClaw "Charles" / Twilio-Verify OTP approach. Login OTP now runs on **Twilio WhatsApp (approved template) + SMS fallback** — see [`otp-current.md`](./otp-current.md) for the current source of truth. Kept for history.
+
 # Runbook — `.openclaw-chs`
 
 All commands run on **gda-ai01** (`ssh gda-ai01`, user azlan) unless noted.

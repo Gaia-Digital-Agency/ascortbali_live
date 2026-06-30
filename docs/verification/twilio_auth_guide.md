@@ -1,3 +1,5 @@
+> **⚠️ SUPERSEDED (2026-07-01).** Describes the older OpenClaw "Charles" / Twilio-Verify OTP approach. Login OTP now runs on **Twilio WhatsApp (approved template) + SMS fallback** — see [`otp-current.md`](./otp-current.md) for the current source of truth. Kept for history.
+
 # WhatsApp 2FA Setup Guide
 
 > ⚠️ **PARTIALLY OUTDATED (as of 2026-06-13).** This guide describes the original design

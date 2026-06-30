@@ -40,63 +40,17 @@ from the server repo. `.DS_Store` files are never committed. See `CLAUDE.md` for
 | `testing/` | UAT, login info, fallback access, UI/UX flow, start notes |
 | `verification/` | Auth docs + the `.openclaw-chs` agent. Mixed: some **historical** (verifier), some **live** (Twilio login) — see below |
 
-## Current focus: WhatsApp login OTP delivery — "Charles"
+## Current state — login OTP via Twilio WhatsApp + SMS fallback (LIVE, 2026-07-01)
 
-The `.openclaw-chs` agent (renamed **Charlie → Charles**, 2026-06-19) is now the BG App's
-**OTP delivery line — and nothing else**. The goal is to give users/creators the **exact same
-experience a Twilio / Meta Business OTP would** (clean code message, reliable delivery, normal
-6-digit entry) — without a Meta WABA, by sending over our own linked WhatsApp.
+Login OTP is delivered by **Twilio WhatsApp** (approved authentication template) with an automatic
+**plain-SMS fallback**, both carrying a 6-digit code the App generates and verifies (5-minute
+validity). The old OpenClaw **"Charles"** relay is **decommissioned**.
 
-**Login flow** (mostly the App's job; Charles only does step 4):
-1. User/creator enters WhatsApp number → clicks **Verify**.
-2. App checks the DB (`providers` / `app_accounts`). Not found → **register first**.
-3. App generates a 6-digit code (5-min TTL, ≤5 attempts) and sends it **via Charles**.
-4. Charles delivers: `Your BG App OTP is xxxxxx`.
-5. **No auto-login** — user keys the code back; the App verifies it. This doubles as a
-   **human check + WhatsApp-number-validity check**.
-6. App logs them in; session persists until lockout.
-
-**How the App reaches Charles:** `app/api/src/lib/openclaw.ts` SSHes to `gda-ai01` and runs
-`openclaw message send --channel whatsapp --account main` (no HTTP relay / no direct WS). Built
-on app branch **`feature-otp`** (1 commit, local-only). It still targets the **deleted**
-`/opt/.openclaw-baligirls` and must be **repointed to `/opt/.openclaw-chs`**.
-
-**Cutover is staged** — the **current live login keeps using Twilio Verify (SMS)** until the owner
-says "port over". See `CLAUDE.md` → *Current focus* for the exact cutover steps and the
-`checkOtp` Twilio-vs-local conflict to fix.
-
-> ⚠️ Ban risk: Charles uses the *unofficial* WhatsApp Web link. Rate-limit OTP sends; keep the
-> WhatsApp Business Cloud API in mind for scale; Twilio Verify stays as the safe fallback.
-
-## `.openclaw-chs` ("Charles") — where it lives
-
-| Thing | Value |
-|---|---|
-| Host | `gda-ai01` (34.143.206.68), user `azlan` |
-| Instance dir | `/opt/.openclaw-chs` |
-| Agent | **Charles** (acp default agent `main`), workspace `/opt/.openclaw-chs/workspace-charlie` |
-| Model | `deepseek/deepseek-chat` (primary, fallback `google/gemini-2.5-flash`) |
-| Gateway | systemd user service `openclaw-chs-gateway.service`, loopback port **19389** |
-| WhatsApp line | **+62 817-6917-122** — **linked** (account `main`); send + receive verified |
-| Mission Control | `https://chs.gaiada0.online` — needs the gateway token **and** device approval (`openclaw devices approve <id>`) |
-
-## Status — 2026-06-20 — OTP LOGIN LIVE ✅
-
-- ✅ **Charlie → Charles** renamed; brain cleaned to **OTP-delivery-only**; **inbound disabled**
-  (`dmPolicy=disabled`) so Charles consumes **0 LLM tokens** (an OTP send is a pure channel op).
-- ✅ **Panel migrated** to `https://chs.gaiada0.online`; **WhatsApp linked** (+62 817-6917-122).
-- ✅ **Decommissioned** `.openclaw-bgs` + `.openclaw-bsc-archive`; OTP role consolidated into `chs`.
-  gda-ai01 upgraded **2→4 vCPU** (e2-custom-4-8192).
-- ✅ **Warm relay built** — `bg-otp-relay` (systemd `--user`, `/opt/.openclaw-chs/otp-relay/`)
-  on the private VPC `10.148.0.7:19500`, bearer-auth + rate-limit. Reuses OpenClaw's own
-  `callGatewayFromCliRuntime` → `request("send",…)` → **~1.6s** (avoids the 31s CLI cold-start).
-- ✅ **App side done** (branch `feature-otp` merged to `main` + deleted): app generates 6-digit code,
-  Charles delivers via the relay, user keys it back, app verifies (`/auth/2fa/code/check`).
-  `OPENCLAW_OTP_ENABLED=true`.
-- ✅ **CUTOVER LIVE & VERIFIED** end-to-end on the live site — **both user and creator** logins.
-  Twilio Verify SMS + click-to-WhatsApp remain coded fallbacks.
-- ⚠️ **Watch**: ban-risk on the unofficial WhatsApp line over time (rate-limited; WhatsApp Business
-  Cloud API is the scale path); companion does a routine 30-min idle reconnect.
+- Sender `+1 659-257-5475` on the verified "AG Alchemy" WABA `2099451430940742`; template
+  `HX7e77778694040c69ad3c4e208ba31bd4`; Twilio subaccount `Baligirls WhatsApp OTP`.
+- Authoritative detail + runbook: **[`verification/otp-current.md`](verification/otp-current.md)**.
+- `.openclaw-chs` (Charles) on gda-ai01: WhatsApp logged out, gateway stopped + disabled.
+- Master-code fallback (`OTP_MASTER_CODE`) remains as an operational safety net.
 
 ## Done — nothing outstanding
 

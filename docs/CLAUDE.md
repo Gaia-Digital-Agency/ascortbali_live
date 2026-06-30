@@ -27,46 +27,24 @@ ssh gda-pn01 'cd /var/www/baligirls && git add -A && git commit -m "docs: …" &
 Dry-run first (`rsync -azn --delete --itemize-changes …`) and confirm no unexpected deletions —
 the working rule for this folder is **no data loss**.
 
-## Current focus: WhatsApp login OTP delivery (Charles)
+## Current state: login OTP via Twilio WhatsApp + SMS fallback (LIVE)
 
-`.openclaw-chs` — the agent renamed **Charlie → Charles** (2026-06-19) — is now the BG App's
-**OTP delivery line, and nothing else**. Earlier roles (number *verifier*, creator *invitation
-sender*, and the briefly-considered "coordinator/manager") are **dropped**.
+Login OTP for users/creators is delivered by **Twilio WhatsApp** using an approved authentication
+template, with an automatic **plain-SMS fallback**. The old OpenClaw **"Charles"** relay is
+**decommissioned**. Authoritative detail + runbook: [`verification/otp-current.md`](verification/otp-current.md).
 
-**Charles's only job:** when the BG App asks, deliver a 6-digit login OTP to a user/creator's
-WhatsApp. He does **not** generate codes, verify codes, manage sessions, or do outreach.
-
-**The BG App login flow (for context — most of this is the App's job, not Charles's):**
-1. User/creator enters their WhatsApp number and clicks **Verify**.
-2. App checks the number against the DB (`providers` for creators, `app_accounts` for users).
-   - Not found → App tells them to **register first** (Charles not involved).
-3. App **generates** a 6-digit code (5-min TTL, ≤5 attempts) and **sends it via Charles**.
-4. Charles delivers over WhatsApp: `Your BG App OTP is xxxxxx`.
-5. **No auto-login** — the App waits for the user to key the code back in; the App verifies it.
-   This is deliberately a **human check + WhatsApp-number-validity check**.
-6. App logs them in; session persists until lockout.
-
-**Integration mechanism (already built by azlan, needs repointing):** the App's
-`app/api/src/lib/openclaw.ts` **SSHes to gda-ai01 and runs `openclaw message send
---channel whatsapp --account main`** — no HTTP relay, no direct WS. It currently points at the
-**deleted** `/opt/.openclaw-baligirls` (the old bgs instance) and must be **repointed to
-`/opt/.openclaw-chs`**. This work lives on app branch **`feature-otp`** (1 commit, not merged/pushed).
-
-**Cutover is staged — keep Twilio Verify (SMS) live until the owner says "port over":**
-1. Repoint `lib/openclaw.ts` `STATE_DIR` → `/opt/.openclaw-chs`; set the OTP template to
-   `Your BG App OTP is xxxxxx`.
-2. Wire the self-managed flow into `routes/auth.ts` (`createOtp` → `sendWhatsApp` → `verifyOtp`).
-   **Conflict to fix:** `lib/otp.ts::checkOtp` prefers Twilio Verify whenever
-   `TWILIO_VERIFY_SERVICE_SID` is set — so it would reject locally-generated codes. The verify
-   path must use the local `verifyOtp` on the Charles path.
-3. **Cutover:** set `OPENCLAW_OTP_ENABLED=true` in `app/api/.env`, switch verify to local,
-   `pm2 restart baligirls-api`. (Runtime runs from `src/` via PM2, so the May-6 `app/*/dist`
-   folders are **stale and unused** — safe to delete.)
-
-> ⚠️ **Ban risk:** Charles sends over the *unofficial* WhatsApp Web link (Baileys). Transactional
-> OTP at scale on a personal number risks a ban — add per-number + global rate limits, and keep
-> the **WhatsApp Business Cloud API** in mind as the scale path. Twilio Verify (SMS) remains the
-> safe fallback while we stage.
+- **Sender** `+1 659-257-5475` on the **verified** "AG Alchemy" WABA `2099451430940742`
+  (Twilio subaccount `AC…cf1`); approved template
+  `HX7e77778694040c69ad3c4e208ba31bd4` (code = `{{1}}`).
+- **Flow:** App generates a 6-digit code (5-min validity, ≤5 attempts) → WhatsApp template → on
+  send failure auto-falls-back to SMS (same code) → user keys it back → App verifies against its
+  own DB session (`login_2fa_sessions`).
+- **Code:** `app/api/src/lib/twilio.ts` (`sendOtpWaThenSms`/`sendWhatsAppOtpTemplate`/`sendSmsOtp`),
+  `routes/auth.ts` `/login` + `/2fa/code/check`, `lib/login2fa.ts`. API runs from `src/` via tsx.
+- **Master-code fallback** (`OTP_MASTER_CODE`) kept as an operational safety net.
+- **Charles / `.openclaw-chs`** (gda-ai01): WhatsApp logged out; gateway stopped + disabled. The
+  OpenClaw send path (`lib/openclaw.ts`), in-memory `lib/otp.ts`, and Twilio-Verify helpers were
+  removed in the 2026-07-01 OTP cleanup.
 
 ## OpenClaw fleet conventions (gda-ai01)
 

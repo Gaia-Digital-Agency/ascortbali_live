@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE, apiFetch, clearTokens, setTokens } from "../lib/api";
 import { withBasePath } from "../lib/paths";
 
 type Portal = "admin" | "user" | "creator";
-
-const SMS_FALLBACK_ENABLED = false;
 
 type LoginFormProps = {
   portal: Portal;
@@ -92,58 +90,14 @@ export default function LoginForm({
   const [showRecoverOldPassword, setShowRecoverOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // 2FA state (WhatsApp-primary, SMS fallback)
+  // 2FA state: WhatsApp OTP (auto SMS fallback handled server-side).
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
-
-  const [smsMode, setSmsMode] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
-  const [smsSending, setSmsSending] = useState(false);
+  const [otpMethod, setOtpMethod] = useState<"whatsapp" | "sms">("whatsapp");
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
 
   const navigate = useNavigate();
-
-  // While awaiting WhatsApp verification, poll the session. The inbound webhook
-  // flips it to "verified" once the user messages us from their registered
-  // number; we then receive a one-time access token and finish sign-in.
-  useEffect(() => {
-    if (!twoFactorToken || smsMode || codeMode) return;
-    let active = true;
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/auth/2fa/wa/poll?token=${encodeURIComponent(twoFactorToken)}`);
-        const json = await res.json();
-        if (!active) return;
-        if (json.status === "verified" && json.accessToken) {
-          clearInterval(id);
-          setTokens({ accessToken: json.accessToken });
-          try {
-            const profile = await apiFetch("/me");
-            if (roleCheck && !roleCheck(profile.role)) {
-              clearTokens();
-              setError(roleErrorMessage);
-              setTwoFactorToken(null);
-              return;
-            }
-          } catch {
-            /* ignore profile fetch hiccup; redirect will re-auth if needed */
-          }
-          window.location.href = withBasePath(redirectPath);
-        } else if (json.status === "expired") {
-          clearInterval(id);
-          setError("The code expired — please sign in again");
-          setTwoFactorToken(null);
-        }
-      } catch {
-        /* transient network error — keep polling */
-      }
-    }, 3000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [twoFactorToken, smsMode, codeMode]);
 
   const doLogin = async () => {
     setLoading(true);
@@ -182,10 +136,11 @@ export default function LoginForm({
         throw new Error(json?.error ?? "Couldn't sign in — please try again");
       }
 
-      // Handle 2FA challenge — WhatsApp-primary; SMS available as fallback.
+      // 2FA: the server sent a 6-digit code to the user's WhatsApp (or SMS
+      // fallback). Show the code-entry screen.
       if (json.twoFactorRequired) {
         setTwoFactorToken(json.token);
-        setSmsMode(false);
+        setOtpMethod(json.otpMethod === "sms" ? "sms" : "whatsapp");
         setOtpCode("");
         setCodeMode(true);
         return;
@@ -203,31 +158,6 @@ export default function LoginForm({
       setError(err.message ?? "Couldn't sign in — please try again");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fallback path: send the OTP code over SMS (Twilio Verify) and switch to the
-  // code-entry view.
-  const sendSms = async () => {
-    if (!twoFactorToken) return;
-    setSmsSending(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/auth/2fa/sms/send`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: twoFactorToken }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json?.error === "sms_unavailable" ? "SMS isn't available right now" : "Couldn't send the code — try again");
-      }
-      setSmsMode(true);
-      setOtpCode("");
-    } catch (err: any) {
-      setError(err.message ?? "Couldn't send the code — try again");
-    } finally {
-      setSmsSending(false);
     }
   };
 
@@ -349,14 +279,13 @@ export default function LoginForm({
   if (twoFactorToken) {
     const resetTwoFactor = () => {
       setTwoFactorToken(null);
-      setSmsMode(false);
       setCodeMode(false);
       setOtpCode("");
       setError(null);
     };
 
-    // OpenClaw (Charles) push path: the App already sent a 6-digit code to the
-    // user's WhatsApp; show a code-entry screen (no auto-login — they must key it).
+    // The server already sent a 6-digit code to the user's WhatsApp (or SMS
+    // fallback); show a code-entry screen (no auto-login — they must key it).
     if (codeMode) {
       return (
         <div className="mx-auto max-w-md space-y-6">
@@ -368,7 +297,7 @@ export default function LoginForm({
           <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
             <div className="space-y-4">
               <p className="text-sm text-brand-muted">
-                Enter the 6-digit code we sent to your WhatsApp. Code is valid for 5 (five) minutes.
+                Enter the 6-digit code we sent {otpMethod === "sms" ? "via SMS" : "to your WhatsApp"}. Code is valid for 5 (five) minutes.
               </p>
 
               <input
