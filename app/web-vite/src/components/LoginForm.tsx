@@ -368,7 +368,7 @@ export default function LoginForm({
           <div className="rounded-3xl border border-brand-line bg-brand-surface/55 p-7 shadow-luxe">
             <div className="space-y-4">
               <p className="text-sm text-brand-muted">
-                Enter the 6-digit code we sent to your WhatsApp. If no reply in one(1) minute, send text to +601140582048.
+                Enter the 6-digit code we sent to your WhatsApp. Code is valid for 5 (five) minutes.
               </p>
 
               <input

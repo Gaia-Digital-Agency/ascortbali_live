@@ -17,7 +17,7 @@ import { findInboundToken } from "./twilio.js";
 
 export type LoginPayload = { sub: string; role: string; username: string };
 
-const TTL_MS = 60 * 60 * 1000; // 1 hour (extended for manual OTP-relay fallback)
+const TTL_MS = 5 * 60 * 1000; // 5 minutes (OTP validity)
 
 /** Unguessable token, prefixed so it's recognisable inside a WhatsApp message. */
 function newToken(): string {

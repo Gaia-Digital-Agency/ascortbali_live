@@ -13,7 +13,7 @@ import {
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, isOpenClawConfigured } from "../lib/twilio.js";
+import { is2FAEnabled, isVerifyConfigured, startVerification, checkVerification, isOpenClawConfigured, sendWhatsAppOtpTemplate } from "../lib/twilio.js";
 import { sendWhatsApp } from "../lib/openclaw.js";
 import {
   createLoginSession,
@@ -161,7 +161,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const phone = String(creator.phone_number || creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const { token, code } = await createLoginSession(payload, phone);
-      const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+      const sent = await sendWhatsAppOtpTemplate(phone, code);
       if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
       return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
     }
@@ -185,7 +185,7 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const phone = String(account.whatsapp || account.phone || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const { token, code } = await createLoginSession(payload, phone);
-    const sent = await sendWhatsApp(phone, `Your BG App OTP is ${code}`);
+    const sent = await sendWhatsAppOtpTemplate(phone, code);
     if (!sent.ok) return res.status(503).json({ error: "otp_send_failed" });
     return res.json({ twoFactorRequired: true, token, otpMethod: "whatsapp-code" });
   } catch {

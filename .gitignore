@@ -165,3 +165,4 @@ audit_engine/
 
 # maintenance mode runtime toggle (presence = site offline; never a committed state)
 maintenance/.on
+secret.txt

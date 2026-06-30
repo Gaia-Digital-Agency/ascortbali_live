@@ -43,6 +43,12 @@ const EnvSchema = z.object({
   // 2FA OTP. Required for production business-initiated sends; when unset the
   // OTP falls back to a freeform body (sandbox / 24h window only).
   TWILIO_OTP_CONTENT_SID: z.string().optional(),
+  // Dedicated Twilio subaccount whose WhatsApp Business Account is verified,
+  // used to send the OTP authentication template. The OTP WhatsApp sender lives
+  // on this subaccount (not the parent account).
+  TWILIO_OTP_SUBACCOUNT_SID: z.string().optional(),
+  TWILIO_OTP_SUBACCOUNT_AUTH_TOKEN: z.string().optional(),
+  TWILIO_OTP_WHATSAPP_FROM: z.string().optional(), // e.g. "whatsapp:+16592575475"
   // Twilio Verify service ("VA…"). Preferred OTP path: Twilio generates, sends,
   // and checks the code using its own pre-approved templates, so it needs no
   // WhatsApp Business template/WABA of our own. When set, it takes precedence

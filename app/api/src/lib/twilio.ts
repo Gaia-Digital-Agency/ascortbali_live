@@ -22,6 +22,56 @@ function getClient() {
   return client;
 }
 
+// ── WhatsApp OTP via Twilio subaccount + approved authentication template ──
+// The OTP WhatsApp sender lives on a separate Twilio subaccount whose WhatsApp
+// Business Account is verified, so authentication templates are permitted. We
+// authenticate with the subaccount's own credentials and send the approved
+// content template, passing the 6-digit code as variable {{1}}.
+let otpClient: ReturnType<typeof Twilio> | null = null;
+
+function getOtpClient() {
+  const sid = env.TWILIO_OTP_SUBACCOUNT_SID;
+  const tok = env.TWILIO_OTP_SUBACCOUNT_AUTH_TOKEN;
+  if (!sid || !tok) throw new Error("Twilio OTP subaccount credentials not configured");
+  if (!otpClient) otpClient = Twilio(sid, tok);
+  return otpClient;
+}
+
+/** Whether the Twilio WhatsApp OTP-template path is fully configured. */
+export function isWhatsAppOtpConfigured(): boolean {
+  return (
+    !!env.TWILIO_OTP_SUBACCOUNT_SID &&
+    !!env.TWILIO_OTP_SUBACCOUNT_AUTH_TOKEN &&
+    !!env.TWILIO_OTP_WHATSAPP_FROM &&
+    !!env.TWILIO_OTP_CONTENT_SID
+  );
+}
+
+/**
+ * Send a login OTP over WhatsApp using the approved authentication template.
+ * `code` is the 6-digit code the app generated (and will verify); it is passed
+ * as template variable {{1}}. Returns {ok} mirroring sendWhatsApp's shape so the
+ * login route treats a failure as otp_send_failed.
+ */
+export async function sendWhatsAppOtpTemplate(
+  phone: string,
+  code: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const tw = getOtpClient();
+    const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
+    await tw.messages.create({
+      from: env.TWILIO_OTP_WHATSAPP_FROM!,
+      to,
+      contentSid: env.TWILIO_OTP_CONTENT_SID!,
+      contentVariables: JSON.stringify({ "1": code }),
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /**
  * Whether Twilio Verify is configured. This is the preferred OTP path: Twilio
  * owns code generation, delivery, and checking, using its own pre-approved
