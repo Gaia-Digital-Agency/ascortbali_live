@@ -94,8 +94,6 @@ export const LABEL_OVERRIDES: Record<string, string> = {
   temp_password: "TEMP PASSWORD",
   wechat_id:     "WECHAT ID",
   telegram_id:   "TELEGRAM ID",
-  phone:         "PHONE (SMS)",
-  phone_number:  "PHONE (SMS)",
   cell_phone:    "WHATSAPP",
   model_name:    "DISPLAY NAME",
   escort_type:   "CATEGORY",

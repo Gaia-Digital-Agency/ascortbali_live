@@ -8,6 +8,7 @@ export type AdminStats = { creatorCount: number; userCount: number };
 export type UserAccount = {
   id: string;
   username: string;
+  full_name: string;
   password: string;
   created_at: string;
   updated_at: string;

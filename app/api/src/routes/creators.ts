@@ -420,7 +420,6 @@ creatorsRouter.get("/:idOrSlug", cacheGet(60), async (req, res) => {
               p.piercing,
               p.services,
               p.notes,
-              p.phone_number,
               p.cell_phone,
               p.telegram_id,
               p.escort_type AS form

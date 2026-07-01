@@ -30,7 +30,6 @@ type CreatorProfile = {
   ethnicity: string;
   nationality: string;
   languages: string;
-  phone_number: string;
   cell_phone: string;
   wechat_id: string;
   city: string;
@@ -111,7 +110,7 @@ const DEFAULT_CREATOR_PROFILE: CreatorProfile = {
   telegram_id: "", last_seen: "", notes: "", model_name: "", is_active: true,
   gender: "female", form: "escort", age: "", eyes: "", hair_color: "",
   hair_length: "", weight: "", height: "", ethnicity: "", nationality: "",
-  languages: "", phone_number: "", cell_phone: "", wechat_id: "",
+  languages: "", cell_phone: "", wechat_id: "",
   city: "", orientation: "straight", smoker: "no", tattoo: "no", piercing: "no",
   services: "", meeting_with: "men", available_for: "both", bust_type: "Natural", pubic_hair: "Trimmed",
 };
@@ -326,7 +325,6 @@ const [savingReorder, setSavingReorder] = useState(false);
         ethnicity: profile.ethnicity ?? "",
         nationality: profile.nationality,
         languages: profile.languages ?? "",
-        phoneNumber: profile.phone_number ?? "",
         cellPhone: profile.cell_phone ?? "",
         wechatId: profile.wechat_id ?? "",
         city: profile.city,
@@ -447,7 +445,6 @@ const [savingReorder, setSavingReorder] = useState(false);
         ethnicity: profile.ethnicity ?? "",
         nationality: profile.nationality,
         languages: profile.languages ?? "",
-        phoneNumber: profile.phone_number ?? "",
         cellPhone: profile.cell_phone ?? "",
         wechatId: profile.wechat_id ?? "",
         city: profile.city,

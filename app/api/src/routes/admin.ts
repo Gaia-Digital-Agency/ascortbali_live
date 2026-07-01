@@ -24,10 +24,12 @@ adminRouter.get("/accounts", async (req, res) => {
   try {
     const [usersRes, creatorsRes, userCountRes, creatorCountRes] = await Promise.all([
       pool.query(
-        `SELECT id::text AS id, username, password, created_at, updated_at, COALESCE(verified, false) AS verified
-           FROM app_accounts
-          WHERE role = 'user'
-          ORDER BY created_at DESC
+        `SELECT a.id::text AS id, a.username, a.password, a.created_at, a.updated_at, COALESCE(a.verified, false) AS verified,
+                COALESCE(up.full_name, '') AS full_name
+           FROM app_accounts a
+           LEFT JOIN user_profiles up ON up.account_id = a.id
+          WHERE a.role = 'user'
+          ORDER BY a.created_at DESC
           LIMIT $1 OFFSET $2`,
         [limit, offset]
       ),
@@ -66,7 +68,7 @@ adminRouter.get("/accounts/users/:id", async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT a.id::text AS id, a.username, COALESCE(a.temp_password, '') AS password, COALESCE(a.temp_password, '') AS confirm_password, COALESCE(a.phone, '') AS phone, COALESCE(a.whatsapp, '') AS whatsapp, a.created_at, a.updated_at,
+      `SELECT a.id::text AS id, a.username, COALESCE(a.temp_password, '') AS password, COALESCE(a.temp_password, '') AS confirm_password, COALESCE(a.whatsapp, '') AS whatsapp, a.created_at, a.updated_at,
               COALESCE(up.full_name, '') AS full_name, COALESCE(up.gender, '') AS gender, COALESCE(up.age_group, '') AS age_group,
               COALESCE(up.nationality, '') AS nationality, COALESCE(up.city, '') AS city,
               COALESCE(up.relationship_status, '') AS relationship_status
@@ -89,7 +91,7 @@ adminRouter.get("/accounts/creators/:id", async (req, res) => {
     const { rows } = await pool.query(
       `SELECT uuid::text AS id, username, COALESCE(temp_password, '') AS password, COALESCE(temp_password, '') AS confirm_password,
               model_name, age, nationality, ethnicity, city,
-              cell_phone, phone_number, telegram_id, wechat_id, languages,
+              cell_phone, telegram_id, wechat_id, languages,
               eyes, hair_color, hair_length, height, weight, last_seen,
               gender, escort_type, orientation, available_for, meeting_with, smoker, tattoo, piercing,
               services, notes,
@@ -111,14 +113,13 @@ const UpdateUserSchema = z.object({
   username: z.string().min(1).max(200).optional(),
   password: z.string().min(1).max(200).optional(),
   confirm_password: z.string().max(200).optional(),
-  phone: z.string().max(50).optional(),
   whatsapp: z.string().max(50).optional(),
-  fullName: z.string().max(120).optional(),
+  full_name: z.string().max(120).optional(),
   gender: z.string().max(20).optional(),
-  ageGroup: z.string().max(20).optional(),
+  age_group: z.string().max(20).optional(),
   nationality: z.string().max(80).optional(),
   city: z.string().max(80).optional(),
-  relationshipStatus: z.string().max(20).optional(),
+  relationship_status: z.string().max(20).optional(),
   verified: z.boolean().optional(),
 });
 
@@ -134,6 +135,27 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
 
   const pool = getPool();
   try {
+    // Full name must stay unique across users (case-insensitive), excluding self.
+    if (p.full_name !== undefined) {
+      const dup = await pool.query(
+        `SELECT 1 FROM user_profiles WHERE lower(btrim(full_name)) = lower(btrim($1)) AND account_id <> $2::uuid LIMIT 1`,
+        [p.full_name, req.params.id]
+      );
+      if (dup.rows.length > 0) return res.status(409).json({ error: "full_name_taken", message: "This full name is already in use." });
+    }
+
+    // WhatsApp number must stay unique across users (login matches last 8 digits), excluding self.
+    if (p.whatsapp !== undefined && String(p.whatsapp).trim() !== "") {
+      const waSig = String(p.whatsapp).replace(/\D/g, "").slice(-8);
+      if (waSig.length >= 8) {
+        const waDup = await pool.query(
+          `SELECT 1 FROM app_accounts WHERE role = 'user' AND id <> $2::uuid AND right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1 LIMIT 1`,
+          [waSig, req.params.id]
+        );
+        if (waDup.rows.length > 0) return res.status(409).json({ error: "whatsapp_taken", message: "This WhatsApp number is already in use." });
+      }
+    }
+
     // Update app_accounts fields.
     const accSet: string[] = ["updated_at = NOW()"];
     const accVals: unknown[] = [req.params.id];
@@ -144,7 +166,6 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
       accVals.push(hashed); accSet.push(`password = $${accVals.length}`);
       accVals.push(p.password); accSet.push(`temp_password = $${accVals.length}`);
     }
-    if (p.phone !== undefined) { accVals.push(p.phone || null); accSet.push(`phone = $${accVals.length}`); }
     if (p.whatsapp !== undefined) { accVals.push(p.whatsapp || null); accSet.push(`whatsapp = $${accVals.length}`); }
     if (p.verified !== undefined) { accVals.push(p.verified); accSet.push(`verified = $${accVals.length}`); }
     await pool.query(`UPDATE app_accounts SET ${accSet.join(", ")} WHERE id = $1::uuid AND role = 'user'`, accVals);
@@ -152,12 +173,12 @@ adminRouter.put("/accounts/users/:id", async (req, res) => {
     // Update user_profiles fields.
     const profSet: string[] = ["updated_at = NOW()"];
     const profVals: unknown[] = [req.params.id];
-    if (p.fullName !== undefined) { profVals.push(p.fullName); profSet.push(`full_name = $${profVals.length}`); }
+    if (p.full_name !== undefined) { profVals.push(p.full_name); profSet.push(`full_name = $${profVals.length}`); }
     if (p.gender !== undefined) { profVals.push(p.gender); profSet.push(`gender = $${profVals.length}`); }
-    if (p.ageGroup !== undefined) { profVals.push(p.ageGroup); profSet.push(`age_group = $${profVals.length}`); }
+    if (p.age_group !== undefined) { profVals.push(p.age_group); profSet.push(`age_group = $${profVals.length}`); }
     if (p.nationality !== undefined) { profVals.push(p.nationality); profSet.push(`nationality = $${profVals.length}`); }
     if (p.city !== undefined) { profVals.push(p.city); profSet.push(`city = $${profVals.length}`); }
-    if (p.relationshipStatus !== undefined) { profVals.push(p.relationshipStatus); profSet.push(`relationship_status = $${profVals.length}`); }
+    if (p.relationship_status !== undefined) { profVals.push(p.relationship_status); profSet.push(`relationship_status = $${profVals.length}`); }
     if (profSet.length > 1) {
       await pool.query(`UPDATE user_profiles SET ${profSet.join(", ")} WHERE account_id = $1::uuid`, profVals);
     }
@@ -194,7 +215,6 @@ const UpdateCreatorSchema = z.object({
   age: z.coerce.number().int().min(18).max(99).optional(),
   nationality: z.string().max(50).optional(),
   city: z.string().max(50).optional(),
-  phone_number: z.string().max(50).optional(),
   cell_phone: z.string().max(50).optional(),
   telegram_id: z.string().max(100).optional(),
   ethnicity: z.string().max(50).optional(),
@@ -237,6 +257,28 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
 
   const pool = getPool();
   try {
+    // Display name must stay unique across creators (case-insensitive), excluding self.
+    if (p.model_name !== undefined) {
+      const dup = await pool.query(
+        `SELECT 1 FROM providers WHERE lower(btrim(model_name)) = lower(btrim($1)) AND uuid <> $2::uuid LIMIT 1`,
+        [p.model_name, req.params.id]
+      );
+      if (dup.rows.length > 0) return res.status(409).json({ error: "model_name_taken", message: "This creator name is already in use." });
+    }
+
+    // WhatsApp number (cell_phone) must stay unique across creators (login matches
+    // last 8 digits), excluding self. No DB index yet (legacy import duplicates).
+    if (p.cell_phone !== undefined && String(p.cell_phone).trim() !== "") {
+      const waSig = String(p.cell_phone).replace(/\D/g, "").slice(-8);
+      if (waSig.length >= 8) {
+        const waDup = await pool.query(
+          `SELECT 1 FROM providers WHERE right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1 AND uuid <> $2::uuid LIMIT 1`,
+          [waSig, req.params.id]
+        );
+        if (waDup.rows.length > 0) return res.status(409).json({ error: "whatsapp_taken", message: "This WhatsApp number is already in use." });
+      }
+    }
+
     const setClauses: string[] = ["updated_at = NOW()"];
     const values: unknown[] = [req.params.id];
     const add = (col: string, val: unknown) => { values.push(val); setClauses.push(`${col} = $${values.length}`); };
@@ -250,7 +292,6 @@ adminRouter.put("/accounts/creators/:id", async (req, res) => {
     if (p.age !== undefined) add("age", p.age);
     if (p.nationality !== undefined) add("nationality", p.nationality);
     if (p.city !== undefined) add("city", p.city);
-    if (p.phone_number !== undefined) add("phone_number", p.phone_number);
     if (p.cell_phone !== undefined) add("cell_phone", p.cell_phone);
     if (p.telegram_id !== undefined) add("telegram_id", p.telegram_id);
     if (p.ethnicity !== undefined) add("ethnicity", p.ethnicity);
@@ -311,7 +352,6 @@ adminRouter.delete("/accounts/creators/:id", async (req, res) => {
 type CreatorRow = {
   id: string;
   username: string;
-  phone_number: string;
   cell_phone: string;
   temp_password: string;
 };
@@ -321,7 +361,7 @@ type CreatorRow = {
 async function sendOnboardingToCreator(
   c: CreatorRow
 ): Promise<{ ok: true } | { ok: false; skip: boolean; reason: string }> {
-  const phone = String(c.phone_number || c.cell_phone || "").trim();
+  const phone = String(c.cell_phone || "").trim();
   const temp = String(c.temp_password || "").trim();
   if (!phone) return { ok: false, skip: true, reason: "no_phone" };
   if (!temp) return { ok: false, skip: true, reason: "no_temp_password" };
@@ -339,7 +379,6 @@ async function sendOnboardingToCreator(
 const CREATOR_SELECT = `
   SELECT uuid::text AS id,
          COALESCE(username, '') AS username,
-         COALESCE(phone_number, '') AS phone_number,
          COALESCE(cell_phone, '') AS cell_phone,
          COALESCE(temp_password, '') AS temp_password
     FROM providers`;
@@ -369,7 +408,7 @@ adminRouter.post("/creators/send-onboarding-bulk", async (_req, res) => {
     const { rows } = await pool.query(
       `${CREATOR_SELECT}
         WHERE COALESCE(verified, false) = false
-          AND BTRIM(COALESCE(phone_number, '') || COALESCE(cell_phone, '')) <> ''`
+          AND BTRIM(COALESCE(cell_phone, '')) <> ''`
     );
     let sent = 0;
     let failed = 0;

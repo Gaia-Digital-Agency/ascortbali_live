@@ -138,18 +138,16 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
       const { rows } = await pool.query(
         `
         SELECT uuid::text AS id, username,
-               COALESCE(phone_number, '') AS phone_number,
                COALESCE(cell_phone, '') AS cell_phone
           FROM providers
-         WHERE right(regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g'), 8) = $1
-            OR right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1
+         WHERE right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1
          LIMIT 1
         `,
         [sig]
       );
       const creator = rows[0];
       if (!creator) return res.status(401).json({ error: "unknown_user" });
-      const phone = String(creator.phone_number || creator.cell_phone || "").trim();
+      const phone = String(creator.cell_phone || "").trim();
       const payload = { sub: creator.id, role: "creator", username: String(creator.username) };
       const { token, code } = await createLoginSession(payload, phone);
       const sent = await sendOtpWaThenSms(phone, code);
@@ -161,19 +159,17 @@ authRouter.post("/login", authRateLimit, async (req, res) => {
     const { rows } = await pool.query(
       `
       SELECT id::text AS id, role, username,
-             COALESCE(phone, '') AS phone,
              COALESCE(whatsapp, '') AS whatsapp
         FROM app_accounts
        WHERE role = 'user'
-         AND (right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1
-              OR right(regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g'), 8) = $1)
+         AND right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1
        LIMIT 1
       `,
       [sig]
     );
     const account = rows[0];
     if (!account) return res.status(401).json({ error: "unknown_user" });
-    const phone = String(account.whatsapp || account.phone || "").trim();
+    const phone = String(account.whatsapp || "").trim();
     const payload = { sub: account.id, role: "user", username: String(account.username) };
     const { token, code } = await createLoginSession(payload, phone);
     const sent = await sendOtpWaThenSms(phone, code);
@@ -367,7 +363,6 @@ authRouter.post("/forgot-password/verify", authRateLimit, async (req, res) => {
                username,
                COALESCE(model_name, '') AS model_name,
                COALESCE(to_jsonb(p)->>'email', '') AS email,
-               COALESCE(phone_number, '') AS phone_number,
                COALESCE(cell_phone, '') AS cell_phone,
                COALESCE(telegram_id, '') AS telegram_id,
                COALESCE(wechat_id, '') AS wechat_id,
@@ -382,7 +377,7 @@ authRouter.post("/forgot-password/verify", authRateLimit, async (req, res) => {
         const score = await countMatches(input, {
           names: [normalizeText(row.model_name), normalizeText(row.username)],
           emails: [normalizeText(row.email)],
-          phones: [normalizePhone(row.phone_number), normalizePhone(row.cell_phone)],
+          phones: [normalizePhone(row.cell_phone)],
           oldPasswords: [String(row.password), String(row.temp_password)],
         });
         if (score >= 2) {
@@ -406,7 +401,6 @@ authRouter.post("/forgot-password/verify", authRateLimit, async (req, res) => {
              a.role,
              a.username,
              COALESCE(to_jsonb(a)->>'email', '') AS email,
-             COALESCE(a.phone, '') AS phone,
              COALESCE(a.whatsapp, '') AS whatsapp,
              COALESCE(a.password, '') AS password,
              COALESCE(u.full_name, '') AS full_name
@@ -424,7 +418,7 @@ authRouter.post("/forgot-password/verify", authRateLimit, async (req, res) => {
       const score = await countMatches(input, {
         names: [normalizeText(row.full_name), normalizeText(row.username)],
         emails: [normalizeText(row.email)],
-        phones: [normalizePhone(row.phone), normalizePhone(row.whatsapp)],
+        phones: [normalizePhone(row.whatsapp)],
         oldPasswords: [String(row.password), fallback],
       });
       if (score >= 2) {
@@ -509,7 +503,6 @@ const UserRegisterSchema = z.object({
   nationality: z.string().min(1).max(80),
   city: z.string().min(1).max(80),
   relationshipStatus: z.enum(["single", "married", "other"]),
-  phoneNumber: z.string().trim().optional().default(""),
   // WhatsApp number is required — it's the login identifier (passwordless).
   // Must be E.164 with leading + (e.g. +628123456789).
   whatsapp: z.string().trim().regex(/^\+\d{7,20}$/, "WhatsApp must be in +country-code format, e.g. +628123456789"),
@@ -534,7 +527,6 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
     nationality,
     city,
     relationshipStatus,
-    phoneNumber,
     whatsapp,
     password,
   } = parsed.data;
@@ -546,18 +538,40 @@ authRouter.post("/register", authRateLimit, async (req, res) => {
       return res.status(409).json({ error: "username_taken" });
     }
 
+    // Full name must be unique across users (case-insensitive) — backed by the
+    // user_profiles_full_name_ci_key unique index. Check here for a friendly 409.
+    const nameTaken = await pool.query(
+      `SELECT account_id FROM user_profiles WHERE lower(btrim(full_name)) = lower(btrim($1)) LIMIT 1`,
+      [fullName]
+    );
+    if (nameTaken.rows.length > 0) {
+      return res.status(409).json({ error: "full_name_taken" });
+    }
+
+    // WhatsApp number must be unique across users (login matches on the last 8
+    // digits) — backed by the app_accounts_user_whatsapp_key unique index.
+    const userWaSig = whatsapp.replace(/\D/g, "").slice(-8);
+    if (userWaSig.length >= 8) {
+      const waTaken = await pool.query(
+        `SELECT id FROM app_accounts WHERE role = 'user' AND right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1 LIMIT 1`,
+        [userWaSig]
+      );
+      if (waTaken.rows.length > 0) {
+        return res.status(409).json({ error: "whatsapp_taken" });
+      }
+    }
+
     // Pre-generate account UUID so we don't need RETURNING (Prisma pool uses $executeRawUnsafe for INSERTs).
     const accountId = randomUUID();
 
     // Store the auto-generated password as a bcrypt hash (login) plus plaintext
-    // in temp_password (admin visibility). PHONE (SMS) defaults to the WhatsApp
-    // number when left blank.
+    // in temp_password (admin visibility). The WhatsApp number is the sole phone
+    // on file — it's the login identifier and the OTP (WhatsApp + SMS) target.
     const hashedPw = await hashPassword(password);
-    const phoneFinal = (phoneNumber && phoneNumber.trim()) || whatsapp;
     await pool.query(
-      `INSERT INTO app_accounts (id, role, username, password, phone, whatsapp, temp_password)
-       VALUES ($1::uuid, 'user', $2, $3, $4, $5, $6)`,
-      [accountId, username, hashedPw, phoneFinal || null, whatsapp || null, password]
+      `INSERT INTO app_accounts (id, role, username, password, whatsapp, temp_password)
+       VALUES ($1::uuid, 'user', $2, $3, $4, $5)`,
+      [accountId, username, hashedPw, whatsapp || null, password]
     );
 
     // Insert user_profiles row.
@@ -619,7 +633,6 @@ const CreatorRegisterSchema = z.object({
   age: z.number().int().min(18).max(70),
   nationality: z.string().max(50).optional().default("Indonesian"),
   city: z.string().min(1).max(50),
-  phoneNumber: z.string().max(50).optional().default(""),
   // WhatsApp must be E.164 with leading + (e.g. +628123456789).
   whatsapp: z.string().trim().regex(/^\+\d{7,20}$/, "WhatsApp must be in +country-code format, e.g. +628123456789").max(50),
   telegramId: z.string().max(100).optional().default(""),
@@ -665,12 +678,10 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
   }
 
   const pool = getPool();
-  const { username, email, password, modelName, gender, age, nationality, city, phoneNumber, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
-  // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
-  // the other. Frontend already enforces both as required at register, but
-  // belt-and-braces.
-  const phoneFinal = phoneNumber || whatsapp;
-  const whatsappFinal = whatsapp || phoneNumber;
+  const { username, email, password, modelName, gender, age, nationality, city, whatsapp, telegramId, wechatId, form, orientation, services, hairLength, bustType, pubicHair, eyes, hairColor, ethnicity, languages, height, weight, meetingWith, availableFor, smoker, tattoo, piercing, notes, imageFiles } = parsed.data;
+  // WhatsApp is the sole phone on file — login identifier and OTP (WhatsApp +
+  // SMS) target. The legacy phone_number (SMS) column is no longer collected.
+  const whatsappFinal = whatsapp;
 
   try {
     // Username is auto-generated from the display name (the form no longer
@@ -689,6 +700,16 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       finalUsername = await uniqueProviderUsername(pool, modelName);
     }
 
+    // Display name must be unique across creators (case-insensitive) — backed by
+    // the providers_model_name_ci_key unique index. Check here for a friendly 409.
+    const nameExists = await pool.query(
+      `SELECT uuid FROM providers WHERE lower(btrim(model_name)) = lower(btrim($1)) LIMIT 1`,
+      [modelName]
+    );
+    if (nameExists.rows.length > 0) {
+      return res.status(409).json({ error: "model_name_taken" });
+    }
+
     // WhatsApp number must be unique across creators (login matches on the last
     // 8 digits, so a duplicate would make login ambiguous).
     const waSig = whatsappFinal.replace(/\D/g, "").slice(-8);
@@ -696,7 +717,6 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
       const waExists = await pool.query(
         `SELECT uuid FROM providers
           WHERE right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1
-             OR right(regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g'), 8) = $1
           LIMIT 1`,
         [waSig]
       );
@@ -739,7 +759,7 @@ authRouter.post("/register/creator", authRateLimit, async (req, res) => {
         age,
         nationality,
         city,
-        phoneFinal,
+        null, // phone_number (SMS) — deprecated; WhatsApp is the sole number
         whatsappFinal,
         telegramId || null,
         wechatId || null,

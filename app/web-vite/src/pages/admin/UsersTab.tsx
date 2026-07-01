@@ -15,7 +15,7 @@ export function UsersTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-brand-line text-left text-xs tracking-[0.18em] text-brand-muted">
-              <th className="pb-3 pr-4 font-normal">USERNAME</th>
+              <th className="pb-3 pr-4 font-normal">FULL NAME</th>
               <th className="pb-3 pr-4 font-normal">VERIFIED</th>
               <th className="pb-3 pr-4 font-normal">REGISTERED</th>
               <th className="pb-3 font-normal">ACTIONS</th>
@@ -26,7 +26,7 @@ export function UsersTab({
               <tr><td colSpan={4} className="py-4 text-xs text-brand-muted">No users yet.</td></tr>
             ) : users.map((u) => (
               <tr key={u.id} className="border-b border-brand-line/40 last:border-0">
-                <td className="py-3 pr-4 font-mono text-xs">{u.username}</td>
+                <td className="py-3 pr-4 text-xs">{u.full_name || "—"}</td>
                 <td className="py-3 pr-4">
                   <button
                     type="button"

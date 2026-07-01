@@ -136,8 +136,7 @@ export default function CreatorPreviewPage() {
           ["Height", raw.height],
           ["Weight", raw.weight],
           ["About Me", String(raw.notes ?? "").trim() ],
-          // Last four: contact channels — always shown, em-dash if missing.
-          ["Phone/SMS", raw.phone_number],
+          // Last three: contact channels — always shown, em-dash if missing.
           ["Whatsapp", raw.cell_phone],
           ["Telegram", raw.telegram_id],
           ["WeChat ID", raw.wechat_id],
@@ -262,14 +261,14 @@ export default function CreatorPreviewPage() {
     );
   }
 
-  // Guest gating: only the contact channels (last 4 rows of DETAILS) are now
+  // Guest gating: only the contact channels (last 3 rows of DETAILS) are now
   // gated. Photos and the rest of the profile information are always public.
   const contactBlurInnerClass = canViewFull ? "" : "blur-md pointer-events-none select-none";
-  // Last 4 rows of `fields` are the contact channels (Phone/SMS, Whatsapp,
-  // Telegram, WeChat ID — see the array constructor above). Everything before
-  // them is profile information.
-  const profileFields = data.fields.slice(0, -4);
-  const contactFields = data.fields.slice(-4);
+  // Last 3 rows of `fields` are the contact channels (Whatsapp, Telegram,
+  // WeChat ID — see the array constructor above). Everything before them is
+  // profile information.
+  const profileFields = data.fields.slice(0, -3);
+  const contactFields = data.fields.slice(-3);
 
   // Build absolute og:image URL from the (relative) primaryImageUrl. If the
   // creator has no images, fall back to the site default in PageMeta.
@@ -339,7 +338,7 @@ export default function CreatorPreviewPage() {
 
             {/* DETAILS — split into two zones:
                   • Profile information (always visible to everyone).
-                  • Contact channels (Phone/SMS, Whatsapp, Telegram, WeChat ID)
+                  • Contact channels (Whatsapp, Telegram, WeChat ID)
                     blurred for guests, with a MEMBERS ONLY overlay sitting
                     only on top of the contact rows — not the whole card.
                 A subtle border-top + larger margin gives a clear visual

@@ -71,7 +71,6 @@ const UserProfileSchema = z.object({
   nationality: z.string().min(2).max(80),
   city: z.string().min(2).max(80),
   relationshipStatus: z.enum(["single", "married", "other"]),
-  phoneNumber: z.string().max(50).optional().default(""),
   whatsapp: z.string().max(50).optional().default(""),
 });
 
@@ -87,7 +86,6 @@ meRouter.get("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
              up.nationality,
              up.city,
              up.relationship_status,
-             COALESCE(a.phone, '') AS phone,
              COALESCE(a.whatsapp, '') AS whatsapp,
              a.username AS email
         FROM user_profiles up
@@ -107,7 +105,6 @@ meRouter.get("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       nationality: rows[0].nationality,
       city: rows[0].city,
       relationshipStatus: rows[0].relationship_status,
-      phoneNumber: rows[0].phone,
       whatsapp: rows[0].whatsapp,
     });
   } catch (err) {
@@ -135,14 +132,39 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       }
     }
 
-    // Update email, phone, whatsapp on the account row. If the phone or
-    // whatsapp number changes, reset verified so 2FA re-verifies the new number.
+    // Full name must be unique across users (case-insensitive), excluding self.
+    // Backed by the user_profiles_full_name_ci_key unique index.
+    const nameDup = await pool.query(
+      `SELECT 1 FROM user_profiles WHERE lower(btrim(full_name)) = lower(btrim($1)) AND account_id <> $2::uuid LIMIT 1`,
+      [p.fullName, req.user!.id]
+    );
+    if (nameDup.rows.length > 0) {
+      return res.status(409).json({ error: "full_name_taken", message: "This full name is already in use." });
+    }
+
+    // WhatsApp number must be unique across users (login matches last 8 digits),
+    // excluding self. Backed by the app_accounts_user_whatsapp_key unique index.
+    if (p.whatsapp && p.whatsapp.trim()) {
+      const waSig = p.whatsapp.replace(/\D/g, "").slice(-8);
+      if (waSig.length >= 8) {
+        const waDup = await pool.query(
+          `SELECT 1 FROM app_accounts WHERE role = 'user' AND id <> $2::uuid AND right(regexp_replace(COALESCE(whatsapp, ''), '[^0-9]', '', 'g'), 8) = $1 LIMIT 1`,
+          [waSig, req.user!.id]
+        );
+        if (waDup.rows.length > 0) {
+          return res.status(409).json({ error: "whatsapp_taken", message: "This WhatsApp number is already in use." });
+        }
+      }
+    }
+
+    // Update email + whatsapp on the account row. If the WhatsApp number
+    // changes, reset verified so 2FA re-verifies the new number.
     await pool.query(
-      `UPDATE app_accounts SET username = COALESCE($2, username), phone = $3, whatsapp = $4,
-              verified = CASE WHEN phone IS DISTINCT FROM $3 OR whatsapp IS DISTINCT FROM $4 THEN false ELSE verified END,
+      `UPDATE app_accounts SET username = COALESCE($2, username), whatsapp = $3,
+              verified = CASE WHEN whatsapp IS DISTINCT FROM $3 THEN false ELSE verified END,
               updated_at = NOW()
         WHERE id = $1::uuid`,
-      [req.user!.id, p.email || null, p.phoneNumber || null, p.whatsapp || null]
+      [req.user!.id, p.email || null, p.whatsapp || null]
     );
 
     const upsertRes = await pool.query(
@@ -191,7 +213,6 @@ meRouter.put("/user-profile", requireAuth, requireRole(["user"]), async (req: Au
       nationality: row.nationality,
       city: row.city,
       relationshipStatus: row.relationship_status,
-      phoneNumber: p.phoneNumber,
       whatsapp: p.whatsapp,
     });
   } catch (err) {
@@ -227,7 +248,6 @@ const CreatorProfileSchema = z.object({
   ethnicity: z.string().max(50).optional().default(""),
   nationality: z.string().max(50).optional().default("Indonesian"),
   languages: z.string().max(400).optional().default(""),
-  phoneNumber: z.string().max(50).optional().default(""),
   cellPhone: z.string().max(50).optional().default(""),
   wechatId: z.string().max(100).optional().default(""),
   city: z.string().min(2).max(500),
@@ -323,11 +343,11 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const p = parsed.data;
-  // Phone/WhatsApp empty-fill rule (item 87): if either is blank, copy from
-  // the other. The schema requires min(1) on both, so this almost never
-  // triggers — present as a defensive backstop.
-  const phoneFinal = p.phoneNumber || p.cellPhone;
-  const cellPhoneFinal = p.cellPhone || p.phoneNumber;
+  // WhatsApp (cell_phone) is the sole number on file — login identifier and OTP
+  // (WhatsApp + SMS) target. The legacy phone_number (SMS) column is deprecated;
+  // we write null to it until it is dropped.
+  const phoneFinal = null;
+  const cellPhoneFinal = p.cellPhone;
   if (!CREATOR_NAME_REGEX.test(p.modelName)) {
     return res
       .status(400)
@@ -348,6 +368,32 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
     );
     if (duplicateUsernameRes.rows[0]) {
       return res.status(409).json({ error: "username_taken", message: "Username is already in use." });
+    }
+
+    // Display name must be unique across creators (case-insensitive), excluding
+    // self. Backed by the providers_model_name_ci_key unique index.
+    const duplicateNameRes = await pool.query(
+      `SELECT 1 FROM providers WHERE lower(btrim(model_name)) = lower(btrim($1)) AND uuid <> $2::uuid LIMIT 1`,
+      [p.modelName, req.user!.id]
+    );
+    if (duplicateNameRes.rows[0]) {
+      return res.status(409).json({ error: "model_name_taken", message: "This creator name is already in use." });
+    }
+
+    // WhatsApp number (cell_phone) must be unique across creators (login matches
+    // last 8 digits), excluding self. NOTE: no DB index yet — legacy import
+    // duplicates still exist — so this app check is the only guard on edits.
+    if (cellPhoneFinal && cellPhoneFinal.trim()) {
+      const waSig = cellPhoneFinal.replace(/\D/g, "").slice(-8);
+      if (waSig.length >= 8) {
+        const waDup = await pool.query(
+          `SELECT 1 FROM providers WHERE right(regexp_replace(COALESCE(cell_phone, ''), '[^0-9]', '', 'g'), 8) = $1 AND uuid <> $2::uuid LIMIT 1`,
+          [waSig, req.user!.id]
+        );
+        if (waDup.rows[0]) {
+          return res.status(409).json({ error: "whatsapp_taken", message: "This WhatsApp number is already in use." });
+        }
+      }
     }
 
     // Slug regeneration on rename. We compare the incoming modelName to the
@@ -409,7 +455,7 @@ meRouter.put("/creator-profile", requireAuth, requireRole(["creator"]), async (r
                bust_type = $34,
                pubic_hair = $35,
                email = $36,
-               verified = CASE WHEN phone_number IS DISTINCT FROM $20 OR cell_phone IS DISTINCT FROM $21 THEN false ELSE verified END,
+               verified = CASE WHEN cell_phone IS DISTINCT FROM $21 THEN false ELSE verified END,
                updated_at = NOW()
        WHERE uuid = $1::uuid
        RETURNING uuid::text AS uuid,
